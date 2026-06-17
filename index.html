@@ -6,7 +6,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Portadas Personalizadas · GOR Factory</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -444,19 +444,148 @@
 <script>
 const SUPA_URL = 'https://paqtohmxagfebeyyurlq.supabase.co';
 const SUPA_KEY = 'sb_publishable_dd7aM2WiMZMDpW6wESxhLA_cqtUAtXp';
-const { createClient } = supabase;
-const db = createClient(SUPA_URL, SUPA_KEY, {
-  global: {
-    headers: {
-      'apikey': SUPA_KEY,
+// ── PURE FETCH DATABASE LAYER (no SDK) ────────────────────
+const SESSION_KEY = 'portadas_session';
+
+function saveSession(session) {
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch(e) {}
+}
+function loadSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch(e) { return null; }
+}
+function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+}
+
+function getAuthHeaders(token) {
+  return {
+    'apikey': SUPA_KEY,
+    'Authorization': `Bearer ${token || SUPA_KEY}`,
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+}
+
+// Auth wrapper
+const db = {
+  auth: {
+    async signInWithPassword({ email, password }) {
+      const res = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: { 'apikey': SUPA_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) return { error: { message: data.error_description || data.msg || 'Error al iniciar sesión' } };
+      const session = { access_token: data.access_token, refresh_token: data.refresh_token, user: data.user };
+      saveSession(session);
+      _currentSession = session;
+      _authListeners.forEach(fn => fn('SIGNED_IN', session));
+      return { data: { session }, error: null };
+    },
+    async getSession() {
+      if (_currentSession) return { data: { session: _currentSession } };
+      const stored = loadSession();
+      if (stored?.access_token) {
+        // Verify token is still valid
+        try {
+          const res = await fetch(`${SUPA_URL}/auth/v1/user`, {
+            headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${stored.access_token}` }
+          });
+          if (res.ok) {
+            _currentSession = stored;
+            return { data: { session: stored } };
+          }
+        } catch(e) {}
+        clearSession();
+      }
+      return { data: { session: null } };
+    },
+    async signOut() {
+      clearSession();
+      _currentSession = null;
+      _authListeners.forEach(fn => fn('SIGNED_OUT', null));
+      return { error: null };
+    },
+    onAuthStateChange(fn) {
+      _authListeners.push(fn);
+      return { data: { subscription: { unsubscribe: () => {} } } };
+    },
+    async resetPasswordForEmail(email) {
+      await fetch(`${SUPA_URL}/auth/v1/recover`, {
+        method: 'POST',
+        headers: { 'apikey': SUPA_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
     }
   },
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
+  from(table) {
+    return new QueryBuilder(table);
   }
-});
+};
+
+let _currentSession = null;
+let _authListeners = [];
+
+class QueryBuilder {
+  constructor(table) {
+    this._table = table;
+    this._filters = [];
+    this._select = '*';
+    this._order = null;
+    this._limit = null;
+    this._single = false;
+    this._maybe = false;
+    this._method = 'GET';
+    this._body = null;
+    this._prefer = null;
+    this._upsert = false;
+  }
+  select(cols) { this._select = cols; return this; }
+  eq(col, val) { this._filters.push(`${col}=eq.${encodeURIComponent(val)}`); return this; }
+  in(col, vals) { this._filters.push(`${col}=in.(${vals.map(v => encodeURIComponent(v)).join(',')})`); return this; }
+  order(col, { ascending = true } = {}) { this._order = `${col}.${ascending ? 'asc' : 'desc'}`; return this; }
+  limit(n) { this._limit = n; return this; }
+  single() { this._single = true; return this; }
+  maybeSingle() { this._maybe = true; return this; }
+  insert(data) { this._method = 'POST'; this._body = Array.isArray(data) ? data : [data]; this._prefer = 'return=representation'; return this; }
+  update(data) { this._method = 'PATCH'; this._body = data; this._prefer = 'return=representation'; return this; }
+  upsert(data) { this._method = 'POST'; this._body = Array.isArray(data) ? data : [data]; this._prefer = 'resolution=merge-duplicates,return=representation'; return this; }
+  delete() { this._method = 'DELETE'; return this; }
+
+  async _exec() {
+    const session = loadSession();
+    const token = session?.access_token || SUPA_KEY;
+    let url = `${SUPA_URL}/rest/v1/${this._table}`;
+    const params = [];
+    if (this._select && this._method === 'GET') params.push(`select=${encodeURIComponent(this._select)}`);
+    this._filters.forEach(f => params.push(f));
+    if (this._order) params.push(`order=${this._order}`);
+    if (this._limit) params.push(`limit=${this._limit}`);
+    if (params.length) url += '?' + params.join('&');
+
+    const headers = getAuthHeaders(token);
+    if (this._prefer) headers['Prefer'] = this._prefer;
+
+    const opts = { method: this._method, headers };
+    if (this._body) opts.body = JSON.stringify(this._body);
+
+    const res = await fetch(url, opts);
+    if (!res.ok) {
+      const err = await res.text();
+      return { data: null, error: { message: err, status: res.status } };
+    }
+    if (this._method === 'DELETE' || res.status === 204) return { data: null, error: null };
+    const rows = await res.json();
+    if (this._single || this._maybe) {
+      const row = Array.isArray(rows) ? rows[0] || null : rows;
+      return { data: row, error: null };
+    }
+    return { data: Array.isArray(rows) ? rows : [rows], error: null };
+  }
+
+  then(resolve, reject) { return this._exec().then(resolve, reject); }
+}
 
 let currentUser = null;
 let currentPerfil = null;
@@ -584,19 +713,9 @@ bootstrap();
 
 async function loadPerfil() {
   try {
-    // Use fetch directly — SDK auth layer has issues with ECC keys
-    const { data: { session } } = await db.auth.getSession();
-    const token = session?.access_token || SUPA_KEY;
-    const res = await fetch(`${SUPA_URL}/rest/v1/perfiles?id=eq.${currentUser.id}&select=*`, {
-      headers: {
-        'apikey': SUPA_KEY,
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-      }
-    });
-    const rows = await res.json();
-    currentPerfil = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
-    console.log('loadPerfil:', currentPerfil);
+    const { data } = await db.from('perfiles').select('*').eq('id', currentUser.id).maybeSingle();
+    currentPerfil = data;
+    console.log('loadPerfil:', currentPerfil?.nombre, currentPerfil?.rol);
   } catch(e) {
     console.warn('loadPerfil error:', e);
     currentPerfil = null;
@@ -605,18 +724,11 @@ async function loadPerfil() {
 
 async function loadCampana() {
   try {
-    const res = await fetch(`${SUPA_URL}/rest/v1/campanas?activa=eq.true&select=*&order=created_at.desc&limit=1`, {
-      headers: {
-        'apikey': SUPA_KEY,
-        'Authorization': `Bearer ${SUPA_KEY}`,
-        'Accept': 'application/json',
-      }
-    });
-    const rows = await res.json();
-    activeCampana = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+    const { data } = await db.from('campanas').select('*').eq('activa', 'true').order('created_at', { ascending: false }).limit(1).maybeSingle();
+    activeCampana = data;
     const el = document.getElementById('campana-nombre');
-    if (el) el.textContent = activeCampana?.nombre || '—';
-    console.log('loadCampana:', activeCampana);
+    if (el) el.textContent = data?.nombre || '—';
+    console.log('loadCampana:', activeCampana?.nombre);
   } catch(e) {
     console.warn('loadCampana error:', e);
     activeCampana = null;
