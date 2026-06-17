@@ -530,8 +530,14 @@ async function bootstrap() {
       currentUser = data.session.user;
       await loadPerfil();
       await loadCampana();
-      hideLoading();
-      initApp();
+      try {
+        initApp();
+        hideLoading();
+      } catch(initErr) {
+        console.error('initApp error:', initErr);
+        hideLoading();
+        showAuthScreen();
+      }
     } else {
       showAuthScreen();
     }
@@ -547,8 +553,14 @@ db.auth.onAuthStateChange(async (event, session) => {
     currentUser = session.user;
     await loadPerfil();
     await loadCampana();
-    hideLoading();
-    initApp();
+    try {
+      initApp();
+      hideLoading();
+    } catch(e) {
+      console.error('initApp error:', e);
+      hideLoading();
+      showAuthScreen();
+    }
   }
   if (event === 'SIGNED_OUT') {
     currentUser = null;
@@ -560,14 +572,25 @@ db.auth.onAuthStateChange(async (event, session) => {
 bootstrap();
 
 async function loadPerfil() {
-  const { data } = await db.from('perfiles').select('*').eq('id', currentUser.id).single();
-  currentPerfil = data;
+  try {
+    const { data } = await db.from('perfiles').select('*').eq('id', currentUser.id).maybeSingle();
+    currentPerfil = data;
+  } catch(e) {
+    console.warn('loadPerfil:', e);
+    currentPerfil = null;
+  }
 }
 
 async function loadCampana() {
-  const { data } = await db.from('campanas').select('*').eq('activa', true).order('created_at', { ascending: false }).limit(1).single();
-  activeCampana = data;
-  document.getElementById('campana-nombre').textContent = data?.nombre || '—';
+  try {
+    const { data } = await db.from('campanas').select('*').eq('activa', true).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    activeCampana = data;
+    const el = document.getElementById('campana-nombre');
+    if (el) el.textContent = data?.nombre || '—';
+  } catch(e) {
+    console.warn('loadCampana:', e);
+    activeCampana = null;
+  }
 }
 
 function initApp() {
