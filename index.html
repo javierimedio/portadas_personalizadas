@@ -932,19 +932,44 @@ function buildCatSections() {
       </div>
       <div class="cat-body" id="cat-body-${cat.key}">
 
+        <!-- Catálogo digital -->
         <div class="toggle-row">
           <span class="toggle-label">Catálogo digital</span>
           <div class="radio-group">
             <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_digital" data-val="true" onclick="selectOpt(this)">SI</span>
             <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_digital" data-val="false" onclick="selectOpt(this)">NO</span>
           </div>
-          <span class="toggle-label" style="margin-left:1rem">Catálogo impreso</span>
+        </div>
+
+        <!-- Catálogo impreso → muestra posición logo y unidades -->
+        <div class="toggle-row">
+          <span class="toggle-label">Catálogo impreso</span>
           <div class="radio-group">
-            <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_impreso" data-val="true" onclick="selectOpt(this)">SI</span>
-            <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_impreso" data-val="false" onclick="selectOpt(this)">NO</span>
+            <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_impreso" data-val="true" onclick="selectOpt(this);toggleImpresoFields('${cat.key}',true)">SI</span>
+            <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_impreso" data-val="false" onclick="selectOpt(this);toggleImpresoFields('${cat.key}',false)">NO</span>
           </div>
         </div>
 
+        <!-- Campos que se muestran al marcar SI en catálogo impreso -->
+        <div class="cat-fields" id="impreso-fields-${cat.key}">
+          <div class="form-grid" style="margin-bottom:.75rem">
+            <div class="form-group">
+              <label>Posición logo <span class="req">*</span></label>
+              <select id="${cat.key}-pos">
+                <option value="">— selecciona —</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Unidades <span class="req">*</span></label>
+              <input type="number" id="${cat.key}-und" placeholder="ej: 100" min="1">
+            </div>
+          </div>
+        </div>
+
+        <!-- Portada personalizada → muestra opciones de portada -->
         <div class="toggle-row">
           <span class="toggle-label">Portada personalizada</span>
           <div class="radio-group">
@@ -953,6 +978,7 @@ function buildCatSections() {
           </div>
         </div>
 
+        <!-- Campos portada personalizada -->
         <div class="cat-fields" id="portada-fields-${cat.key}">
 
           ${cat.key === 'stamina' ? `
@@ -982,22 +1008,7 @@ function buildCatSections() {
             </div>
           </div>
 
-          <div class="form-grid" style="margin-bottom:.75rem">
-            <div class="form-group">
-              <label>Posición logo <span class="req">*</span></label>
-              <select id="${cat.key}-pos">
-                <option value="">— selecciona —</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="C">C</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Unidades <span class="req">*</span></label>
-              <input type="number" id="${cat.key}-und" placeholder="ej: 100" min="1">
-            </div>
-          </div>
-
+          <!-- Adjuntar archivos -->
           <div class="form-group" style="margin-bottom:.5rem">
             <label>Adjuntar archivos (logo, diseño propio...)</label>
             <div class="drop-zone" id="drop-${cat.key}"
@@ -1036,6 +1047,10 @@ function selectOpt(el) {
   el.classList.add(val === 'true' ? 'selected-si' : 'selected-no');
 }
 
+function toggleImpresoFields(key, show) {
+  document.getElementById('impreso-fields-' + key).classList.toggle('visible', show);
+}
+
 function togglePortadaFields(key, show) {
   document.getElementById('portada-fields-' + key).classList.toggle('visible', show);
   if (!show) document.getElementById('opciones-fields-' + key).classList.remove('visible');
@@ -1065,6 +1080,10 @@ function openFormModal(solId = null) {
   document.querySelectorAll('.cat-body').forEach(el => el.classList.remove('open'));
   document.querySelectorAll('.cat-toggle-roly,.cat-toggle-roly_wrk,.cat-toggle-stamina').forEach(el => el.textContent = '▼ Expandir');
   document.querySelectorAll('.cat-fields').forEach(el => el.classList.remove('visible'));
+  CATS.forEach(cat => {
+    const opc = document.getElementById('opciones-fields-' + cat.key);
+    if (opc) opc.classList.add('visible');
+  });
   CATS.forEach(cat => ['p1','p2','p3','pos','und'].forEach(f => { const el = document.getElementById(cat.key+'-'+f); if(el) el.value = ''; }));
 
   if (solId) {
