@@ -6,6 +6,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Portadas Personalizadas · GOR Factory</title>
+<link rel="icon" type="image/jpeg" href="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAQFAwb/xAAjEAACAQMEAwADAAAAAAAAAAABAgMABBESEyExBRRBIlFx/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AOzopS7u5I5ore2jEk8gLfk2FVRjJJ/pHFJt5W5gmmjurZVEMasSjk7hYkKF4+kY5oK9FTfdvIZI1u7eFBMdEbJIWCvjIDcfcditPF3lxfQmWWBIkyVGH1FiCQT11xQZ+VV45YLmHcWRMqXSPcAU44ZRyRkDrqlbWzkv5byS6eUxyxoivo2zlSTlVPIAJGM9nNXKKCd6F1K8bXV2kmydUYWLSNWMBm55xnoYrbxtpJZWuzJMJcMSGCaezn9n6TTdFB//2Q==">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -17,12 +18,12 @@
     --c-white:   #FFFFFF;
     --c-amber:   #BA7517;
     --c-amber-l: #FAEEDA;
-    --c-blue:    #185FA5;
-    --c-blue-l:  #E6F1FB;
-    --c-teal:    #0F6E56;
-    --c-teal-l:  #E1F5EE;
-    --c-purple:  #534AB7;
-    --c-purple-l:#EEEDFE;
+    --c-blue:    #003087;
+    --c-blue-l:  #E5EAF3;
+    --c-teal:    #1C2B4A;
+    --c-teal-l:  #E5E8EF;
+    --c-purple:  #E30613;
+    --c-purple-l:#FDECEA;
     --c-red:     #C0392B;
     --c-red-l:   #FDECEA;
     --c-green:   #3B6D11;
@@ -31,7 +32,7 @@
     --shadow:    0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter', 'Segoe UI', Arial, sans-serif; background: var(--c-light); color: var(--c-dark); font-size: 14px; min-height: 100vh; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: var(--c-light); color: var(--c-dark); font-size: 14px; min-height: 100vh; }
 
   /* ── AUTH ── */
   #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }
@@ -233,7 +234,7 @@
 <div id="app">
   <div class="topbar">
     <div class="topbar-brand">
-      Portadas <span id="campana-nombre">—</span>
+      Portadas 
     </div>
     <div class="topbar-right">
       <span class="role-tag" id="role-tag">—</span>
@@ -1020,15 +1021,17 @@ function buildCatSections() {
             </div>
           </div>
 
-          <!-- Posición logo — dentro de portada personalizada -->
-          <div class="form-group" style="margin-bottom:.75rem">
-            <label>Posición logo <span class="req">*</span></label>
-            <select id="${cat.key}-pos" style="max-width:200px">
-              <option value="">— selecciona —</option>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-            </select>
+          <!-- Posición logo — solo cuando NO es diseño propio (en stamina se oculta con diseño propio) -->
+          <div class="cat-fields visible" id="pos-logo-fields-${cat.key}">
+            <div class="form-group" style="margin-bottom:.75rem">
+              <label>Posición logo <span class="req">*</span></label>
+              <select id="${cat.key}-pos" style="max-width:200px">
+                <option value="">— selecciona —</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+              </select>
+            </div>
           </div>
 
           ${cat.key === 'stamina' ? `
@@ -1087,6 +1090,9 @@ function toggleDisenoPropio(key, isPropio) {
   document.getElementById('opciones-fields-' + key).classList.toggle('visible', !isPropio);
   const uploadEl = document.getElementById('diseno-propio-upload-' + key);
   if (uploadEl) uploadEl.classList.toggle('visible', isPropio);
+  // Stamina: hide posicion logo when diseño propio is selected
+  const posEl = document.getElementById('pos-logo-fields-' + key);
+  if (posEl) posEl.classList.toggle('visible', !isPropio);
 }
 
 function getRadioVal(cat, field) {
