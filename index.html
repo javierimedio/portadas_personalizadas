@@ -1964,47 +1964,205 @@ async function toggleUser(id, activo) {
 
 // ── EXPORT EXCEL ──────────────────────────────────────────
 function exportExcel() {
-  const rows = allSolicitudes.map(sol => {
+  const campNombre = activeCampana?.nombre || 'Portadas';
+  const fecha = new Date().toISOString().slice(0,10);
+
+  // Build data rows
+  const dataRows = allSolicitudes.map(sol => {
     const get = (key) => sol.solicitud_catalogos?.find(c => c.catalogo === key);
     const r = get('roly'), w = get('roly_wrk'), s = get('stamina');
     const missing = missingFields(sol);
-    return {
-      'CÓD. SAP':               sol.cod_sap,
-      'NOMBRE EMPRESA':         sol.nombre_empresa,
-      'COMERCIAL':              sol.perfiles?.nombre || sol.perfiles?.codigo,
-      'PROVINCIA':              sol.provincia,
-      'DIG. ROLY':              r?.catalogo_digital === true ? 'SI' : r?.catalogo_digital === false ? 'NO' : '',
-      'IMP. ROLY':              r?.catalogo_impreso === true ? 'SI' : r?.catalogo_impreso === false ? 'NO' : '',
-      'PORTADA ROLY':           r?.portada_personalizada === true ? 'SI' : r?.portada_personalizada === false ? 'NO' : '',
-      'P1 ROLY':                r?.portada_diseno_propio ? 'DISEÑO PROPIO' : r?.portada_opcion_1 || '',
-      'P2 ROLY':                r?.portada_opcion_2 || '',
-      'P3 ROLY':                r?.portada_opcion_3 || '',
-      'POS. LOGO ROLY':         r?.posicion_logo || '',
-      'UNDS. ROLY':             r?.unidades || '',
-      'DIG. ROLY WRK':          w?.catalogo_digital === true ? 'SI' : w?.catalogo_digital === false ? 'NO' : '',
-      'IMP. ROLY WRK':          w?.catalogo_impreso === true ? 'SI' : w?.catalogo_impreso === false ? 'NO' : '',
-      'PORTADA ROLY WRK':       w?.portada_personalizada === true ? 'SI' : w?.portada_personalizada === false ? 'NO' : '',
-      'P1 ROLY WRK':            w?.portada_diseno_propio ? 'DISEÑO PROPIO' : w?.portada_opcion_1 || '',
-      'P2 ROLY WRK':            w?.portada_opcion_2 || '',
-      'P3 ROLY WRK':            w?.portada_opcion_3 || '',
-      'POS. LOGO ROLY WRK':     w?.posicion_logo || '',
-      'UNDS. ROLY WRK':         w?.unidades || '',
-      'DIG. STAMINA':           s?.catalogo_digital === true ? 'SI' : s?.catalogo_digital === false ? 'NO' : '',
-      'IMP. STAMINA':           s?.catalogo_impreso === true ? 'SI' : s?.catalogo_impreso === false ? 'NO' : '',
-      'PORTADA STAMINA':        s?.portada_personalizada === true ? 'SI' : s?.portada_personalizada === false ? 'NO' : '',
-      'P1 STAMINA':             s?.portada_diseno_propio ? 'DISEÑO PROPIO' : s?.portada_opcion_1 || '',
-      'P2 STAMINA':             s?.portada_opcion_2 || '',
-      'P3 STAMINA':             s?.portada_opcion_3 || '',
-      'POS. LOGO STAMINA':      s?.posicion_logo || '',
-      'UNDS. STAMINA':          s?.unidades || '',
-      'ESTADO':                 ESTADO_LABEL[sol.estado] || sol.estado,
-      'CAMPOS INCOMPLETOS':     missing.join(', '),
+    const bool = (v) => v === true ? 'SI' : v === false ? 'NO' : '';
+    return [
+      sol.cod_sap || '',
+      sol.nombre_empresa || '',
+      sol.perfiles?.nombre || sol.perfiles?.codigo || '',
+      sol.provincia || '',
+      // ROLY
+      bool(r?.catalogo_digital), bool(r?.catalogo_impreso),
+      bool(r?.portada_personalizada),
+      r?.portada_diseno_propio ? 'DISEÑO PROPIO' : (r?.portada_opcion_1 || ''),
+      r?.portada_opcion_2 || '', r?.portada_opcion_3 || '',
+      r?.posicion_logo || '', r?.unidades || '',
+      // ROLY WRK
+      bool(w?.catalogo_digital), bool(w?.catalogo_impreso),
+      bool(w?.portada_personalizada),
+      w?.portada_diseno_propio ? 'DISEÑO PROPIO' : (w?.portada_opcion_1 || ''),
+      w?.portada_opcion_2 || '', w?.portada_opcion_3 || '',
+      w?.posicion_logo || '', w?.unidades || '',
+      // STAMINA
+      bool(s?.catalogo_digital), bool(s?.catalogo_impreso),
+      bool(s?.portada_personalizada),
+      s?.portada_diseno_propio ? 'DISEÑO PROPIO' : (s?.portada_opcion_1 || ''),
+      s?.portada_opcion_2 || '', s?.portada_opcion_3 || '',
+      s?.posicion_logo || '', s?.unidades || '',
+      // Meta
+      sol.comentarios || '',
+      ESTADO_LABEL[sol.estado] || sol.estado,
+      missing.length ? missing.join(', ') : '✓ Completa',
+    ];
+  });
+
+  // Colors
+  const C = {
+    dark:    'FF2C2C2A', mid:    'FF888780', light:  'FFF1EFE8',
+    white:   'FFFFFFFF', amber:  'FFBA7517', amberL: 'FFFAEEDA',
+    blue:    'FF003087', blueL:  'FFE5EAF3',
+    yellow:  'FFFAB518', yellowL:'FFFEF3D0',
+    red:     'FFE30613', redL:   'FFFDECEA',
+    green:   'FF3B6D11', greenL: 'FFEAF3DE',
+  };
+
+  const wb = XLSX.utils.book_new();
+  const ws = {};
+
+  // Column widths
+  ws['!cols'] = [
+    {wch:10},{wch:28},{wch:16},{wch:14},  // Datos generales
+    {wch:6},{wch:6},{wch:9},{wch:6},{wch:6},{wch:6},{wch:6},{wch:8},   // Roly
+    {wch:6},{wch:6},{wch:9},{wch:6},{wch:6},{wch:6},{wch:6},{wch:8},   // Roly WRK
+    {wch:6},{wch:6},{wch:9},{wch:6},{wch:6},{wch:6},{wch:6},{wch:8},   // Stamina
+    {wch:28},{wch:14},{wch:30},                                          // Meta
+  ];
+
+  const totalCols = 31;
+
+  // Helper: set cell
+  function setCell(ws, addr, value, style) {
+    ws[addr] = { v: value, t: typeof value === 'number' ? 'n' : 's', s: style };
+  }
+
+  const hCenter = { alignment: { horizontal: 'center', vertical: 'center', wrapText: true } };
+  const hLeft   = { alignment: { horizontal: 'left',   vertical: 'center', wrapText: true } };
+
+  function headerStyle(fgColor, bgColor) {
+    return { font: { bold: true, color: { rgb: fgColor }, name: 'Arial', sz: 9 },
+             fill: { patternType: 'solid', fgColor: { rgb: bgColor } },
+             alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+             border: { top:{style:'thin',color:{rgb:'FFD3D1C7'}}, bottom:{style:'thin',color:{rgb:'FFD3D1C7'}},
+                       left:{style:'thin',color:{rgb:'FFD3D1C7'}}, right:{style:'thin',color:{rgb:'FFD3D1C7'}} } };
+  }
+
+  function dataStyle(bgColor, align = 'center') {
+    return { font: { name: 'Arial', sz: 9, color: { rgb: C.dark } },
+             fill: { patternType: 'solid', fgColor: { rgb: bgColor } },
+             alignment: { horizontal: align, vertical: 'center', wrapText: true },
+             border: { top:{style:'thin',color:{rgb:'FFD3D1C7'}}, bottom:{style:'thin',color:{rgb:'FFD3D1C7'}},
+                       left:{style:'thin',color:{rgb:'FFD3D1C7'}}, right:{style:'thin',color:{rgb:'FFD3D1C7'}} } };
+  }
+
+  // ROW 1: Main title
+  const lastCol = XLSX.utils.encode_col(totalCols - 1);
+  ws['!merges'] = [];
+  ws['!merges'].push({ s:{r:0,c:0}, e:{r:0,c:totalCols-1} });
+  setCell(ws, 'A1', campNombre, headerStyle(C.white, C.dark));
+
+  // ROW 2: Group headers
+  const groups = [
+    { label: 'DATOS GENERALES', start: 0, end: 3, bg: C.dark, fg: C.white },
+    { label: '🔵 ROLY',         start: 4, end: 11, bg: C.blue, fg: C.white },
+    { label: '🟢 ROLY WRK',    start:12, end: 19, bg: C.yellow, fg: C.dark },
+    { label: '🟣 STAMINA',     start:20, end: 27, bg: C.red, fg: C.white },
+    { label: 'CAMPAÑA / ESTADO', start:28, end: 30, bg: C.mid, fg: C.white },
+  ];
+  groups.forEach(g => {
+    ws['!merges'].push({ s:{r:1,c:g.start}, e:{r:1,c:g.end} });
+    const addr = XLSX.utils.encode_cell({r:1, c:g.start});
+    setCell(ws, addr, g.label, headerStyle(g.fg, g.bg));
+  });
+
+  // ROW 3: Column headers
+  const headers = [
+    'CÓD. SAP','NOMBRE EMPRESA','COMERCIAL','PROVINCIA',
+    'DIG.','IMP.','PORTADA','P1','P2','P3','POS.','UNDS.',
+    'DIG.','IMP.','PORTADA','P1','P2','P3','POS.','UNDS.',
+    'DIG.','IMP.','PORTADA','P1','P2','P3','POS.','UNDS.',
+    'COMENTARIOS','ESTADO','CAMPOS INCOMPLETOS',
+  ];
+  const headerBgs = [
+    C.light,C.light,C.light,C.light,
+    C.blueL,C.blueL,C.blueL,C.blueL,C.blueL,C.blueL,C.blueL,C.blueL,
+    C.yellowL,C.yellowL,C.yellowL,C.yellowL,C.yellowL,C.yellowL,C.yellowL,C.yellowL,
+    C.redL,C.redL,C.redL,C.redL,C.redL,C.redL,C.redL,C.redL,
+    C.light,C.light,C.light,
+  ];
+  const headerFgs = [
+    C.dark,C.dark,C.dark,C.dark,
+    C.blue,C.blue,C.blue,C.blue,C.blue,C.blue,C.blue,C.blue,
+    '00000000',C.dark,'00000000',C.dark,C.dark,C.dark,C.dark,C.dark,  // yellow text dark
+    C.red,C.red,C.red,C.red,C.red,C.red,C.red,C.red,
+    C.mid,C.mid,C.mid,
+  ];
+  headers.forEach((h, i) => {
+    const addr = XLSX.utils.encode_cell({r:2, c:i});
+    setCell(ws, addr, h, headerStyle(headerFgs[i] === '00000000' ? C.dark : headerFgs[i], headerBgs[i]));
+  });
+
+  // DATA ROWS (starting row 4 = index 3)
+  dataRows.forEach((row, ri) => {
+    const isIncomplete = row[row.length-1] !== '✓ Completa';
+    const altBg = ri % 2 === 0 ? C.white : C.light;
+    row.forEach((val, ci) => {
+      const addr = XLSX.utils.encode_cell({r: ri+3, c: ci});
+      let bg = isIncomplete ? C.redL : altBg;
+      let align = ci <= 1 || ci === 28 || ci === 30 ? 'left' : 'center';
+      // Estado column
+      if (ci === 29) {
+        const isOk = val === 'Confirmada';
+        bg = isOk ? C.greenL : (isIncomplete ? C.redL : altBg);
+      }
+      // Unidades as number
+      const numVal = (ci === 11 || ci === 19 || ci === 27) && val ? parseInt(val) || val : val;
+      ws[addr] = {
+        v: numVal, t: typeof numVal === 'number' ? 'n' : 's',
+        s: dataStyle(bg, align)
+      };
+    });
+  });
+
+  // TOTALS ROW
+  const totalRow = dataRows.length + 3;
+  const totLabel = XLSX.utils.encode_cell({r: totalRow, c: 0});
+  setCell(ws, totLabel, 'TOTAL UNIDADES', headerStyle(C.white, C.dark));
+  ws['!merges'].push({ s:{r:totalRow,c:0}, e:{r:totalRow,c:10} });
+
+  [11, 19, 27].forEach(ci => {
+    const addr = XLSX.utils.encode_cell({r: totalRow, c: ci});
+    const colLetter = XLSX.utils.encode_col(ci);
+    ws[addr] = {
+      f: `SUM(${colLetter}4:${colLetter}${totalRow})`,
+      t: 'n',
+      s: headerStyle(C.white, C.dark)
     };
   });
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
+
+  // Set ref range
+  ws['!ref'] = `A1:${XLSX.utils.encode_cell({r: totalRow, c: totalCols-1})}`;
+
+  // Row heights
+  ws['!rows'] = [{ hpt: 24 }, { hpt: 20 }, { hpt: 20 }];
+
+  // Summary sheet
+  const wsSummary = {};
+  const summaryData = [
+    ['Campaña', campNombre],
+    ['Fecha exportación', fecha],
+    ['Total solicitudes', allSolicitudes.length],
+    ['Completas', allSolicitudes.filter(s => missingFields(s).length === 0).length],
+    ['Incompletas', allSolicitudes.filter(s => missingFields(s).length > 0).length],
+    ['Confirmadas', allSolicitudes.filter(s => s.estado === 'confirmada').length],
+  ];
+  summaryData.forEach((row, ri) => {
+    wsSummary[XLSX.utils.encode_cell({r:ri,c:0})] = { v: row[0], t:'s', s: dataStyle(C.light, 'left') };
+    wsSummary[XLSX.utils.encode_cell({r:ri,c:1})] = { v: row[1], t: typeof row[1]==='number'?'n':'s',
+      s: { font:{bold:true,name:'Arial',sz:9}, alignment:{horizontal:'left'} } };
+  });
+  wsSummary['!ref'] = `A1:B${summaryData.length}`;
+  wsSummary['!cols'] = [{wch:22},{wch:20}];
+
   XLSX.utils.book_append_sheet(wb, ws, 'Portadas');
-  XLSX.writeFile(wb, `Portadas_${activeCampana?.nombre?.replace(/\s/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Resumen');
+  XLSX.writeFile(wb, `${campNombre.replace(/\s/g,'_')}_${fecha}.xlsx`);
 }
 
 // ── UTILS ─────────────────────────────────────────────────
