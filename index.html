@@ -524,9 +524,13 @@ function buildNav() {
   const rol = currentPerfil?.rol;
   const nav = document.getElementById('main-nav');
   const items = [];
-  if (['comercial'].includes(rol))                    items.push({ id: 'mis-solicitudes', label: 'Mis solicitudes' });
-  if (['admin', 'marketing'].includes(rol))           items.push({ id: 'panel', label: 'Panel global' });
+  // Todos los roles ven Solicitudes
+  items.push({ id: 'mis-solicitudes', label: 'Solicitudes' });
+  // Admin, marketing y diseñador ven Panel global
+  if (['admin', 'marketing', 'disenador'].includes(rol)) items.push({ id: 'panel', label: 'Panel global' });
+  // Admin, marketing y diseñador ven Diseño
   if (['admin', 'marketing', 'disenador'].includes(rol)) items.push({ id: 'diseno', label: 'Diseño' });
+  // Solo admin ve Usuarios
   if (['admin'].includes(rol))                        items.push({ id: 'usuarios', label: 'Usuarios' });
   nav.innerHTML = items.map((it, i) =>
     `<button class="nav-btn ${i===0?'active':''}" onclick="showPage('${it.id}', this)">${it.label}</button>`
@@ -546,12 +550,12 @@ function showPage(id, btn) {
 // ── DATA ──────────────────────────────────────────────────
 async function loadData() {
   await loadSolicitudes();
-  if (['admin', 'marketing'].includes(currentPerfil?.rol)) {
+  if (['admin', 'marketing', 'disenador'].includes(currentPerfil?.rol)) {
     await loadPerfiles();
     renderMktTable();
     renderStats();
   }
-  if (['comercial'].includes(currentPerfil?.rol)) renderComercialTable();
+  renderComercialTable();
   if (['disenador', 'admin', 'marketing'].includes(currentPerfil?.rol)) renderDisenoTable();
   if (currentPerfil?.rol === 'admin') renderUsuariosTable();
 }
@@ -561,7 +565,6 @@ async function loadSolicitudes() {
     .select(`*, solicitud_catalogos(*), perfiles!solicitudes_comercial_id_fkey(nombre, codigo)`)
     .order('updated_at', { ascending: false });
   if (currentPerfil?.rol === 'comercial') q = q.eq('comercial_id', currentUser.id);
-  if (currentPerfil?.rol === 'disenador') q = q.eq('asignado_id', currentUser.id);
   if (activeCampana) q = q.eq('campana_id', activeCampana.id);
   const { data } = await q;
   allSolicitudes = data || [];
@@ -649,7 +652,7 @@ function renderMktTable() {
 function renderDisenoTable() {
   const rol = currentPerfil?.rol;
   let rows = allSolicitudes;
-  if (rol === 'disenador') rows = rows.filter(s => ['en_diseno','diseno_en_revision','modificar_diseno'].includes(s.estado));
+  if (rol === 'comercial') rows = rows.filter(s => ['en_diseno','diseno_en_revision','modificar_diseno'].includes(s.estado));
   const tbody = document.getElementById('tbl-diseno');
   if (!rows.length) { tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">🎨</div><p>No hay solicitudes asignadas.</p></div></td></tr>`; return; }
   tbody.innerHTML = rows.map(s => `
