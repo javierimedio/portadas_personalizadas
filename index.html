@@ -954,12 +954,14 @@ async function loadData() {
   if (currentPerfil?.rol === 'admin') renderUsuariosTable();
 }
 
-async function loadSolicitudes() {
+async function loadSolicitudes(campanaId = null) {
   let q = db.from('solicitudes')
     .select(`*, solicitud_catalogos(*), adjuntos(*), perfiles!solicitudes_comercial_id_fkey(nombre, codigo)`)
     .order('updated_at', { ascending: false });
   if (currentPerfil?.rol === 'comercial') q = q.eq('comercial_id', currentUser.id);
-  if (activeCampana) q = q.eq('campana_id', activeCampana.id);
+  // Default: filter by active campaign. If campanaId passed explicitly use that. '' = all.
+  const campFiltro = campanaId !== null ? campanaId : activeCampana?.id;
+  if (campFiltro) q = q.eq('campana_id', campFiltro);
   const { data } = await q;
   allSolicitudes = data || [];
 }
@@ -1001,7 +1003,10 @@ function renderComercialTable() {
   tbody.innerHTML = rows.map(s => `
     <tr>
       <td><strong>${s.cod_sap}</strong></td>
-      <td>${s.nombre_empresa||'—'}</td>
+      <td>
+        ${s.nombre_empresa||'—'}
+        ${s.campana_id !== activeCampana?.id ? `<span style="font-size:10px;background:var(--c-amber-l);color:var(--c-amber);padding:1px 5px;border-radius:4px;margin-left:4px">${allCampanas?.find?.(c=>c.id===s.campana_id)?.nombre||''}</span>` : ''}
+      </td>
       <td>${s.provincia||'<span class="text-mid">—</span>'}</td>
       <td>${catSummary(s,'roly')}</td>
       <td>${catSummary(s,'roly_wrk')}</td>
@@ -1030,27 +1035,23 @@ function sortMkt(col) {
 
 async function filterCampana() {
   const campanaId = document.getElementById('filter-campana')?.value;
-  if (campanaId) {
-    const { data } = await db.from('solicitudes')
-      .select(`*, solicitud_catalogos(*), adjuntos(*), perfiles!solicitudes_comercial_id_fkey(nombre, codigo)`)
-      .eq('campana_id', campanaId)
-      .order('updated_at', { ascending: false });
-    allSolicitudes = data || [];
-  } else {
-    await loadSolicitudes();
-  }
+  // '' = all campaigns, specific id = filter, undefined = active campaign
+  await loadSolicitudes(campanaId === '' ? '' : (campanaId || activeCampana?.id));
   renderMktTable();
   renderStats();
+  renderComercialTable();
 }
 
 async function populateCampanaFilter() {
   const campanas = await loadAllCampanas();
   const sel = document.getElementById('filter-campana');
   if (!sel) return;
+  // Clear existing options except first ("Todas las campañas")
+  while (sel.options.length > 1) sel.remove(1);
   campanas.forEach(c => {
     const opt = document.createElement('option');
     opt.value = c.id;
-    opt.textContent = c.nombre;
+    opt.textContent = c.nombre + (c.activa ? ' ★' : '');
     if (c.id === activeCampana?.id) opt.selected = true;
     sel.appendChild(opt);
   });
@@ -1546,7 +1547,8 @@ async function openDetalle(solId) {
   const sol = allSolicitudes.find(s => s.id === solId);
   if (!sol) return;
   document.getElementById('det-title').textContent = `Solicitud ${sol.cod_sap}`;
-  document.getElementById('det-sub').textContent   = `${sol.nombre_empresa||''} · ${sol.provincia||''} · ${ESTADO_LABEL[sol.estado]}`;
+  const campNombre = allCampanas?.find?.(c => c.id === sol.campana_id)?.nombre || activeCampana?.nombre || '';
+  document.getElementById('det-sub').textContent = `${sol.nombre_empresa||''} · ${sol.provincia||''} · ${ESTADO_LABEL[sol.estado]}${campNombre ? ' · ' + campNombre : ''}`;
 
   // Load logs
   const { data: logs } = await db.from('logs').select('*').eq('solicitud_id', solId).order('created_at', { ascending: false });
