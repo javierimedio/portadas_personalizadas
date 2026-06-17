@@ -5,7 +5,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Portadas Personalizadas · GOR Factory</title>
+<title>Portadas Personalizadas | GOR Factory</title>
 <link rel="icon" type="image/jpeg" href="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAQFAwb/xAAjEAACAQMEAwADAAAAAAAAAAABAgMABBESEyExBRRBIlFx/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AOzopS7u5I5ore2jEk8gLfk2FVRjJJ/pHFJt5W5gmmjurZVEMasSjk7hYkKF4+kY5oK9FTfdvIZI1u7eFBMdEbJIWCvjIDcfcditPF3lxfQmWWBIkyVGH1FiCQT11xQZ+VV45YLmHcWRMqXSPcAU44ZRyRkDrqlbWzkv5byS6eUxyxoivo2zlSTlVPIAJGM9nNXKKCd6F1K8bXV2kmydUYWLSNWMBm55xnoYrbxtpJZWuzJMJcMSGCaezn9n6TTdFB//2Q==">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -20,8 +20,8 @@
     --c-amber-l: #FAEEDA;
     --c-blue:    #003087;
     --c-blue-l:  #E5EAF3;
-    --c-teal:    #1C2B4A;
-    --c-teal-l:  #E5E8EF;
+    --c-teal:    #FAB518;
+    --c-teal-l:  #FEF3D0;
     --c-purple:  #E30613;
     --c-purple-l:#FDECEA;
     --c-red:     #C0392B;
@@ -122,6 +122,7 @@
   .s-en_revision_marketing { background: var(--c-blue-l);   color: var(--c-blue); }
   .s-en_diseno             { background: var(--c-purple-l); color: var(--c-purple); }
   .s-diseno_en_revision    { background: var(--c-amber-l);  color: var(--c-amber); }
+  .s-diseno_en_revision_comercial { background: #FEF3D0; color: #B8860B; }
   .s-modificar_diseno      { background: var(--c-red-l);    color: var(--c-red); }
   .s-confirmada            { background: var(--c-green-l);  color: var(--c-green); }
 
@@ -623,13 +624,13 @@ const CATS = [
 ];
 
 const ESTADO_LABEL = {
-  borrador:              'Borrador',
-  enviada:               'Enviada',
-  en_revision_marketing: 'En revisión Mkt.',
-  en_diseno:             'En diseño',
-  diseno_en_revision:    'Diseño en revisión',
-  modificar_diseno:      'Modificar diseño',
-  confirmada:            'Confirmada',
+  borrador:                   'Borrador',
+  enviada:                    'Enviada',
+  en_revision_marketing:      'En revisión Mkt.',
+  en_diseno:                  'En diseño',
+  diseno_en_revision_comercial: 'Revisión comercial',
+  modificar_diseno:           'Modificar diseño',
+  confirmada:                 'Confirmada',
 };
 
 // ── AUTH ──────────────────────────────────────────────────
@@ -810,7 +811,7 @@ async function loadData() {
 
 async function loadSolicitudes() {
   let q = db.from('solicitudes')
-    .select(`*, solicitud_catalogos(*), perfiles!solicitudes_comercial_id_fkey(nombre, codigo)`)
+    .select(`*, solicitud_catalogos(*), adjuntos(*), perfiles!solicitudes_comercial_id_fkey(nombre, codigo)`)
     .order('updated_at', { ascending: false });
   if (currentPerfil?.rol === 'comercial') q = q.eq('comercial_id', currentUser.id);
   if (activeCampana) q = q.eq('campana_id', activeCampana.id);
@@ -1219,22 +1220,56 @@ async function saveSolicitud(estadoTarget) {
     detalle: { estado: estadoTarget, cod_sap: codSap }
   });
 
-  // Log archivos adjuntos (nombre guardado en log, archivo en cliente)
-  const allFileEntries = [
-    ...catFiles.logo_general.map(f => ({ nombre: f.name, tipo: 'logo_general' })),
-    ...catFiles.stamina_diseno.map(f => ({ nombre: f.name, tipo: 'stamina_diseno' })),
-    ...catFiles.roly.map(f => ({ nombre: f.name, tipo: 'roly' })),
-    ...catFiles.roly_wrk.map(f => ({ nombre: f.name, tipo: 'roly_wrk' })),
-    ...catFiles.stamina.map(f => ({ nombre: f.name, tipo: 'stamina' })),
+  // Upload files to Supabase Storage
+  const allFilesToUpload = [
+    ...catFiles.logo_general.map(f => ({ file: f, tipo: 'logo_general' })),
+    ...catFiles.stamina_diseno.map(f => ({ file: f, tipo: 'stamina_diseno' })),
+    ...catFiles.roly.map(f => ({ file: f, tipo: 'roly' })),
+    ...catFiles.roly_wrk.map(f => ({ file: f, tipo: 'roly_wrk' })),
+    ...catFiles.stamina.map(f => ({ file: f, tipo: 'stamina' })),
   ];
-  for (const file of allFileEntries) {
-    await db.from('logs').insert({
-      solicitud_id: solId,
-      usuario_id: currentUser.id,
-      usuario_nombre: currentPerfil?.nombre,
-      accion: 'adjunto',
-      detalle: file
-    });
+  for (const entry of allFilesToUpload) {
+    try {
+      const session = loadSession();
+      const token = session?.access_token || SUPA_KEY;
+      const fileName = `${solId}/${entry.tipo}/${Date.now()}_${entry.file.name}`;
+      // Upload to storage
+      const uploadRes = await fetch(
+        `${SUPA_URL}/storage/v1/object/portadas-adjuntos/${fileName}`,
+        {
+          method: 'POST',
+          headers: {
+            'apikey': SUPA_KEY,
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': entry.file.type || 'application/octet-stream',
+            'x-upsert': 'true',
+          },
+          body: entry.file,
+        }
+      );
+      if (uploadRes.ok) {
+        const publicUrl = `${SUPA_URL}/storage/v1/object/public/portadas-adjuntos/${fileName}`;
+        // Save to adjuntos table
+        await db.from('adjuntos').insert({
+          solicitud_id: solId,
+          nombre: entry.file.name,
+          tipo: entry.tipo,
+          url: publicUrl,
+          subido_por: currentUser.id,
+          subido_por_nombre: currentPerfil?.nombre,
+        });
+        // Log
+        await db.from('logs').insert({
+          solicitud_id: solId,
+          usuario_id: currentUser.id,
+          usuario_nombre: currentPerfil?.nombre,
+          accion: 'adjunto',
+          detalle: { nombre: entry.file.name, tipo: entry.tipo, url: publicUrl }
+        });
+      }
+    } catch(e) {
+      console.warn('Upload error:', e);
+    }
   }
 
   // Email notification si enviada
@@ -1285,14 +1320,19 @@ async function openDetalle(solId) {
 
   if (sol.comentarios) html += `<div class="card" style="margin-bottom:1rem"><div class="card-title">Comentarios</div><p style="font-size:13px">${sol.comentarios}</p></div>`;
 
-  // Adjuntos (nombre de archivos guardados en comentarios del log)
-  const adjuntos = logs?.filter(l => l.accion === 'adjunto') || [];
-  if (adjuntos.length) {
-    html += `<div class="card" style="margin-bottom:1rem"><div class="card-title">Archivos adjuntos</div>`;
+  // Load adjuntos from table
+  const { data: adjuntos } = await db.from('adjuntos').select('*').eq('solicitud_id', solId).order('created_at', { ascending: true });
+  if (adjuntos?.length) {
+    const tipoLabel = { logo_general: 'Logo cliente', stamina_diseno: 'Diseño Stamina', roly: 'Roly', roly_wrk: 'Roly WRK', stamina: 'Stamina' };
+    html += `<div class="card" style="margin-bottom:1rem"><div class="card-title">Archivos adjuntos (${adjuntos.length})</div>`;
     adjuntos.forEach(a => {
-      html += `<div style="font-size:12px;padding:4px 0;display:flex;gap:8px;align-items:center">
-        📎 <span>${a.detalle?.nombre || 'Archivo'}</span>
-        <span style="color:var(--c-mid);font-size:11px">${fmtDate(a.created_at)} · ${a.usuario_nombre}</span>
+      html += `<div style="font-size:12px;padding:6px 0;display:flex;gap:10px;align-items:center;border-bottom:0.5px solid var(--c-line)">
+        <span style="font-size:16px">📎</span>
+        <div style="flex:1">
+          <a href="${a.url}" target="_blank" style="color:var(--c-blue);text-decoration:none;font-weight:500">${a.nombre}</a>
+          <span style="color:var(--c-mid);font-size:10px;margin-left:6px">${tipoLabel[a.tipo]||a.tipo}</span>
+        </div>
+        <span style="color:var(--c-mid);font-size:11px;white-space:nowrap">${fmtDate(a.created_at)} · ${a.subido_por_nombre||''}</span>
       </div>`;
     });
     html += '</div>';
@@ -1334,19 +1374,24 @@ async function openDetalle(solId) {
   const rol = currentPerfil?.rol;
   const est = sol.estado;
   let btns = `<button class="btn btn-outline" onclick="closeModal('modal-detalle')">Cerrar</button>`;
+  // Marketing: validar y asignar a diseño
   if (rol === 'marketing' || rol === 'admin') {
     if (est === 'en_revision_marketing') {
       btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstado('${solId}','borrador')">Devolver al comercial</button>`;
       btns += `<button class="btn btn-amber" onclick="asignarYAvanzar('${solId}')">Asignar y enviar a diseño</button>`;
     }
-    if (est === 'diseno_en_revision') {
-      btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstado('${solId}','modificar_diseno')">Pedir modificación</button>`;
-      btns += `<button class="btn btn-green" onclick="cambiarEstado('${solId}','confirmada')">Confirmar</button>`;
-    }
   }
+  // Diseñador: marcar diseño listo → pasa a revisión comercial
   if (rol === 'disenador' || rol === 'admin' || rol === 'marketing') {
     if (est === 'en_diseno' || est === 'modificar_diseno') {
-      btns += `<button class="btn btn-amber" onclick="cambiarEstado('${solId}','diseno_en_revision')">Marcar diseño listo</button>`;
+      btns += `<button class="btn btn-amber" onclick="cambiarEstado('${solId}','diseno_en_revision_comercial')">Diseño listo para revisión</button>`;
+    }
+  }
+  // Comercial o admin: revisar diseño → confirmar o pedir modificación
+  if (rol === 'comercial' || rol === 'admin' || rol === 'marketing') {
+    if (est === 'diseno_en_revision_comercial') {
+      btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstado('${solId}','modificar_diseno')">Solicitar modificación</button>`;
+      btns += `<button class="btn btn-green" onclick="cambiarEstado('${solId}','confirmada')">✓ Confirmar diseño</button>`;
     }
   }
   footer.innerHTML = btns;
