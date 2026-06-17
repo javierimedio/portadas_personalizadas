@@ -624,13 +624,13 @@ const CATS = [
 ];
 
 const ESTADO_LABEL = {
-  borrador:                   'Borrador',
-  enviada:                    'Enviada',
-  en_revision_marketing:      'En revisión Mkt.',
-  en_diseno:                  'En diseño',
-  diseno_en_revision_comercial: 'Revisión comercial',
-  modificar_diseno:           'Modificar diseño',
-  confirmada:                 'Confirmada',
+  borrador:                     'Borrador',
+  enviada:                      'Enviada',
+  en_revision_marketing:        'En revisión',
+  en_diseno:                    'En diseño',
+  diseno_en_revision_comercial: 'Revisión cliente',
+  modificar_diseno:             'Modificar diseño',
+  confirmada:                   'Confirmada',
 };
 
 // ── AUTH ──────────────────────────────────────────────────
@@ -1326,13 +1326,15 @@ async function openDetalle(solId) {
     const tipoLabel = { logo_general: 'Logo cliente', stamina_diseno: 'Diseño Stamina', roly: 'Roly', roly_wrk: 'Roly WRK', stamina: 'Stamina' };
     html += `<div class="card" style="margin-bottom:1rem"><div class="card-title">Archivos adjuntos (${adjuntos.length})</div>`;
     adjuntos.forEach(a => {
-      html += `<div style="font-size:12px;padding:6px 0;display:flex;gap:10px;align-items:center;border-bottom:0.5px solid var(--c-line)">
-        <span style="font-size:16px">📎</span>
-        <div style="flex:1">
-          <a href="${a.url}" target="_blank" style="color:var(--c-blue);text-decoration:none;font-weight:500">${a.nombre}</a>
-          <span style="color:var(--c-mid);font-size:10px;margin-left:6px">${tipoLabel[a.tipo]||a.tipo}</span>
+      html += `<div style="font-size:12px;padding:8px 0;display:flex;gap:10px;align-items:center;border-bottom:0.5px solid var(--c-line)">
+        <span style="font-size:18px">📎</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:500;color:var(--c-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.nombre}</div>
+          <div style="font-size:10px;color:var(--c-mid);margin-top:2px">${tipoLabel[a.tipo]||a.tipo} · ${fmtDate(a.created_at)} · ${a.subido_por_nombre||''}</div>
         </div>
-        <span style="color:var(--c-mid);font-size:11px;white-space:nowrap">${fmtDate(a.created_at)} · ${a.subido_por_nombre||''}</span>
+        <button onclick="window.open('${a.url}','_blank')" class="btn btn-sm btn-outline" style="flex-shrink:0">
+          Ver / Descargar
+        </button>
       </div>`;
     });
     html += '</div>';
@@ -1361,7 +1363,7 @@ async function openDetalle(solId) {
           : l.accion === 'comentario'
           ? `💬 ${l.detalle?.texto || ''}`
           : l.accion === 'adjunto'
-          ? `📎 ${l.detalle?.nombre || 'Archivo adjunto'}`
+          ? `📎 <button onclick="window.open('${l.detalle?.url||''}','_blank')" style="background:none;border:none;color:var(--c-blue);cursor:pointer;font-size:12px;padding:0;text-decoration:underline">${l.detalle?.nombre || 'Archivo adjunto'}</button>`
           : l.accion}
       </div>
     </div>`).join('');
@@ -1374,25 +1376,34 @@ async function openDetalle(solId) {
   const rol = currentPerfil?.rol;
   const est = sol.estado;
   let btns = `<button class="btn btn-outline" onclick="closeModal('modal-detalle')">Cerrar</button>`;
-  // Marketing: validar y asignar a diseño
+  // Marketing/Admin: en revisión → devolver o enviar a diseño
   if (rol === 'marketing' || rol === 'admin') {
     if (est === 'en_revision_marketing') {
       btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstado('${solId}','borrador')">Devolver al comercial</button>`;
-      btns += `<button class="btn btn-amber" onclick="asignarYAvanzar('${solId}')">Asignar y enviar a diseño</button>`;
+      btns += `<button class="btn btn-amber" onclick="asignarYAvanzar('${solId}')">Enviar a diseño</button>`;
+    }
+    // Marketing puede confirmar o pedir modificación también
+    if (est === 'diseno_en_revision_comercial') {
+      btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstado('${solId}','modificar_diseno')">Solicitar modificación</button>`;
+      btns += `<button class="btn btn-green" onclick="cambiarEstado('${solId}','confirmada')">✓ Confirmar</button>`;
     }
   }
-  // Diseñador: marcar diseño listo → pasa a revisión comercial
+  // Diseñador/Marketing/Admin: diseño listo → revisión cliente
   if (rol === 'disenador' || rol === 'admin' || rol === 'marketing') {
     if (est === 'en_diseno' || est === 'modificar_diseno') {
-      btns += `<button class="btn btn-amber" onclick="cambiarEstado('${solId}','diseno_en_revision_comercial')">Diseño listo para revisión</button>`;
+      btns += `<button class="btn btn-amber" onclick="cambiarEstado('${solId}','diseno_en_revision_comercial')">Diseño listo → Revisión cliente</button>`;
     }
   }
-  // Comercial o admin: revisar diseño → confirmar o pedir modificación
-  if (rol === 'comercial' || rol === 'admin' || rol === 'marketing') {
+  // Comercial: revisar diseño del cliente
+  if (rol === 'comercial') {
     if (est === 'diseno_en_revision_comercial') {
       btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstado('${solId}','modificar_diseno')">Solicitar modificación</button>`;
       btns += `<button class="btn btn-green" onclick="cambiarEstado('${solId}','confirmada')">✓ Confirmar diseño</button>`;
     }
+  }
+  // Eliminar solicitud — solo borrador o admin
+  if (sol.estado === 'borrador' || rol === 'admin') {
+    btns += `<button class="btn btn-outline btn-danger" onclick="eliminarSolicitud('${solId}')" style="margin-left:auto">🗑 Eliminar</button>`;
   }
   footer.innerHTML = btns;
   document.getElementById('modal-detalle').classList.add('open');
@@ -1424,6 +1435,20 @@ async function cambiarEstado(solId, nuevoEstado) {
   closeModal('modal-detalle');
   await loadData();
   showToast(`Estado actualizado: ${ESTADO_LABEL[nuevoEstado]}`);
+}
+
+async function eliminarSolicitud(solId) {
+  const sol = allSolicitudes.find(s => s.id === solId);
+  const nombre = sol?.cod_sap || 'esta solicitud';
+  if (!confirm(`¿Seguro que quieres eliminar la solicitud ${nombre}? Esta acción no se puede deshacer.`)) return;
+  await db.from('solicitud_catalogos').delete().eq('solicitud_id', solId);
+  await db.from('adjuntos').delete().eq('solicitud_id', solId);
+  await db.from('logs').delete().eq('solicitud_id', solId);
+  await db.from('notificaciones').delete().eq('solicitud_id', solId);
+  await db.from('solicitudes').delete().eq('id', solId);
+  closeModal('modal-detalle');
+  await loadData();
+  showToast('Solicitud eliminada.');
 }
 
 async function asignarYAvanzar(solId) {
