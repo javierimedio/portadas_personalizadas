@@ -2018,11 +2018,11 @@ function exportExcel() {
 
   // Column widths
   ws['!cols'] = [
-    {wch:10},{wch:28},{wch:16},{wch:14},  // Datos generales
-    {wch:6},{wch:6},{wch:9},{wch:6},{wch:6},{wch:6},{wch:6},{wch:8},   // Roly
-    {wch:6},{wch:6},{wch:9},{wch:6},{wch:6},{wch:6},{wch:6},{wch:8},   // Roly WRK
-    {wch:6},{wch:6},{wch:9},{wch:6},{wch:6},{wch:6},{wch:6},{wch:8},   // Stamina
-    {wch:28},{wch:14},{wch:30},                                          // Meta
+    {wch:10},{wch:28},{wch:16},{wch:14},
+    {wch:9},{wch:9},{wch:20},{wch:11},{wch:11},{wch:11},{wch:13},{wch:8},
+    {wch:9},{wch:9},{wch:20},{wch:11},{wch:11},{wch:11},{wch:13},{wch:8},
+    {wch:9},{wch:9},{wch:20},{wch:11},{wch:11},{wch:11},{wch:13},{wch:8},
+    {wch:28},{wch:16},{wch:30},
   ];
 
   const totalCols = 31;
@@ -2074,9 +2074,9 @@ function exportExcel() {
   // ROW 3: Column headers
   const headers = [
     'CÓD. SAP','NOMBRE EMPRESA','COMERCIAL','PROVINCIA',
-    'DIG.','IMP.','PORTADA','P1','P2','P3','POS.','UNDS.',
-    'DIG.','IMP.','PORTADA','P1','P2','P3','POS.','UNDS.',
-    'DIG.','IMP.','PORTADA','P1','P2','P3','POS.','UNDS.',
+    'DIGITAL','IMPRESO','PORTADA PERSONALIZADA','SELECCIÓN 1','SELECCIÓN 2','SELECCIÓN 3','POSICIÓN LOGO','UNDS.',
+    'DIGITAL','IMPRESO','PORTADA PERSONALIZADA','SELECCIÓN 1','SELECCIÓN 2','SELECCIÓN 3','POSICIÓN LOGO','UNDS.',
+    'DIGITAL','IMPRESO','PORTADA PERSONALIZADA','SELECCIÓN 1','SELECCIÓN 2','SELECCIÓN 3','POSICIÓN LOGO','UNDS.',
     'COMENTARIOS','ESTADO','CAMPOS INCOMPLETOS',
   ];
   const headerBgs = [
@@ -2120,19 +2120,40 @@ function exportExcel() {
     });
   });
 
-  // TOTALS ROW
+  // TOTALS ROW — one label + sum per catalog, no merged cells
   const totalRow = dataRows.length + 3;
-  const totLabel = XLSX.utils.encode_cell({r: totalRow, c: 0});
-  setCell(ws, totLabel, 'TOTAL UNIDADES', headerStyle(C.white, C.dark));
-  ws['!merges'].push({ s:{r:totalRow,c:0}, e:{r:totalRow,c:10} });
 
+  // Fill all cells in total row with dark style first
+  for (let ci = 0; ci < totalCols; ci++) {
+    const addr = XLSX.utils.encode_cell({r: totalRow, c: ci});
+    setCell(ws, addr, '', headerStyle(C.white, C.dark));
+  }
+
+  // Labels before each UNDS column
+  const totalLabels = [
+    { ci: 7,  label: 'TOTAL ROLY' },
+    { ci: 15, label: 'TOTAL ROLY WRK' },
+    { ci: 23, label: 'TOTAL STAMINA' },
+  ];
+  totalLabels.forEach(({ ci, label }) => {
+    const addr = XLSX.utils.encode_cell({r: totalRow, c: ci});
+    setCell(ws, addr, label, headerStyle(C.white, C.dark));
+  });
+
+  // Sum cells
   [11, 19, 27].forEach(ci => {
     const addr = XLSX.utils.encode_cell({r: totalRow, c: ci});
     const colLetter = XLSX.utils.encode_col(ci);
     ws[addr] = {
       f: `SUM(${colLetter}4:${colLetter}${totalRow})`,
       t: 'n',
-      s: headerStyle(C.white, C.dark)
+      s: {
+        font: { bold: true, color: { rgb: C.white }, name: 'Arial', sz: 10 },
+        fill: { patternType: 'solid', fgColor: { rgb: C.dark } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: { top:{style:'thin',color:{rgb:'FFD3D1C7'}}, bottom:{style:'thin',color:{rgb:'FFD3D1C7'}},
+                  left:{style:'thin',color:{rgb:'FFD3D1C7'}}, right:{style:'thin',color:{rgb:'FFD3D1C7'}} }
+      }
     };
   });
 
