@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Crear usuarios · GOR Factory</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #F1EFE8; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+  .card { background: white; border-radius: 8px; padding: 2rem; width: 560px; box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+  h2 { font-size: 18px; margin: 0 0 .25rem; color: #2C2C2A; }
+  p  { font-size: 13px; color: #888780; margin: 0 0 1.5rem; }
+  .user-row { border: 1px solid #E0DED6; border-radius: 6px; padding: .75rem 1rem; margin-bottom: .5rem; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+  .user-info { display: flex; flex-direction: column; gap: 2px; }
+  .user-email { font-weight: 600; color: #2C2C2A; }
+  .user-meta  { font-size: 11px; color: #888780; }
+  .status { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+  .s-pending  { background: #F1EFE8; color: #888780; }
+  .s-ok       { background: #EAF3DE; color: #3B6D11; }
+  .s-error    { background: #FDECEA; color: #C0392B; }
+  .btn { padding: .6rem 1.5rem; border-radius: 6px; border: none; font-size: 14px; font-weight: 700; cursor: pointer; background: #BA7517; color: white; width: 100%; margin-top: 1rem; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .log { font-size: 12px; color: #888780; margin-top: 1rem; background: #F1EFE8; border-radius: 6px; padding: .75rem; min-height: 60px; white-space: pre-wrap; }
+  .warn { background: #FDECEA; color: #C0392B; border-radius: 6px; padding: .75rem 1rem; font-size: 12px; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Crear usuarios · GOR Factory</h2>
+  <p>Portadas Personalizadas — usuarios iniciales</p>
+  <div class="warn">⚠️ Cierra esta página y elimina el archivo una vez completado el proceso.</div>
+
+  <div id="user-list"></div>
+
+  <button class="btn" id="btn-crear" onclick="crearTodos()">Crear todos los usuarios</button>
+  <div class="log" id="log">Listo para crear usuarios...</div>
+</div>
+
+<script>
+const SUPA_URL     = 'https://paqtohmxagfebeyyurlq.supabase.co';
+const SERVICE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhcXRvaG14YWdmZWJleXl1cmxxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTY4Mjk5MiwiZXhwIjoyMDk3MjU4OTkyfQ.wvNxZ2vBlBlxrCdFqVglW-grhvyBvzHX9uD9NGaVPSo';
+
+const USUARIOS = [
+  { email: 'javierimedio@gorfactory.es',  nombre: 'Javier I.',  pass: 'Cerrar.Ventana2026+',       rol: 'admin',     codigo: 'ADMIN' },
+  { email: 'marketing@gorfactory.es',     nombre: 'Marketing',  pass: 'Mkt.Plan-26++',             rol: 'marketing', codigo: 'MKT'   },
+  { email: 'marketing02@gorfactory.es',   nombre: 'Alba M.',    pass: 'Mkt.Plan-marketing02++',    rol: 'marketing', codigo: 'MKT02' },
+  { email: 'marketing01@gorfactory.es',   nombre: 'Lorena S.',  pass: 'Mkt.Plan-marketing01++',    rol: 'marketing', codigo: 'MKT01' },
+];
+
+// Render list
+document.getElementById('user-list').innerHTML = USUARIOS.map((u, i) => `
+  <div class="user-row" id="row-${i}">
+    <div class="user-info">
+      <span class="user-email">${u.email}</span>
+      <span class="user-meta">${u.nombre} · ${u.rol}</span>
+    </div>
+    <span class="status s-pending" id="status-${i}">Pendiente</span>
+  </div>`).join('');
+
+function log(msg) {
+  const el = document.getElementById('log');
+  el.textContent += '\n' + msg;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function crearTodos() {
+  document.getElementById('btn-crear').disabled = true;
+  document.getElementById('log').textContent = 'Iniciando...';
+
+  for (let i = 0; i < USUARIOS.length; i++) {
+    const u = USUARIOS[i];
+    log(`→ Creando ${u.email}...`);
+    setStatus(i, 'pending', '⏳ Creando...');
+
+    try {
+      // 1. Crear en Auth
+      const authRes = await fetch(`${SUPA_URL}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SERVICE_KEY}`,
+          'apikey': SERVICE_KEY,
+        },
+        body: JSON.stringify({
+          email: u.email,
+          password: u.pass,
+          email_confirm: true,
+          user_metadata: { nombre: u.nombre, rol: u.rol, codigo: u.codigo }
+        })
+      });
+
+      const authData = await authRes.json();
+      if (!authRes.ok) throw new Error(authData.message || authData.error || JSON.stringify(authData));
+
+      const userId = authData.id;
+      log(`  ✓ Auth creado (${userId.slice(0,8)}...)`);
+
+      // 2. Insertar/actualizar perfil
+      const perfRes = await fetch(`${SUPA_URL}/rest/v1/perfiles`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SERVICE_KEY}`,
+          'apikey': SERVICE_KEY,
+          'Prefer': 'resolution=merge-duplicates',
+        },
+        body: JSON.stringify({
+          id: userId,
+          nombre: u.nombre,
+          email: u.email,
+          rol: u.rol,
+          codigo: u.codigo,
+          activo: true,
+        })
+      });
+
+      if (!perfRes.ok) {
+        const perfErr = await perfRes.text();
+        log(`  ⚠️ Perfil: ${perfErr}`);
+      } else {
+        log(`  ✓ Perfil creado`);
+      }
+
+      setStatus(i, 'ok', '✓ Creado');
+
+    } catch (err) {
+      log(`  ✗ Error: ${err.message}`);
+      setStatus(i, 'error', '✗ Error');
+    }
+
+    // Pequeña pausa entre usuarios
+    await new Promise(r => setTimeout(r, 500));
+  }
+
+  log('\n✅ Proceso completado. Puedes cerrar esta página.');
+  document.getElementById('btn-crear').textContent = 'Completado';
+}
+
+function setStatus(i, type, label) {
+  const el = document.getElementById('status-' + i);
+  el.className = 'status s-' + (type === 'pending' ? 'pending' : type === 'ok' ? 'ok' : 'error');
+  el.textContent = label;
+}
+</script>
+</body>
+</html>
