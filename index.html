@@ -235,7 +235,13 @@
 <div id="app">
   <div class="topbar">
     <div class="topbar-brand">
-      Portadas 
+      <img src="https://dev.gorfactory.com/wp-content/uploads/2026/05/Logo_GOR.png" 
+           alt="GOR Factory" 
+           style="height:20px;filter:brightness(0) invert(1);opacity:.9;vertical-align:middle"
+           onerror="this.style.display='none'">
+      <span style="margin-left:8px">PORTADAS PERSONALIZADAS</span>
+      <span style="color:rgba(255,255,255,.35);margin:0 8px;font-weight:300">|</span>
+      <span style="color:rgba(255,255,255,.65);font-weight:400">GOR FACTORY</span>
     </div>
     <div class="topbar-right">
       <span class="role-tag" id="role-tag">—</span>
@@ -1253,7 +1259,7 @@ async function saveSolicitud(estadoTarget) {
         }
       );
       if (uploadRes.ok) {
-        const publicUrl = `${SUPA_URL}/storage/v1/object/public/portadas-adjuntos/${fileName}`;
+        const publicUrl = `${SUPA_URL}/storage/v1/object/public/portadas-adjuntos/${encodeURIComponent(fileName).replace(/%2F/g,'/')}`;
         // Save to adjuntos table
         await db.from('adjuntos').insert({
           solicitud_id: solId,
@@ -1363,9 +1369,12 @@ async function openDetalle(solId) {
   // Log
   html += `<div class="card"><div class="card-title">Historial de cambios</div>`;
   if (!logs?.length) html += '<p class="text-mid text-sm">Sin actividad registrada.</p>';
-  else html += logs.map(l => `
+  // Filter out adjunto entries from log (shown separately above)
+  const logsToShow = (logs || []).filter(l => l.accion !== 'adjunto');
+  if (!logsToShow.length) html += '<p class="text-mid text-sm">Sin actividad registrada.</p>';
+  else html += logsToShow.map(l => `
     <div class="log-entry">
-      <div class="log-dot ${l.accion==='cambio_estado'?'estado':l.accion==='comentario'?'':''}"></div>
+      <div class="log-dot ${l.accion==='cambio_estado'?'estado':''}"></div>
       <div class="log-time">${fmtDate(l.created_at)}</div>
       <div class="log-text">
         <strong>${l.usuario_nombre||'Sistema'}</strong> —
@@ -1373,8 +1382,6 @@ async function openDetalle(solId) {
           ? `<span class="status s-${l.detalle?.estado_anterior}" style="font-size:10px">${ESTADO_LABEL[l.detalle?.estado_anterior]||l.detalle?.estado_anterior}</span> → <span class="status s-${l.detalle?.estado_nuevo}" style="font-size:10px">${ESTADO_LABEL[l.detalle?.estado_nuevo]||l.detalle?.estado_nuevo}</span>`
           : l.accion === 'comentario'
           ? `💬 ${l.detalle?.texto || ''}`
-          : l.accion === 'adjunto'
-          ? `📎 <button onclick="window.open('${l.detalle?.url||''}','_blank')" style="background:none;border:none;color:var(--c-blue);cursor:pointer;font-size:12px;padding:0;text-decoration:underline">${l.detalle?.nombre || 'Archivo adjunto'}</button>`
           : l.accion}
       </div>
     </div>`).join('');
@@ -1387,33 +1394,39 @@ async function openDetalle(solId) {
   const rol = currentPerfil?.rol;
   const est = sol.estado;
   let btns = `<button class="btn btn-outline" onclick="closeModal('modal-detalle')">Cerrar</button>`;
-  // Marketing/Admin: en revisión → devolver o enviar a diseño
-  if (rol === 'marketing' || rol === 'admin') {
-    if (est === 'en_revision_marketing') {
-      btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstado('${solId}','borrador')">Devolver al comercial</button>`;
-      btns += `<button class="btn btn-amber" onclick="asignarYAvanzar('${solId}')">Enviar a diseño</button>`;
-    }
-    // Marketing puede confirmar o pedir modificación también
-    if (est === 'diseno_en_revision_comercial') {
-      btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstado('${solId}','modificar_diseno')">Solicitar modificación</button>`;
-      btns += `<button class="btn btn-green" onclick="cambiarEstado('${solId}','confirmada')">✓ Confirmar</button>`;
-    }
+  // ── FLUJO: BORRADOR → ENVIADA → EN REVISIÓN → EN DISEÑO → REVISIÓN CLIENTE → CONFIRMADA
+
+  // Comercial: editar borrador o reenviar
+  if (est === 'borrador') {
+    btns += `<button class="btn btn-outline" onclick="closeModal('modal-detalle');openFormModal('${solId}')">✏️ Editar</button>`;
+    btns += `<button class="btn btn-amber" onclick="cambiarEstadoDirecto('${solId}','enviada')">Enviar a marketing</button>`;
   }
-  // Diseñador/Marketing/Admin: diseño listo → revisión cliente
-  if (rol === 'disenador' || rol === 'admin' || rol === 'marketing') {
-    if (est === 'en_diseno' || est === 'modificar_diseno') {
-      btns += `<button class="btn btn-amber" onclick="cambiarEstado('${solId}','diseno_en_revision_comercial')">Diseño listo → Revisión cliente</button>`;
-    }
+
+  // Marketing/Admin: solicitud enviada → pasar a revisión
+  if ((rol === 'marketing' || rol === 'admin') && est === 'enviada') {
+    btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstadoDirecto('${solId}','borrador')">Devolver al comercial</button>`;
+    btns += `<button class="btn btn-amber" onclick="cambiarEstadoDirecto('${solId}','en_revision_marketing')">Iniciar revisión</button>`;
   }
-  // Comercial: revisar diseño del cliente
-  if (rol === 'comercial') {
-    if (est === 'diseno_en_revision_comercial') {
-      btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstado('${solId}','modificar_diseno')">Solicitar modificación</button>`;
-      btns += `<button class="btn btn-green" onclick="cambiarEstado('${solId}','confirmada')">✓ Confirmar diseño</button>`;
-    }
+
+  // Marketing/Admin: en revisión → enviar a diseño o devolver
+  if ((rol === 'marketing' || rol === 'admin') && est === 'en_revision_marketing') {
+    btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstadoDirecto('${solId}','borrador')">Devolver al comercial</button>`;
+    btns += `<button class="btn btn-amber" onclick="asignarYAvanzar('${solId}')">Enviar a diseño</button>`;
   }
-  // Eliminar solicitud — solo borrador o admin
-  if (sol.estado === 'borrador' || rol === 'admin') {
+
+  // Diseñador/Marketing/Admin: en diseño o modificar → diseño listo
+  if ((rol === 'disenador' || rol === 'admin' || rol === 'marketing') && (est === 'en_diseno' || est === 'modificar_diseno')) {
+    btns += `<button class="btn btn-amber" onclick="cambiarEstadoDirecto('${solId}','diseno_en_revision_comercial')">Diseño listo → Revisión cliente</button>`;
+  }
+
+  // Comercial/Admin/Marketing: revisión cliente → confirmar o pedir cambios
+  if (est === 'diseno_en_revision_comercial') {
+    btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstadoDirecto('${solId}','modificar_diseno')">Solicitar modificación</button>`;
+    btns += `<button class="btn btn-green" onclick="cambiarEstadoDirecto('${solId}','confirmada')">✓ Confirmar diseño</button>`;
+  }
+
+  // Eliminar — borrador siempre, admin cualquier estado
+  if (est === 'borrador' || rol === 'admin') {
     btns += `<button class="btn btn-outline btn-danger" onclick="eliminarSolicitud('${solId}')" style="margin-left:auto">🗑 Eliminar</button>`;
   }
   footer.innerHTML = btns;
@@ -1437,15 +1450,22 @@ async function addComentario(solId) {
 }
 
 async function cambiarEstado(solId, nuevoEstado) {
+  await cambiarEstadoDirecto(solId, nuevoEstado);
+}
+
+async function cambiarEstadoDirecto(solId, nuevoEstado) {
+  const estadoAnterior = allSolicitudes.find(s => s.id === solId)?.estado;
   await db.from('solicitudes').update({ estado: nuevoEstado }).eq('id', solId);
   await db.from('logs').insert({
-    solicitud_id: solId, usuario_id: currentUser.id,
-    usuario_nombre: currentPerfil?.nombre, accion: 'cambio_estado',
-    detalle: { estado_anterior: allSolicitudes.find(s=>s.id===solId)?.estado, estado_nuevo: nuevoEstado }
+    solicitud_id: solId,
+    usuario_id: currentUser.id,
+    usuario_nombre: currentPerfil?.nombre,
+    accion: 'cambio_estado',
+    detalle: { estado_anterior: estadoAnterior, estado_nuevo: nuevoEstado }
   });
   closeModal('modal-detalle');
   await loadData();
-  showToast(`Estado actualizado: ${ESTADO_LABEL[nuevoEstado]}`);
+  showToast(`Estado: ${ESTADO_LABEL[nuevoEstado] || nuevoEstado}`);
 }
 
 async function eliminarSolicitud(solId) {
