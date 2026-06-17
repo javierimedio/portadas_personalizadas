@@ -280,13 +280,16 @@
       <div class="stats-row" id="stats-row"></div>
       <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
         <input type="text" id="search-mkt" placeholder="Buscar SAP, empresa, comercial..." style="flex:1;min-width:200px" oninput="renderMktTable()">
+        <select id="filter-campana" onchange="filterCampana()" style="min-width:130px">
+          <option value="">Todas las campañas</option>
+        </select>
         <select id="filter-estado" onchange="renderMktTable()">
           <option value="">Todos los estados</option>
           <option value="borrador">Borrador</option>
           <option value="enviada">Enviada</option>
           <option value="en_revision_marketing">En revisión</option>
           <option value="en_diseno">En diseño</option>
-          <option value="diseno_en_revision">Diseño en revisión</option>
+          <option value="diseno_en_revision_comercial">Revisión cliente</option>
           <option value="modificar_diseno">Modificar diseño</option>
           <option value="confirmada">Confirmada</option>
         </select>
@@ -297,9 +300,14 @@
         <div class="tbl-wrap">
           <table>
             <thead><tr>
-              <th>Cód. SAP</th><th>Empresa</th><th>Comercial</th><th>Provincia</th>
+              <th onclick="sortMkt('cod_sap')" style="cursor:pointer;user-select:none">Cód. SAP <span id="sort-cod_sap">↕</span></th>
+              <th onclick="sortMkt('nombre_empresa')" style="cursor:pointer;user-select:none">Empresa <span id="sort-nombre_empresa">↕</span></th>
+              <th onclick="sortMkt('comercial')" style="cursor:pointer;user-select:none">Comercial <span id="sort-comercial">↕</span></th>
+              <th onclick="sortMkt('provincia')" style="cursor:pointer;user-select:none">Provincia <span id="sort-provincia">↕</span></th>
               <th>Roly</th><th>Roly WRK</th><th>Stamina</th>
-              <th>Estado</th><th>Actualizado</th><th>Campos incompletos</th><th></th>
+              <th onclick="sortMkt('estado')" style="cursor:pointer;user-select:none">Estado <span id="sort-estado">↕</span></th>
+              <th onclick="sortMkt('updated_at')" style="cursor:pointer;user-select:none">Actualizado <span id="sort-updated_at">↕</span></th>
+              <th>Campos incompletos</th><th></th>
             </tr></thead>
             <tbody id="tbl-mkt"></tbody>
           </table>
@@ -756,13 +764,18 @@ async function loadCampana() {
   try {
     const { data } = await db.from('campanas').select('*').eq('activa', 'true').order('created_at', { ascending: false }).limit(1).maybeSingle();
     activeCampana = data;
-    const el = document.getElementById('campana-nombre');
-    if (el) el.textContent = data?.nombre || '—';
     console.log('loadCampana:', activeCampana?.nombre);
   } catch(e) {
     console.warn('loadCampana error:', e);
     activeCampana = null;
   }
+}
+
+async function loadAllCampanas() {
+  try {
+    const { data } = await db.from('campanas').select('*').order('created_at', { ascending: false });
+    return data || [];
+  } catch(e) { return []; }
 }
 
 function initApp() {
@@ -879,12 +892,60 @@ function renderComercialTable() {
     </tr>`).join('');
 }
 
+let mktSort = { col: 'updated_at', dir: 'desc' };
+
+function sortMkt(col) {
+  if (mktSort.col === col) mktSort.dir = mktSort.dir === 'asc' ? 'desc' : 'asc';
+  else { mktSort.col = col; mktSort.dir = 'asc'; }
+  document.querySelectorAll('[id^="sort-"]').forEach(el => el.textContent = '↕');
+  const el = document.getElementById('sort-' + col);
+  if (el) el.textContent = mktSort.dir === 'asc' ? '↑' : '↓';
+  renderMktTable();
+}
+
+async function filterCampana() {
+  const campanaId = document.getElementById('filter-campana')?.value;
+  if (campanaId) {
+    const { data } = await db.from('solicitudes')
+      .select(`*, solicitud_catalogos(*), adjuntos(*), perfiles!solicitudes_comercial_id_fkey(nombre, codigo)`)
+      .eq('campana_id', campanaId)
+      .order('updated_at', { ascending: false });
+    allSolicitudes = data || [];
+  } else {
+    await loadSolicitudes();
+  }
+  renderMktTable();
+  renderStats();
+}
+
+async function populateCampanaFilter() {
+  const campanas = await loadAllCampanas();
+  const sel = document.getElementById('filter-campana');
+  if (!sel) return;
+  campanas.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.nombre;
+    if (c.id === activeCampana?.id) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
 function renderMktTable() {
   const q  = document.getElementById('search-mkt')?.value.toLowerCase() || '';
   const est = document.getElementById('filter-estado')?.value || '';
   let rows = allSolicitudes;
   if (q)   rows = rows.filter(s => s.cod_sap?.toLowerCase().includes(q) || s.nombre_empresa?.toLowerCase().includes(q) || s.perfiles?.codigo?.toLowerCase().includes(q) || s.perfiles?.nombre?.toLowerCase().includes(q));
   if (est) rows = rows.filter(s => s.estado === est);
+  // Sort
+  rows = [...rows].sort((a, b) => {
+    let va = '', vb = '';
+    if (mktSort.col === 'comercial') { va = a.perfiles?.nombre||''; vb = b.perfiles?.nombre||''; }
+    else { va = a[mktSort.col]||''; vb = b[mktSort.col]||''; }
+    if (va < vb) return mktSort.dir === 'asc' ? -1 : 1;
+    if (va > vb) return mktSort.dir === 'asc' ? 1 : -1;
+    return 0;
+  });
   const tbody = document.getElementById('tbl-mkt');
   if (!rows.length) { tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="icon">📊</div><p>No hay solicitudes que mostrar.</p></div></td></tr>`; return; }
   tbody.innerHTML = rows.map(s => {
@@ -1179,6 +1240,19 @@ async function saveSolicitud(estadoTarget) {
   else { document.getElementById('err-provincia').textContent = ''; document.getElementById('f-provincia').classList.remove('error'); }
   if (!valid) { showFormAlert('Corrige los campos marcados antes de continuar.', 'error'); return; }
 
+  // Check duplicate SAP in same campaign
+  if (!editingId && activeCampana) {
+    const duplicate = allSolicitudes.find(s => 
+      s.cod_sap?.trim() === codSap && 
+      s.campana_id === activeCampana.id
+    );
+    if (duplicate) {
+      showFormAlert(`Ya existe una solicitud para el cliente ${codSap} en la campaña ${activeCampana.nombre}.`, 'error');
+      document.getElementById('f-cod-sap').classList.add('error');
+      return;
+    }
+  }
+
   const solData = {
     campana_id:    activeCampana?.id,
     comercial_id:  currentUser.id,
@@ -1254,12 +1328,19 @@ async function saveSolicitud(estadoTarget) {
             'Authorization': `Bearer ${token}`,
             'Content-Type': entry.file.type || 'application/octet-stream',
             'x-upsert': 'true',
+            'Cache-Control': '3600',
           },
           body: entry.file,
         }
       );
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text();
+        console.error('Upload failed:', uploadRes.status, errText);
+        showToast(`Error subiendo ${entry.file.name}: ${uploadRes.status}`);
+        continue;
+      }
       if (uploadRes.ok) {
-        const publicUrl = `${SUPA_URL}/storage/v1/object/public/portadas-adjuntos/${encodeURIComponent(fileName).replace(/%2F/g,'/')}`;
+        const publicUrl = `${SUPA_URL}/storage/v1/object/public/portadas-adjuntos/${fileName}`;
         // Save to adjuntos table
         await db.from('adjuntos').insert({
           solicitud_id: solId,
