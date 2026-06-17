@@ -584,22 +584,41 @@ bootstrap();
 
 async function loadPerfil() {
   try {
-    const { data } = await db.from('perfiles').select('*').eq('id', currentUser.id).maybeSingle();
-    currentPerfil = data;
+    // Use fetch directly — SDK auth layer has issues with ECC keys
+    const { data: { session } } = await db.auth.getSession();
+    const token = session?.access_token || SUPA_KEY;
+    const res = await fetch(`${SUPA_URL}/rest/v1/perfiles?id=eq.${currentUser.id}&select=*`, {
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      }
+    });
+    const rows = await res.json();
+    currentPerfil = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+    console.log('loadPerfil:', currentPerfil);
   } catch(e) {
-    console.warn('loadPerfil:', e);
+    console.warn('loadPerfil error:', e);
     currentPerfil = null;
   }
 }
 
 async function loadCampana() {
   try {
-    const { data } = await db.from('campanas').select('*').eq('activa', true).order('created_at', { ascending: false }).limit(1).maybeSingle();
-    activeCampana = data;
+    const res = await fetch(`${SUPA_URL}/rest/v1/campanas?activa=eq.true&select=*&order=created_at.desc&limit=1`, {
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': `Bearer ${SUPA_KEY}`,
+        'Accept': 'application/json',
+      }
+    });
+    const rows = await res.json();
+    activeCampana = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
     const el = document.getElementById('campana-nombre');
-    if (el) el.textContent = data?.nombre || '—';
+    if (el) el.textContent = activeCampana?.nombre || '—';
+    console.log('loadCampana:', activeCampana);
   } catch(e) {
-    console.warn('loadCampana:', e);
+    console.warn('loadCampana error:', e);
     activeCampana = null;
   }
 }
