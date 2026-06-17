@@ -725,14 +725,15 @@ function buildCatSections() {
           </div>
         </div>
         <div class="cat-fields" id="portada-fields-${cat.key}">
+          ${cat.key === 'stamina' ? `
           <div class="toggle-row" style="margin-bottom:.75rem">
             <span class="toggle-label">Diseño propio</span>
             <div class="radio-group">
               <span class="radio-opt" data-cat="${cat.key}" data-field="portada_diseno_propio" data-val="true" onclick="selectOpt(this);toggleDisenoPropio('${cat.key}',true)">SI</span>
               <span class="radio-opt" data-cat="${cat.key}" data-field="portada_diseno_propio" data-val="false" onclick="selectOpt(this);toggleDisenoPropio('${cat.key}',false)">NO</span>
             </div>
-          </div>
-          <div class="cat-fields" id="opciones-fields-${cat.key}">
+          </div>` : ''}
+          <div class="cat-fields ${cat.key !== 'stamina' ? 'visible' : ''}" id="opciones-fields-${cat.key}">
             <div class="form-grid" style="margin-bottom:.75rem">
               <div class="form-group">
                 <label>1ª Opción <span class="req">*</span></label>
