@@ -403,6 +403,7 @@
       <button class="btn btn-outline" onclick="closeModal('modal-solicitud')">Cancelar</button>
       <button class="btn btn-outline" onclick="saveSolicitud('borrador')" id="btn-guardar-borrador">Guardar borrador</button>
       <button class="btn btn-amber" onclick="saveSolicitud('enviada')" id="btn-enviar">Enviar solicitud</button>
+      <span id="upload-progress" style="font-size:12px;color:var(--c-mid);display:none">⏳ Subiendo archivos...</span>
     </div>
   </div>
 </div>
@@ -1228,6 +1229,10 @@ async function saveSolicitud(estadoTarget) {
     ...catFiles.roly_wrk.map(f => ({ file: f, tipo: 'roly_wrk' })),
     ...catFiles.stamina.map(f => ({ file: f, tipo: 'stamina' })),
   ];
+  if (allFilesToUpload.length > 0) {
+    const prog = document.getElementById('upload-progress');
+    if (prog) prog.style.display = 'inline';
+  }
   for (const entry of allFilesToUpload) {
     try {
       const session = loadSession();
@@ -1282,9 +1287,15 @@ async function saveSolicitud(estadoTarget) {
     });
   }
 
+  const prog2 = document.getElementById('upload-progress');
+  if (prog2) prog2.style.display = 'none';
   closeModal('modal-solicitud');
   await loadData();
-  showToast(estadoTarget === 'enviada' ? 'Solicitud enviada correctamente.' : 'Borrador guardado.');
+  const numFiles = Object.values(catFiles).flat().length;
+  const msg = estadoTarget === 'enviada'
+    ? `Solicitud enviada correctamente.${numFiles > 0 ? ` ${numFiles} archivo(s) adjuntado(s).` : ''}`
+    : 'Borrador guardado.';
+  showToast(msg);
 }
 
 // ── DETALLE ───────────────────────────────────────────────
