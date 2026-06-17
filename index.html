@@ -428,6 +428,13 @@
           <input type="text" id="f-provincia" placeholder="ej: Barcelona">
           <span class="field-error" id="err-provincia"></span>
         </div>
+        <div class="form-group">
+          <label>Campaña <span class="req">*</span></label>
+          <select id="f-campana">
+            <option value="">— selecciona —</option>
+          </select>
+          <span class="field-error" id="err-campana"></span>
+        </div>
       </div>
 
       <hr class="divider">
@@ -1388,6 +1395,20 @@ function openFormModal(solId = null) {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+
+  // Populate campaign selector with active campaigns
+  const campSel = document.getElementById('f-campana');
+  if (campSel) {
+    campSel.innerHTML = '<option value="">— selecciona —</option>';
+    const campanas = await loadAllCampanas();
+    campanas.filter(c => c.activa).forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.nombre;
+      if (c.id === activeCampana?.id) opt.selected = true;
+      campSel.appendChild(opt);
+    });
+  }
   document.querySelectorAll('.radio-opt').forEach(el => el.classList.remove('selected-si','selected-no'));
   document.querySelectorAll('.cat-body').forEach(el => el.classList.remove('open'));
   document.querySelectorAll('.cat-toggle-roly,.cat-toggle-roly_wrk,.cat-toggle-stamina').forEach(el => el.textContent = '▼ Expandir');
@@ -1405,6 +1426,19 @@ function openFormModal(solId = null) {
       document.getElementById('f-nombre').value     = sol.nombre_empresa || '';
       document.getElementById('f-provincia').value  = sol.provincia || '';
       document.getElementById('f-comentarios').value = sol.comentarios || '';
+      // Restore campaign
+      const campSel2 = document.getElementById('f-campana');
+      if (campSel2 && sol.campana_id) {
+        const campanas2 = await loadAllCampanas();
+        campSel2.innerHTML = '<option value="">— selecciona —</option>';
+        campanas2.filter(c => c.activa || c.id === sol.campana_id).forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.nombre + (!c.activa ? ' (cerrada)' : '');
+          if (c.id === sol.campana_id) opt.selected = true;
+          campSel2.appendChild(opt);
+        });
+      }
       sol.solicitud_catalogos?.forEach(cat => {
         if (cat.catalogo_digital   !== null) setRadio(cat.catalogo, 'catalogo_digital',   cat.catalogo_digital);
         if (cat.catalogo_impreso   !== null) setRadio(cat.catalogo, 'catalogo_impreso',   cat.catalogo_impreso);
@@ -1459,20 +1493,35 @@ async function saveSolicitud(estadoTarget) {
   }
 
   // Check duplicate SAP in same campaign
-  if (!editingId && activeCampana) {
+  if (!editingId && campanaId) {
     const duplicate = allSolicitudes.find(s =>
       s.cod_sap?.trim() === codSap &&
-      s.campana_id === activeCampana.id
+      s.campana_id === campanaId
     );
     if (duplicate) {
-      showFormAlert(`Ya existe una solicitud para el cliente ${codSap} en la campaña ${activeCampana.nombre}.`, 'error');
+      const campNom = campSeleccionada?.nombre || campanaId;
+      showFormAlert(`Ya existe una solicitud para el cliente ${codSap} en la campaña ${campNom}.`, 'error');
       document.getElementById('f-cod-sap').classList.add('error');
       return;
     }
   }
 
+  const campanaId = document.getElementById('f-campana')?.value || activeCampana?.id;
+  if (!campanaId) { showFormAlert('Selecciona una campaña.', 'error'); return; }
+
+  // Check closing date of selected campaign
+  const campSeleccionada = (await loadAllCampanas()).find(c => c.id === campanaId);
+  if (campSeleccionada?.fecha_cierre) {
+    const cierre = new Date(campSeleccionada.fecha_cierre);
+    cierre.setHours(23, 59, 59);
+    if (new Date() > cierre) {
+      showFormAlert(`La campaña ${campSeleccionada.nombre} está cerrada (${campSeleccionada.fecha_cierre.slice(0,10)}). Selecciona otra campaña.`, 'error');
+      return;
+    }
+  }
+
   const solData = {
-    campana_id:    activeCampana?.id,
+    campana_id:    campanaId,
     comercial_id:  currentUser.id,
     cod_sap:       codSap,
     nombre_empresa: nombre,
@@ -1650,11 +1699,19 @@ async function openDetalle(solId) {
     html += '</div>';
   }
 
-  // Add comment section
+  // Add comment section with @mention support
   html += `<div class="card" style="margin-bottom:1rem">
     <div class="card-title">Añadir comentario</div>
-    <div style="display:flex;gap:8px">
-      <input type="text" id="nuevo-comentario-${solId}" placeholder="Escribe un comentario..." style="flex:1">
+    <div style="position:relative">
+      <textarea id="nuevo-comentario-${solId}"
+        placeholder="Escribe un comentario... usa @ para mencionar a alguien"
+        rows="2"
+        style="width:100%;resize:none"
+        oninput="checkMention(this, '${solId}')"
+        onkeydown="handleCommentKey(event, '${solId}')"></textarea>
+      <div id="mention-dropdown-${solId}" style="display:none;position:absolute;bottom:100%;left:0;background:var(--c-white);border:1px solid var(--c-line);border-radius:var(--radius);box-shadow:var(--shadow);width:240px;max-height:180px;overflow-y:auto;z-index:50"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:6px">
       <button class="btn btn-outline btn-sm" onclick="addComentario('${solId}')">Añadir</button>
     </div>
   </div>`;
@@ -1674,7 +1731,7 @@ async function openDetalle(solId) {
         ${l.accion === 'cambio_estado'
           ? `<span class="status s-${l.detalle?.estado_anterior}" style="font-size:10px">${ESTADO_LABEL[l.detalle?.estado_anterior]||l.detalle?.estado_anterior}</span> → <span class="status s-${l.detalle?.estado_nuevo}" style="font-size:10px">${ESTADO_LABEL[l.detalle?.estado_nuevo]||l.detalle?.estado_nuevo}</span>`
           : l.accion === 'comentario'
-          ? `💬 ${l.detalle?.texto || ''}`
+          ? `💬 ${(l.detalle?.texto || '').replace(/@([\w\s áéíóúüñÁÉÍÓÚÜÑ]+?)(?=\s|$|[,.:;!?])/g, '<strong style="color:var(--c-amber)">@$1</strong>')}`
           : l.accion}
       </div>
     </div>`).join('');
@@ -1730,16 +1787,42 @@ async function addComentario(solId) {
   const input = document.getElementById('nuevo-comentario-' + solId);
   const texto = input?.value?.trim();
   if (!texto) return;
+
+  // Extract mentions
+  const mentions = [...texto.matchAll(/@([a-záéíóúüñA-ZÁÉÍÓÚÜÑ\s\w.]+?)(?=\s|$|[,.:;!?])/g)]
+    .map(m => m[1].trim().toLowerCase());
+  const mentionedUsers = allPerfiles.filter(p =>
+    mentions.some(m => p.nombre?.toLowerCase().includes(m) || p.email?.toLowerCase().includes(m))
+  );
+
   await db.from('logs').insert({
     solicitud_id: solId,
     usuario_id: currentUser.id,
     usuario_nombre: currentPerfil?.nombre,
     accion: 'comentario',
-    detalle: { texto, fecha: new Date().toISOString() }
+    detalle: { texto, fecha: new Date().toISOString(), menciones: mentionedUsers.map(u => u.nombre) }
   });
+
+  // Notify mentioned users
+  for (const u of mentionedUsers) {
+    if (u.id === currentUser.id) continue;
+    await db.from('notificaciones').insert({
+      solicitud_id: solId,
+      destinatario: u.email,
+      asunto: `[Portadas GOR] ${currentPerfil?.nombre} te ha mencionado`,
+      cuerpo: `${currentPerfil?.nombre} te ha mencionado en un comentario de la solicitud ${allSolicitudes.find(s=>s.id===solId)?.cod_sap||''}:
+
+"${texto}"`,
+      enviado: false,
+    });
+  }
+
+  // Close dropdown
+  const dd = document.getElementById('mention-dropdown-' + solId);
+  if (dd) dd.style.display = 'none';
   input.value = '';
   await openDetalle(solId);
-  showToast('Comentario añadido.');
+  showToast(mentionedUsers.length > 0 ? `Comentario añadido. ${mentionedUsers.length} mención(es) notificada(s).` : 'Comentario añadido.');
 }
 
 async function cambiarEstado(solId, nuevoEstado) {
@@ -2002,6 +2085,93 @@ function resetFiles() {
     if (el) el.innerHTML = '';
   });
 }
+
+// ── MENCIONES ─────────────────────────────────────────────
+let mentionSolId = null;
+let mentionStartPos = -1;
+
+function checkMention(textarea, solId) {
+  const val = textarea.value;
+  const pos = textarea.selectionStart;
+  const textBefore = val.slice(0, pos);
+  const atMatch = textBefore.match(/@([\w\sáéíóúüñÁÉÍÓÚÜÑ]*)$/);
+
+  const dd = document.getElementById('mention-dropdown-' + solId);
+  if (!dd) return;
+
+  if (atMatch) {
+    const query = atMatch[1].toLowerCase();
+    mentionSolId = solId;
+    mentionStartPos = textBefore.lastIndexOf('@');
+
+    const matches = allPerfiles.filter(p =>
+      p.activo &&
+      p.id !== currentUser.id &&
+      (p.nombre?.toLowerCase().includes(query) || p.codigo?.toLowerCase().includes(query))
+    ).slice(0, 6);
+
+    if (matches.length) {
+      dd.style.display = 'block';
+      dd.innerHTML = matches.map(p => `
+        <div onclick="insertMention('${p.id}','${p.nombre}','${solId}')"
+          style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px;border-bottom:0.5px solid var(--c-line)"
+          onmouseover="this.style.background='var(--c-light)'"
+          onmouseout="this.style.background=''">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--c-amber-l);color:var(--c-amber);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">
+            ${p.nombre?.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase()}
+          </div>
+          <div>
+            <div style="font-weight:500">${p.nombre}</div>
+            <div style="font-size:11px;color:var(--c-mid)">${p.rol} ${p.codigo ? '· '+p.codigo : ''}</div>
+          </div>
+        </div>`).join('');
+    } else {
+      dd.style.display = 'none';
+    }
+  } else {
+    dd.style.display = 'none';
+    mentionSolId = null;
+  }
+}
+
+function insertMention(userId, userName, solId) {
+  const textarea = document.getElementById('nuevo-comentario-' + solId);
+  const dd = document.getElementById('mention-dropdown-' + solId);
+  if (!textarea) return;
+
+  const val = textarea.value;
+  const before = val.slice(0, mentionStartPos);
+  const after = val.slice(textarea.selectionStart);
+  textarea.value = before + '@' + userName + ' ' + after;
+  textarea.focus();
+  const newPos = (before + '@' + userName + ' ').length;
+  textarea.setSelectionRange(newPos, newPos);
+
+  if (dd) dd.style.display = 'none';
+  mentionSolId = null;
+}
+
+function handleCommentKey(event, solId) {
+  const dd = document.getElementById('mention-dropdown-' + solId);
+  if (!dd || dd.style.display === 'none') {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      addComentario(solId);
+    }
+    return;
+  }
+  if (event.key === 'Escape') {
+    dd.style.display = 'none';
+    event.preventDefault();
+  }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('[id^="mention-dropdown-"]').forEach(dd => {
+    if (!dd.contains(e.target)) dd.style.display = 'none';
+  });
+});
 
 // ── CAMPAÑAS ──────────────────────────────────────────────
 let allCampanas = [];
