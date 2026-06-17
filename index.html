@@ -387,19 +387,18 @@
       <div class="card-title">Logo del cliente</div>
       <div class="form-group" style="margin-bottom:1rem">
         <label>Subir logo del cliente <span class="req">*</span></label>
-        <div class="drop-zone" id="drop-logo-general"
-          ondragover="event.preventDefault();this.classList.add('dz-over')"
-          ondragleave="this.classList.remove('dz-over')"
-          ondrop="handleDropGeneral(event)"
+        <div id="drop-logo-general"
+          style="border:2px dashed var(--c-line);border-radius:var(--radius);padding:1.25rem;text-align:center;cursor:pointer;transition:all .15s;background:var(--c-white)"
+          ondragover="event.preventDefault();event.stopPropagation();this.style.borderColor='var(--c-amber)';this.style.background='var(--c-amber-l)'"
+          ondragleave="this.style.borderColor='var(--c-line)';this.style.background='var(--c-white)'"
+          ondrop="event.preventDefault();event.stopPropagation();this.style.borderColor='var(--c-line)';this.style.background='var(--c-white)';handleDropGeneral(event)"
           onclick="document.getElementById('file-logo-general').click()">
-          <div style="font-size:11px;color:var(--c-mid);text-align:center;padding:.75rem">
-            <div style="font-size:24px;margin-bottom:4px">📎</div>
-            Arrastra el logo aquí o haz clic para seleccionar<br>
-            <span style="font-size:10px;color:var(--c-mid)">PDF o imagen en máxima calidad (300 dpi)</span>
-          </div>
+          <div style="font-size:28px;margin-bottom:6px">📎</div>
+          <div style="font-size:13px;font-weight:500;color:var(--c-dark)">Arrastra el logo aquí o haz clic</div>
+          <div style="font-size:11px;color:var(--c-mid);margin-top:4px">PDF o imagen · máxima calidad · 300 dpi</div>
         </div>
-        <input type="file" id="file-logo-general" accept=".pdf,.png,.jpg,.jpeg,.ai,.eps" style="display:none" onchange="handleFileInputGeneral(event)">
-        <div id="files-list-logo-general" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px"></div>
+        <input type="file" id="file-logo-general" accept=".pdf,.png,.jpg,.jpeg,.ai,.eps" multiple style="display:none" onchange="handleFileInputGeneral(event)">
+        <div id="files-list-logo-general" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
 
       <hr class="divider">
@@ -1108,16 +1107,15 @@ function buildCatSections() {
           <div class="cat-fields" id="diseno-propio-upload-stamina">
             <div class="form-group" style="margin-bottom:.5rem">
               <label>Subir diseño de portada propio (Stamina)</label>
-              <div class="drop-zone" id="drop-stamina-diseno"
-                ondragover="event.preventDefault();this.classList.add('dz-over')"
-                ondragleave="this.classList.remove('dz-over')"
-                ondrop="handleDrop(event,'stamina_diseno')"
+              <div id="drop-stamina-diseno"
+                style="border:2px dashed var(--c-purple);border-radius:var(--radius);padding:1rem;text-align:center;cursor:pointer;transition:all .15s;background:var(--c-white)"
+                ondragover="event.preventDefault();event.stopPropagation();this.style.background='var(--c-purple-l)'"
+                ondragleave="this.style.background='var(--c-white)'"
+                ondrop="event.preventDefault();event.stopPropagation();this.style.background='var(--c-white)';handleDrop(event,'stamina_diseno')"
                 onclick="document.getElementById('file-stamina-diseno').click()">
-                <div style="font-size:11px;color:var(--c-mid);text-align:center;padding:.5rem">
-                  <div style="font-size:20px;margin-bottom:4px">🎨</div>
-                  Arrastra el diseño aquí o haz clic<br>
-                  <span style="font-size:10px">PDF, 300 dpi, textos trazados</span>
-                </div>
+                <div style="font-size:24px;margin-bottom:4px">🎨</div>
+                <div style="font-size:12px;font-weight:500;color:var(--c-dark)">Arrastra el diseño aquí o haz clic</div>
+                <div style="font-size:10px;color:var(--c-mid);margin-top:3px">PDF · 300 dpi · textos trazados</div>
               </div>
               <input type="file" id="file-stamina-diseno" accept=".pdf,.ai,.eps" style="display:none" onchange="handleFileInput(event,'stamina_diseno')">
               <div id="files-list-stamina_diseno" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px"></div>
@@ -1669,25 +1667,29 @@ function showToast(msg) {
 const catFiles = { roly: [], roly_wrk: [], stamina: [], stamina_diseno: [], logo_general: [] };
 
 function handleDropGeneral(event) {
-  event.preventDefault();
-  document.getElementById('drop-logo-general').classList.remove('dz-over');
-  addFiles('logo_general', Array.from(event.dataTransfer.files));
+  const files = Array.from(event.dataTransfer.files);
+  if (files.length === 0) return;
+  addFiles('logo_general', files);
+  showToast(`${files.length} archivo(s) añadido(s).`);
 }
 function handleFileInputGeneral(event) {
-  addFiles('logo_general', Array.from(event.target.files));
+  const files = Array.from(event.target.files);
+  addFiles('logo_general', files);
+  if (files.length) showToast(`${files.length} archivo(s) seleccionado(s).`);
   event.target.value = '';
 }
 
 function handleDrop(event, cat) {
-  event.preventDefault();
-  document.getElementById('drop-' + cat).classList.remove('dz-over');
   const files = Array.from(event.dataTransfer.files);
+  if (files.length === 0) return;
   addFiles(cat, files);
+  showToast(`${files.length} archivo(s) añadido(s).`);
 }
 
 function handleFileInput(event, cat) {
   const files = Array.from(event.target.files);
   addFiles(cat, files);
+  if (files.length) showToast(`${files.length} archivo(s) seleccionado(s).`);
   event.target.value = '';
 }
 
