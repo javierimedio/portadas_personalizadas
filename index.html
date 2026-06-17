@@ -1,1 +1,1118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portadas Personalizadas · GOR Factory</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --c-dark:    #2C2C2A;
+    --c-mid:     #888780;
+    --c-light:   #F1EFE8;
+    --c-line:    #E0DED6;
+    --c-white:   #FFFFFF;
+    --c-amber:   #BA7517;
+    --c-amber-l: #FAEEDA;
+    --c-blue:    #185FA5;
+    --c-blue-l:  #E6F1FB;
+    --c-teal:    #0F6E56;
+    --c-teal-l:  #E1F5EE;
+    --c-purple:  #534AB7;
+    --c-purple-l:#EEEDFE;
+    --c-red:     #C0392B;
+    --c-red-l:   #FDECEA;
+    --c-green:   #3B6D11;
+    --c-green-l: #EAF3DE;
+    --radius:    6px;
+    --shadow:    0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--c-light); color: var(--c-dark); font-size: 14px; min-height: 100vh; }
 
+  /* ── AUTH ── */
+  #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }
+  .auth-card { background: var(--c-white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 2.5rem; width: 100%; max-width: 400px; }
+  .auth-logo { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--c-mid); margin-bottom: 1.5rem; }
+  .auth-title { font-size: 22px; font-weight: 700; color: var(--c-dark); margin-bottom: .25rem; }
+  .auth-sub { font-size: 13px; color: var(--c-mid); margin-bottom: 2rem; }
+
+  /* ── LAYOUT ── */
+  #app { display: none; min-height: 100vh; }
+  .topbar { background: var(--c-dark); color: var(--c-white); padding: 0 1.5rem; height: 52px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .topbar-brand { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; display: flex; align-items: center; gap: 10px; }
+  .topbar-brand span { color: var(--c-mid); font-weight: 400; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .user-badge { font-size: 12px; color: var(--c-mid); }
+  .role-tag { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px; border-radius: 20px; background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); }
+
+  /* ── NAV ── */
+  .nav { background: var(--c-white); border-bottom: 1px solid var(--c-line); padding: 0 1.5rem; display: flex; gap: 0; }
+  .nav-btn { padding: .75rem 1rem; font-size: 13px; font-weight: 500; color: var(--c-mid); background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; transition: color .15s, border-color .15s; white-space: nowrap; }
+  .nav-btn:hover { color: var(--c-dark); }
+  .nav-btn.active { color: var(--c-dark); border-bottom-color: var(--c-amber); }
+  .nav-btn .badge { display: inline-block; background: var(--c-red); color: white; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 10px; margin-left: 5px; }
+
+  /* ── MAIN ── */
+  .main { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── CARDS ── */
+  .card { background: var(--c-white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.25rem; margin-bottom: 1rem; }
+  .card-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--c-mid); margin-bottom: 1rem; padding-bottom: .75rem; border-bottom: 1px solid var(--c-line); }
+
+  /* ── FORMS ── */
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--c-mid); }
+  .form-group label .req { color: var(--c-red); }
+  input[type=text], input[type=email], input[type=password], input[type=number], select, textarea {
+    padding: .5rem .75rem; border: 1px solid var(--c-line); border-radius: var(--radius);
+    font-size: 13px; font-family: inherit; color: var(--c-dark); background: var(--c-white);
+    transition: border-color .15s;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--c-amber); }
+  input.error, select.error { border-color: var(--c-red); }
+  .field-error { font-size: 11px; color: var(--c-red); margin-top: 2px; }
+
+  /* Cat section */
+  .cat-section { border: 1px solid var(--c-line); border-radius: var(--radius); margin-bottom: 1rem; overflow: hidden; }
+  .cat-header { padding: .75rem 1rem; display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+  .cat-header h3 { font-size: 13px; font-weight: 700; }
+  .cat-header .toggle { margin-left: auto; font-size: 11px; color: var(--c-mid); }
+  .cat-body { padding: 1rem; border-top: 1px solid var(--c-line); display: none; }
+  .cat-body.open { display: block; }
+  .cat-roly     .cat-header { background: var(--c-blue-l); }
+  .cat-roly     .cat-header h3 { color: var(--c-blue); }
+  .cat-roly_wrk .cat-header { background: var(--c-teal-l); }
+  .cat-roly_wrk .cat-header h3 { color: var(--c-teal); }
+  .cat-stamina  .cat-header { background: var(--c-purple-l); }
+  .cat-stamina  .cat-header h3 { color: var(--c-purple); }
+
+  .toggle-row { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+  .toggle-label { font-size: 12px; font-weight: 600; color: var(--c-mid); text-transform: uppercase; letter-spacing: .05em; margin-right: 4px; }
+  .radio-group { display: flex; gap: 6px; }
+  .radio-opt { padding: 4px 12px; border: 1px solid var(--c-line); border-radius: 20px; font-size: 12px; cursor: pointer; transition: all .15s; color: var(--c-mid); }
+  .radio-opt.selected-si  { background: var(--c-green-l); border-color: var(--c-green); color: var(--c-green); font-weight: 600; }
+  .radio-opt.selected-no  { background: var(--c-red-l); border-color: var(--c-red); color: var(--c-red); font-weight: 600; }
+  .cat-fields { display: none; }
+  .cat-fields.visible { display: block; }
+
+  /* ── BUTTONS ── */
+  .btn { padding: .5rem 1rem; border-radius: var(--radius); border: 1px solid transparent; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: opacity .15s, background .15s; white-space: nowrap; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn-primary   { background: var(--c-dark); color: var(--c-white); }
+  .btn-amber     { background: var(--c-amber); color: var(--c-white); }
+  .btn-outline   { background: transparent; border-color: var(--c-line); color: var(--c-dark); }
+  .btn-outline:hover { background: var(--c-light); }
+  .btn-danger    { background: var(--c-red-l); color: var(--c-red); border-color: var(--c-red); }
+  .btn-green     { background: var(--c-green-l); color: var(--c-green); border-color: var(--c-green); }
+  .btn-sm { padding: .3rem .7rem; font-size: 12px; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--c-line); }
+
+  /* ── STATUS BADGES ── */
+  .status { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+  .s-borrador              { background: var(--c-light);    color: var(--c-mid); }
+  .s-enviada               { background: #FFF8E1;           color: #B45309; }
+  .s-en_revision_marketing { background: var(--c-blue-l);   color: var(--c-blue); }
+  .s-en_diseno             { background: var(--c-purple-l); color: var(--c-purple); }
+  .s-diseno_en_revision    { background: var(--c-amber-l);  color: var(--c-amber); }
+  .s-modificar_diseno      { background: var(--c-red-l);    color: var(--c-red); }
+  .s-confirmada            { background: var(--c-green-l);  color: var(--c-green); }
+
+  /* ── TABLE ── */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: var(--c-light); padding: 8px 10px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--c-mid); border-bottom: 1px solid var(--c-line); white-space: nowrap; }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--c-line); vertical-align: middle; }
+  tr:hover td { background: #FAFAF8; }
+  tr:last-child td { border-bottom: none; }
+
+  /* ── STAT CARDS ── */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .stat-card { background: var(--c-white); border-radius: var(--radius); padding: 1rem 1.25rem; box-shadow: var(--shadow); }
+  .stat-num { font-size: 28px; font-weight: 700; color: var(--c-dark); line-height: 1; }
+  .stat-lbl { font-size: 11px; color: var(--c-mid); text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; }
+  .stat-card.amber .stat-num { color: var(--c-amber); }
+  .stat-card.blue  .stat-num { color: var(--c-blue); }
+  .stat-card.green .stat-num { color: var(--c-green); }
+  .stat-card.red   .stat-num { color: var(--c-red); }
+
+  /* ── LOG ── */
+  .log-entry { display: flex; gap: 10px; padding: .6rem 0; border-bottom: 1px solid var(--c-line); font-size: 12px; }
+  .log-entry:last-child { border-bottom: none; }
+  .log-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c-mid); margin-top: 4px; flex-shrink: 0; }
+  .log-dot.estado { background: var(--c-amber); }
+  .log-time { color: var(--c-mid); white-space: nowrap; flex-shrink: 0; }
+  .log-text { flex: 1; }
+
+  /* ── ALERTS ── */
+  .alert { padding: .75rem 1rem; border-radius: var(--radius); font-size: 13px; margin-bottom: 1rem; }
+  .alert-error   { background: var(--c-red-l);   color: var(--c-red);   border-left: 3px solid var(--c-red); }
+  .alert-success { background: var(--c-green-l); color: var(--c-green); border-left: 3px solid var(--c-green); }
+  .alert-info    { background: var(--c-blue-l);  color: var(--c-blue);  border-left: 3px solid var(--c-blue); }
+
+  /* ── MODAL ── */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 200; align-items: center; justify-content: center; padding: 1rem; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--c-white); border-radius: var(--radius); box-shadow: var(--shadow); width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; }
+  .modal-header { padding: 1.25rem; border-bottom: 1px solid var(--c-line); display: flex; justify-content: space-between; align-items: center; }
+  .modal-title { font-size: 15px; font-weight: 700; }
+  .modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--c-mid); padding: 4px; }
+  .modal-body { padding: 1.25rem; }
+  .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid var(--c-line); display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* ── MISC ── */
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--c-mid); }
+  .empty-state .icon { font-size: 36px; margin-bottom: .75rem; }
+  .empty-state p { font-size: 13px; }
+  .divider { border: none; border-top: 1px solid var(--c-line); margin: 1.25rem 0; }
+  .section-title { font-size: 18px; font-weight: 700; margin-bottom: .25rem; }
+  .section-sub { font-size: 13px; color: var(--c-mid); margin-bottom: 1.5rem; }
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .chip-blue   { background: var(--c-blue-l);   color: var(--c-blue); }
+  .chip-teal   { background: var(--c-teal-l);   color: var(--c-teal); }
+  .chip-purple { background: var(--c-purple-l); color: var(--c-purple); }
+  .loading { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: white; border-radius: 50%; animation: spin .6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .text-mid { color: var(--c-mid); }
+  .text-sm { font-size: 12px; }
+  .mt-1 { margin-top: .5rem; }
+  .gap-8 { display: flex; gap: 8px; align-items: center; }
+  select[multiple] { height: auto; }
+</style>
+</head>
+<body>
+
+<!-- ── AUTH ─────────────────────────────────────────────── -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">GOR Factory · Marketing</div>
+    <div class="auth-title">Portadas Personalizadas</div>
+    <div class="auth-sub">Accede con tu correo corporativo</div>
+    <div id="auth-alert"></div>
+    <div class="form-group" style="margin-bottom:.75rem">
+      <label>Correo electrónico</label>
+      <input type="email" id="auth-email" placeholder="tu@gorfactory.com" autocomplete="email">
+    </div>
+    <div class="form-group" style="margin-bottom:1.25rem">
+      <label>Contraseña</label>
+      <input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">
+      <span id="login-label">Entrar</span>
+    </button>
+    <div style="margin-top:1rem;text-align:center">
+      <button class="btn btn-outline btn-sm" onclick="showReset()" style="width:100%">¿Olvidaste tu contraseña?</button>
+    </div>
+    <div id="reset-section" style="display:none;margin-top:1rem">
+      <input type="email" id="reset-email" placeholder="Introduce tu correo" style="width:100%;margin-bottom:.5rem">
+      <button class="btn btn-outline btn-sm" style="width:100%" onclick="doReset()">Enviar enlace de recuperación</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── APP ──────────────────────────────────────────────── -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-brand">
+      Portadas <span id="campana-nombre">—</span>
+    </div>
+    <div class="topbar-right">
+      <span class="role-tag" id="role-tag">—</span>
+      <span class="user-badge" id="user-name">—</span>
+      <button class="btn btn-outline btn-sm" onclick="doLogout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="nav" id="main-nav"></div>
+
+  <div class="main">
+    <!-- COMERCIAL: MIS SOLICITUDES -->
+    <div class="page" id="page-mis-solicitudes">
+      <div class="section-title">Mis solicitudes</div>
+      <div class="section-sub">Crea y gestiona las solicitudes de portada para tus clientes.</div>
+      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+        <button class="btn btn-amber" onclick="openFormModal()">+ Nueva solicitud</button>
+        <input type="text" id="search-comercial" placeholder="Buscar por código SAP..." style="flex:1;min-width:200px" oninput="renderComercialTable()">
+      </div>
+      <div class="card" style="padding:0">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>Cód. SAP</th><th>Empresa</th><th>Provincia</th>
+              <th>Roly</th><th>Roly WRK</th><th>Stamina</th>
+              <th>Estado</th><th>Actualizado</th><th></th>
+            </tr></thead>
+            <tbody id="tbl-comercial"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- MARKETING: PANEL GLOBAL -->
+    <div class="page" id="page-panel">
+      <div class="stats-row" id="stats-row"></div>
+      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+        <input type="text" id="search-mkt" placeholder="Buscar SAP, empresa, comercial..." style="flex:1;min-width:200px" oninput="renderMktTable()">
+        <select id="filter-estado" onchange="renderMktTable()">
+          <option value="">Todos los estados</option>
+          <option value="borrador">Borrador</option>
+          <option value="enviada">Enviada</option>
+          <option value="en_revision_marketing">En revisión</option>
+          <option value="en_diseno">En diseño</option>
+          <option value="diseno_en_revision">Diseño en revisión</option>
+          <option value="modificar_diseno">Modificar diseño</option>
+          <option value="confirmada">Confirmada</option>
+        </select>
+        <button class="btn btn-outline" onclick="exportExcel()">↓ Exportar Excel</button>
+        <button class="btn btn-amber" onclick="openUserModal()">+ Usuario</button>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>Cód. SAP</th><th>Empresa</th><th>Comercial</th><th>Provincia</th>
+              <th>Roly</th><th>Roly WRK</th><th>Stamina</th>
+              <th>Estado</th><th>Actualizado</th><th>Campos incompletos</th><th></th>
+            </tr></thead>
+            <tbody id="tbl-mkt"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DISEÑADOR: MIS ASIGNACIONES -->
+    <div class="page" id="page-diseno">
+      <div class="section-title">Mis asignaciones</div>
+      <div class="section-sub">Solicitudes asignadas para diseño de portada.</div>
+      <div class="card" style="padding:0">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>Cód. SAP</th><th>Empresa</th><th>Provincia</th>
+              <th>Roly</th><th>Roly WRK</th><th>Stamina</th>
+              <th>Estado</th><th></th>
+            </tr></thead>
+            <tbody id="tbl-diseno"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN: USUARIOS -->
+    <div class="page" id="page-usuarios">
+      <div class="section-title">Gestión de usuarios</div>
+      <div class="section-sub">Administra los accesos a la herramienta.</div>
+      <div style="margin-bottom:1rem">
+        <button class="btn btn-amber" onclick="openUserModal()">+ Nuevo usuario</button>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Código</th><th>Activo</th><th></th></tr></thead>
+            <tbody id="tbl-usuarios"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL SOLICITUD ──────────────────────────────────── -->
+<div class="modal-bg" id="modal-solicitud">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-sol-title">Nueva solicitud</div>
+      <button class="modal-close" onclick="closeModal('modal-solicitud')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="form-alert"></div>
+
+      <!-- DATOS GENERALES -->
+      <div class="card-title">Datos del cliente</div>
+      <div class="form-grid" style="margin-bottom:1rem">
+        <div class="form-group">
+          <label>Código SAP <span class="req">*</span></label>
+          <input type="text" id="f-cod-sap" placeholder="ej: 60239">
+          <span class="field-error" id="err-cod-sap"></span>
+        </div>
+        <div class="form-group">
+          <label>Nombre empresa</label>
+          <input type="text" id="f-nombre" placeholder="Nombre de la empresa">
+        </div>
+        <div class="form-group">
+          <label>Provincia <span class="req">*</span></label>
+          <input type="text" id="f-provincia" placeholder="ej: Barcelona">
+          <span class="field-error" id="err-provincia"></span>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <!-- CATÁLOGOS -->
+      <div id="cat-sections"></div>
+
+      <hr class="divider">
+      <div class="form-group">
+        <label>Comentarios</label>
+        <textarea id="f-comentarios" rows="2" placeholder="Instrucciones adicionales para el equipo de diseño..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-solicitud')">Cancelar</button>
+      <button class="btn btn-outline" onclick="saveSolicitud('borrador')" id="btn-guardar-borrador">Guardar borrador</button>
+      <button class="btn btn-amber" onclick="saveSolicitud('enviada')" id="btn-enviar">Enviar solicitud</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL DETALLE ────────────────────────────────────── -->
+<div class="modal-bg" id="modal-detalle">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="det-title">Solicitud</div>
+        <div class="text-sm text-mid" id="det-sub"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-detalle')">✕</button>
+    </div>
+    <div class="modal-body" id="det-body"></div>
+    <div class="modal-footer" id="det-footer"></div>
+  </div>
+</div>
+
+<!-- ── MODAL USUARIO ────────────────────────────────────── -->
+<div class="modal-bg" id="modal-usuario">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">Nuevo usuario</div>
+      <button class="modal-close" onclick="closeModal('modal-usuario')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="user-alert"></div>
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label>Nombre completo <span class="req">*</span></label>
+        <input type="text" id="u-nombre" placeholder="Nombre y apellidos">
+      </div>
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label>Email corporativo <span class="req">*</span></label>
+        <input type="email" id="u-email" placeholder="correo@gorfactory.com">
+      </div>
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label>Rol <span class="req">*</span></label>
+        <select id="u-rol">
+          <option value="comercial">Comercial</option>
+          <option value="marketing">Marketing</option>
+          <option value="disenador">Diseñador</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label>Código comercial</label>
+        <input type="text" id="u-codigo" placeholder="ej: EXPORT13">
+      </div>
+      <div class="form-group">
+        <label>Contraseña temporal <span class="req">*</span></label>
+        <input type="password" id="u-pass" placeholder="Mín. 8 caracteres">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-usuario')">Cancelar</button>
+      <button class="btn btn-amber" onclick="createUser()">Crear usuario</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL = 'https://paqtohmxagfebeyyurlq.supabase.co';
+const SUPA_KEY = 'sb_publishable_dd7aM2WiMZMDpW6wESxhLA_cqtUAtXp';
+const { createClient } = supabase;
+const db = createClient(SUPA_URL, SUPA_KEY);
+
+let currentUser = null;
+let currentPerfil = null;
+let allSolicitudes = [];
+let allPerfiles = [];
+let editingId = null;
+let activeCampana = null;
+
+const CATS = [
+  { key: 'roly',     label: '🔵 ROLY',     color: 'var(--c-blue)' },
+  { key: 'roly_wrk', label: '🟢 ROLY WRK', color: 'var(--c-teal)' },
+  { key: 'stamina',  label: '🟣 STAMINA',  color: 'var(--c-purple)' },
+];
+
+const ESTADO_LABEL = {
+  borrador:              'Borrador',
+  enviada:               'Enviada',
+  en_revision_marketing: 'En revisión Mkt.',
+  en_diseno:             'En diseño',
+  diseno_en_revision:    'Diseño en revisión',
+  modificar_diseno:      'Modificar diseño',
+  confirmada:            'Confirmada',
+};
+
+// ── AUTH ──────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass  = document.getElementById('auth-pass').value;
+  const label = document.getElementById('login-label');
+  if (!email || !pass) { showAuthAlert('Introduce tu correo y contraseña.', 'error'); return; }
+  label.innerHTML = '<span class="loading"></span>';
+  const { error } = await db.auth.signInWithPassword({ email, password: pass });
+  label.textContent = 'Entrar';
+  if (error) showAuthAlert('Correo o contraseña incorrectos.', 'error');
+}
+
+async function doLogout() {
+  await db.auth.signOut();
+  location.reload();
+}
+
+function showReset() {
+  document.getElementById('reset-section').style.display = 'block';
+}
+
+async function doReset() {
+  const email = document.getElementById('reset-email').value.trim();
+  if (!email) return;
+  await db.auth.resetPasswordForEmail(email);
+  showAuthAlert('Si el correo existe, recibirás un enlace de recuperación.', 'success');
+}
+
+function showAuthAlert(msg, type) {
+  const el = document.getElementById('auth-alert');
+  el.innerHTML = `<div class="alert alert-${type}" style="margin-bottom:1rem">${msg}</div>`;
+}
+
+// ── INIT ──────────────────────────────────────────────────
+db.auth.onAuthStateChange(async (event, session) => {
+  if (session?.user) {
+    currentUser = session.user;
+    await loadPerfil();
+    await loadCampana();
+    initApp();
+  }
+});
+
+async function loadPerfil() {
+  const { data } = await db.from('perfiles').select('*').eq('id', currentUser.id).single();
+  currentPerfil = data;
+}
+
+async function loadCampana() {
+  const { data } = await db.from('campanas').select('*').eq('activa', true).order('created_at', { ascending: false }).limit(1).single();
+  activeCampana = data;
+  document.getElementById('campana-nombre').textContent = data?.nombre || '—';
+}
+
+function initApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('user-name').textContent = currentPerfil?.nombre || currentUser.email;
+  document.getElementById('role-tag').textContent = currentPerfil?.rol || '—';
+  buildNav();
+  buildCatSections();
+  loadData();
+}
+
+// ── NAV ───────────────────────────────────────────────────
+function buildNav() {
+  const rol = currentPerfil?.rol;
+  const nav = document.getElementById('main-nav');
+  const items = [];
+  if (['comercial'].includes(rol))                    items.push({ id: 'mis-solicitudes', label: 'Mis solicitudes' });
+  if (['admin', 'marketing'].includes(rol))           items.push({ id: 'panel', label: 'Panel global' });
+  if (['admin', 'marketing', 'disenador'].includes(rol)) items.push({ id: 'diseno', label: 'Diseño' });
+  if (['admin'].includes(rol))                        items.push({ id: 'usuarios', label: 'Usuarios' });
+  nav.innerHTML = items.map((it, i) =>
+    `<button class="nav-btn ${i===0?'active':''}" onclick="showPage('${it.id}', this)">${it.label}</button>`
+  ).join('');
+  if (items.length > 0) showPage(items[0].id);
+}
+
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  if (btn) btn.classList.add('active');
+  else { const b = document.querySelector(`.nav-btn[onclick*="'${id}'"]`); if(b) b.classList.add('active'); }
+}
+
+// ── DATA ──────────────────────────────────────────────────
+async function loadData() {
+  await loadSolicitudes();
+  if (['admin', 'marketing'].includes(currentPerfil?.rol)) {
+    await loadPerfiles();
+    renderMktTable();
+    renderStats();
+  }
+  if (['comercial'].includes(currentPerfil?.rol)) renderComercialTable();
+  if (['disenador', 'admin', 'marketing'].includes(currentPerfil?.rol)) renderDisenoTable();
+  if (currentPerfil?.rol === 'admin') renderUsuariosTable();
+}
+
+async function loadSolicitudes() {
+  let q = db.from('solicitudes')
+    .select(`*, solicitud_catalogos(*), perfiles!solicitudes_comercial_id_fkey(nombre, codigo)`)
+    .order('updated_at', { ascending: false });
+  if (currentPerfil?.rol === 'comercial') q = q.eq('comercial_id', currentUser.id);
+  if (currentPerfil?.rol === 'disenador') q = q.eq('asignado_id', currentUser.id);
+  if (activeCampana) q = q.eq('campana_id', activeCampana.id);
+  const { data } = await q;
+  allSolicitudes = data || [];
+}
+
+async function loadPerfiles() {
+  const { data } = await db.from('perfiles').select('*').order('nombre');
+  allPerfiles = data || [];
+}
+
+// ── RENDER TABLES ─────────────────────────────────────────
+function catSummary(sol, catKey) {
+  const cat = sol.solicitud_catalogos?.find(c => c.catalogo === catKey);
+  if (!cat) return '<span class="text-mid">—</span>';
+  if (!cat.catalogo_impreso && !cat.catalogo_digital) return '<span class="text-mid">No</span>';
+  const port = cat.portada_personalizada ? `<span class="chip chip-${catKey==='roly'?'blue':catKey==='roly_wrk'?'teal':'purple'}">${cat.portada_diseno_propio ? 'Propio' : (cat.portada_opcion_1 || '?')}</span>` : '';
+  return `<span style="font-size:11px">${cat.unidades||'—'} uds ${port}</span>`;
+}
+
+function missingFields(sol) {
+  const missing = [];
+  if (!sol.provincia) missing.push('Provincia');
+  CATS.forEach(cat => {
+    const c = sol.solicitud_catalogos?.find(x => x.catalogo === cat.key);
+    if (!c) { missing.push(cat.key.toUpperCase()); return; }
+    if (c.catalogo_impreso === null) missing.push(`Cat. imp. ${cat.key}`);
+    if (c.catalogo_digital  === null) missing.push(`Cat. dig. ${cat.key}`);
+    if (c.portada_personalizada && !c.portada_diseno_propio && !c.portada_opcion_1) missing.push(`Portada ${cat.key}`);
+    if (c.portada_personalizada && !c.posicion_logo) missing.push(`Pos. logo ${cat.key}`);
+    if (c.catalogo_impreso && !c.unidades) missing.push(`Unidades ${cat.key}`);
+  });
+  return missing;
+}
+
+function renderComercialTable() {
+  const q = document.getElementById('search-comercial')?.value.toLowerCase() || '';
+  const rows = allSolicitudes.filter(s => !q || s.cod_sap?.toLowerCase().includes(q) || s.nombre_empresa?.toLowerCase().includes(q));
+  const tbody = document.getElementById('tbl-comercial');
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon">📋</div><p>Aún no has creado ninguna solicitud.</p></div></td></tr>`; return; }
+  tbody.innerHTML = rows.map(s => `
+    <tr>
+      <td><strong>${s.cod_sap}</strong></td>
+      <td>${s.nombre_empresa||'—'}</td>
+      <td>${s.provincia||'<span class="text-mid">—</span>'}</td>
+      <td>${catSummary(s,'roly')}</td>
+      <td>${catSummary(s,'roly_wrk')}</td>
+      <td>${catSummary(s,'stamina')}</td>
+      <td><span class="status s-${s.estado}">${ESTADO_LABEL[s.estado]||s.estado}</span></td>
+      <td class="text-mid text-sm">${fmtDate(s.updated_at)}</td>
+      <td>
+        <div class="gap-8">
+          ${s.estado === 'borrador' ? `<button class="btn btn-sm btn-outline" onclick="openFormModal('${s.id}')">Editar</button>` : ''}
+          <button class="btn btn-sm btn-outline" onclick="openDetalle('${s.id}')">Ver</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function renderMktTable() {
+  const q  = document.getElementById('search-mkt')?.value.toLowerCase() || '';
+  const est = document.getElementById('filter-estado')?.value || '';
+  let rows = allSolicitudes;
+  if (q)   rows = rows.filter(s => s.cod_sap?.toLowerCase().includes(q) || s.nombre_empresa?.toLowerCase().includes(q) || s.perfiles?.codigo?.toLowerCase().includes(q) || s.perfiles?.nombre?.toLowerCase().includes(q));
+  if (est) rows = rows.filter(s => s.estado === est);
+  const tbody = document.getElementById('tbl-mkt');
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="icon">📊</div><p>No hay solicitudes que mostrar.</p></div></td></tr>`; return; }
+  tbody.innerHTML = rows.map(s => {
+    const missing = missingFields(s);
+    return `<tr>
+      <td><strong>${s.cod_sap}</strong></td>
+      <td>${s.nombre_empresa||'—'}</td>
+      <td class="text-sm">${s.perfiles?.nombre||s.perfiles?.codigo||'—'}</td>
+      <td>${s.provincia||'<span class="text-mid">—</span>'}</td>
+      <td>${catSummary(s,'roly')}</td>
+      <td>${catSummary(s,'roly_wrk')}</td>
+      <td>${catSummary(s,'stamina')}</td>
+      <td><span class="status s-${s.estado}">${ESTADO_LABEL[s.estado]||s.estado}</span></td>
+      <td class="text-mid text-sm">${fmtDate(s.updated_at)}</td>
+      <td style="max-width:180px;font-size:11px;color:var(--c-red)">${missing.length ? missing.join(', ') : '<span style="color:var(--c-green)">✓ Completa</span>'}</td>
+      <td><button class="btn btn-sm btn-outline" onclick="openDetalle('${s.id}')">Ver</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderDisenoTable() {
+  const rol = currentPerfil?.rol;
+  let rows = allSolicitudes;
+  if (rol === 'disenador') rows = rows.filter(s => ['en_diseno','diseno_en_revision','modificar_diseno'].includes(s.estado));
+  const tbody = document.getElementById('tbl-diseno');
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">🎨</div><p>No hay solicitudes asignadas.</p></div></td></tr>`; return; }
+  tbody.innerHTML = rows.map(s => `
+    <tr>
+      <td><strong>${s.cod_sap}</strong></td>
+      <td>${s.nombre_empresa||'—'}</td>
+      <td>${s.provincia||'—'}</td>
+      <td>${catSummary(s,'roly')}</td>
+      <td>${catSummary(s,'roly_wrk')}</td>
+      <td>${catSummary(s,'stamina')}</td>
+      <td><span class="status s-${s.estado}">${ESTADO_LABEL[s.estado]||s.estado}</span></td>
+      <td><button class="btn btn-sm btn-outline" onclick="openDetalle('${s.id}')">Ver</button></td>
+    </tr>`).join('');
+}
+
+function renderUsuariosTable() {
+  const tbody = document.getElementById('tbl-usuarios');
+  if (!allPerfiles.length) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>No hay usuarios.</p></div></td></tr>`; return; }
+  tbody.innerHTML = allPerfiles.map(p => `
+    <tr>
+      <td>${p.nombre}</td>
+      <td class="text-sm text-mid">${p.email}</td>
+      <td><span class="status s-${p.rol}" style="background:var(--c-light);color:var(--c-dark)">${p.rol}</span></td>
+      <td class="text-sm">${p.codigo||'—'}</td>
+      <td>${p.activo ? '<span style="color:var(--c-green)">●</span>' : '<span style="color:var(--c-red)">●</span>'}</td>
+      <td><button class="btn btn-sm btn-outline" onclick="toggleUser('${p.id}',${p.activo})">${p.activo?'Desactivar':'Activar'}</button></td>
+    </tr>`).join('');
+}
+
+function renderStats() {
+  const total = allSolicitudes.length;
+  const porEstado = (e) => allSolicitudes.filter(s => s.estado === e).length;
+  const completas = allSolicitudes.filter(s => missingFields(s).length === 0).length;
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">Total</div></div>
+    <div class="stat-card amber"><div class="stat-num">${porEstado('enviada')}</div><div class="stat-lbl">Enviadas</div></div>
+    <div class="stat-card blue"><div class="stat-num">${porEstado('en_revision_marketing')}</div><div class="stat-lbl">En revisión</div></div>
+    <div class="stat-card"><div class="stat-num">${porEstado('en_diseno') + porEstado('diseno_en_revision')}</div><div class="stat-lbl">En diseño</div></div>
+    <div class="stat-card green"><div class="stat-num">${porEstado('confirmada')}</div><div class="stat-lbl">Confirmadas</div></div>
+    <div class="stat-card red"><div class="stat-num">${total - completas}</div><div class="stat-lbl">Incompletas</div></div>
+  `;
+}
+
+// ── FORM SOLICITUD ────────────────────────────────────────
+function buildCatSections() {
+  document.getElementById('cat-sections').innerHTML = CATS.map(cat => `
+    <div class="cat-section cat-${cat.key}" id="cat-sec-${cat.key}">
+      <div class="cat-header" onclick="toggleCat('${cat.key}')">
+        <h3>${cat.label}</h3>
+        <span class="toggle" id="cat-toggle-${cat.key}">▼ Expandir</span>
+      </div>
+      <div class="cat-body" id="cat-body-${cat.key}">
+        <div class="toggle-row">
+          <span class="toggle-label">Catálogo digital</span>
+          <div class="radio-group">
+            <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_digital" data-val="true" onclick="selectOpt(this)">SI</span>
+            <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_digital" data-val="false" onclick="selectOpt(this)">NO</span>
+          </div>
+          <span class="toggle-label" style="margin-left:1rem">Catálogo impreso</span>
+          <div class="radio-group">
+            <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_impreso" data-val="true" onclick="selectOpt(this)">SI</span>
+            <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_impreso" data-val="false" onclick="selectOpt(this)">NO</span>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Portada personalizada</span>
+          <div class="radio-group">
+            <span class="radio-opt" data-cat="${cat.key}" data-field="portada_personalizada" data-val="true" onclick="selectOpt(this);togglePortadaFields('${cat.key}',true)">SI</span>
+            <span class="radio-opt" data-cat="${cat.key}" data-field="portada_personalizada" data-val="false" onclick="selectOpt(this);togglePortadaFields('${cat.key}',false)">NO</span>
+          </div>
+        </div>
+        <div class="cat-fields" id="portada-fields-${cat.key}">
+          <div class="toggle-row" style="margin-bottom:.75rem">
+            <span class="toggle-label">Diseño propio</span>
+            <div class="radio-group">
+              <span class="radio-opt" data-cat="${cat.key}" data-field="portada_diseno_propio" data-val="true" onclick="selectOpt(this);toggleDisenoPropio('${cat.key}',true)">SI</span>
+              <span class="radio-opt" data-cat="${cat.key}" data-field="portada_diseno_propio" data-val="false" onclick="selectOpt(this);toggleDisenoPropio('${cat.key}',false)">NO</span>
+            </div>
+          </div>
+          <div class="cat-fields" id="opciones-fields-${cat.key}">
+            <div class="form-grid" style="margin-bottom:.75rem">
+              <div class="form-group">
+                <label>1ª Opción <span class="req">*</span></label>
+                <input type="text" id="${cat.key}-p1" placeholder="Nº de portada">
+              </div>
+              <div class="form-group">
+                <label>2ª Opción</label>
+                <input type="text" id="${cat.key}-p2" placeholder="Nº de portada">
+              </div>
+              <div class="form-group">
+                <label>3ª Opción</label>
+                <input type="text" id="${cat.key}-p3" placeholder="Nº de portada">
+              </div>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Posición logo <span class="req">*</span></label>
+              <select id="${cat.key}-pos">
+                <option value="">— selecciona —</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Unidades <span class="req">*</span></label>
+              <input type="number" id="${cat.key}-und" placeholder="ej: 100" min="1">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleCat(key) {
+  const body = document.getElementById('cat-body-' + key);
+  const tog  = document.getElementById('cat-toggle-' + key);
+  const open = body.classList.toggle('open');
+  tog.textContent = open ? '▲ Contraer' : '▼ Expandir';
+}
+
+function selectOpt(el) {
+  const cat   = el.dataset.cat;
+  const field = el.dataset.field;
+  const val   = el.dataset.val;
+  document.querySelectorAll(`.radio-opt[data-cat="${cat}"][data-field="${field}"]`).forEach(o => {
+    o.classList.remove('selected-si', 'selected-no');
+  });
+  el.classList.add(val === 'true' ? 'selected-si' : 'selected-no');
+}
+
+function togglePortadaFields(key, show) {
+  document.getElementById('portada-fields-' + key).classList.toggle('visible', show);
+  if (!show) document.getElementById('opciones-fields-' + key).classList.remove('visible');
+}
+
+function toggleDisenoPropio(key, isPropio) {
+  document.getElementById('opciones-fields-' + key).classList.toggle('visible', !isPropio);
+}
+
+function getRadioVal(cat, field) {
+  const el = document.querySelector(`.radio-opt[data-cat="${cat}"][data-field="${field}"].selected-si, .radio-opt[data-cat="${cat}"][data-field="${field}"].selected-no`);
+  if (!el) return null;
+  return el.dataset.val === 'true';
+}
+
+function openFormModal(solId = null) {
+  editingId = solId;
+  document.getElementById('form-alert').innerHTML = '';
+  document.getElementById('modal-sol-title').textContent = solId ? 'Editar solicitud' : 'Nueva solicitud';
+
+  // Reset
+  ['f-cod-sap','f-nombre','f-provincia','f-comentarios'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.querySelectorAll('.radio-opt').forEach(el => el.classList.remove('selected-si','selected-no'));
+  document.querySelectorAll('.cat-body').forEach(el => el.classList.remove('open'));
+  document.querySelectorAll('.cat-toggle-roly,.cat-toggle-roly_wrk,.cat-toggle-stamina').forEach(el => el.textContent = '▼ Expandir');
+  document.querySelectorAll('.cat-fields').forEach(el => el.classList.remove('visible'));
+  CATS.forEach(cat => ['p1','p2','p3','pos','und'].forEach(f => { const el = document.getElementById(cat.key+'-'+f); if(el) el.value = ''; }));
+
+  if (solId) {
+    const sol = allSolicitudes.find(s => s.id === solId);
+    if (sol) {
+      document.getElementById('f-cod-sap').value    = sol.cod_sap || '';
+      document.getElementById('f-nombre').value     = sol.nombre_empresa || '';
+      document.getElementById('f-provincia').value  = sol.provincia || '';
+      document.getElementById('f-comentarios').value = sol.comentarios || '';
+      sol.solicitud_catalogos?.forEach(cat => {
+        if (cat.catalogo_digital   !== null) setRadio(cat.catalogo, 'catalogo_digital',   cat.catalogo_digital);
+        if (cat.catalogo_impreso   !== null) setRadio(cat.catalogo, 'catalogo_impreso',   cat.catalogo_impreso);
+        if (cat.portada_personalizada !== null) {
+          setRadio(cat.catalogo, 'portada_personalizada', cat.portada_personalizada);
+          togglePortadaFields(cat.catalogo, cat.portada_personalizada);
+        }
+        if (cat.portada_diseno_propio !== null) {
+          setRadio(cat.catalogo, 'portada_diseno_propio', cat.portada_diseno_propio);
+          toggleDisenoPropio(cat.catalogo, cat.portada_diseno_propio);
+        }
+        if (cat.portada_opcion_1) document.getElementById(cat.catalogo+'-p1').value = cat.portada_opcion_1;
+        if (cat.portada_opcion_2) document.getElementById(cat.catalogo+'-p2').value = cat.portada_opcion_2;
+        if (cat.portada_opcion_3) document.getElementById(cat.catalogo+'-p3').value = cat.portada_opcion_3;
+        if (cat.posicion_logo)    document.getElementById(cat.catalogo+'-pos').value = cat.posicion_logo;
+        if (cat.unidades)         document.getElementById(cat.catalogo+'-und').value = cat.unidades;
+        toggleCat(cat.catalogo);
+      });
+    }
+  }
+  document.getElementById('modal-solicitud').classList.add('open');
+}
+
+function setRadio(cat, field, val) {
+  const selector = `.radio-opt[data-cat="${cat}"][data-field="${field}"][data-val="${val}"]`;
+  const el = document.querySelector(selector);
+  if (el) { el.classList.add(val ? 'selected-si' : 'selected-no'); }
+}
+
+async function saveSolicitud(estadoTarget) {
+  const codSap   = document.getElementById('f-cod-sap').value.trim();
+  const nombre   = document.getElementById('f-nombre').value.trim();
+  const provincia = document.getElementById('f-provincia').value.trim();
+  const comentarios = document.getElementById('f-comentarios').value.trim();
+
+  let valid = true;
+  if (!codSap) { document.getElementById('err-cod-sap').textContent = 'Campo obligatorio'; document.getElementById('f-cod-sap').classList.add('error'); valid = false; }
+  else { document.getElementById('err-cod-sap').textContent = ''; document.getElementById('f-cod-sap').classList.remove('error'); }
+  if (estadoTarget === 'enviada' && !provincia) { document.getElementById('err-provincia').textContent = 'Campo obligatorio'; document.getElementById('f-provincia').classList.add('error'); valid = false; }
+  else { document.getElementById('err-provincia').textContent = ''; document.getElementById('f-provincia').classList.remove('error'); }
+  if (!valid) { showFormAlert('Corrige los campos marcados antes de continuar.', 'error'); return; }
+
+  const solData = {
+    campana_id:    activeCampana?.id,
+    comercial_id:  currentUser.id,
+    cod_sap:       codSap,
+    nombre_empresa: nombre,
+    provincia,
+    comentarios,
+    estado:        estadoTarget,
+    ...(estadoTarget === 'enviada' ? { enviada_at: new Date().toISOString() } : {}),
+  };
+
+  let solId = editingId;
+  if (editingId) {
+    await db.from('solicitudes').update(solData).eq('id', editingId);
+  } else {
+    const { data } = await db.from('solicitudes').insert(solData).select().single();
+    solId = data?.id;
+  }
+
+  // Catalogos
+  for (const cat of CATS) {
+    const catData = {
+      solicitud_id:         solId,
+      catalogo:             cat.key,
+      catalogo_digital:     getRadioVal(cat.key, 'catalogo_digital'),
+      catalogo_impreso:     getRadioVal(cat.key, 'catalogo_impreso'),
+      portada_personalizada:getRadioVal(cat.key, 'portada_personalizada'),
+      portada_diseno_propio:getRadioVal(cat.key, 'portada_diseno_propio') || false,
+      portada_opcion_1:     document.getElementById(cat.key+'-p1')?.value || null,
+      portada_opcion_2:     document.getElementById(cat.key+'-p2')?.value || null,
+      portada_opcion_3:     document.getElementById(cat.key+'-p3')?.value || null,
+      posicion_logo:        document.getElementById(cat.key+'-pos')?.value || null,
+      unidades:             parseInt(document.getElementById(cat.key+'-und')?.value) || null,
+    };
+    const exists = allSolicitudes.find(s => s.id === solId)?.solicitud_catalogos?.find(c => c.catalogo === cat.key);
+    if (exists) await db.from('solicitud_catalogos').update(catData).eq('id', exists.id);
+    else await db.from('solicitud_catalogos').insert(catData);
+  }
+
+  // Log
+  await db.from('logs').insert({
+    solicitud_id: solId,
+    usuario_id: currentUser.id,
+    usuario_nombre: currentPerfil?.nombre,
+    accion: editingId ? 'edicion' : 'creacion',
+    detalle: { estado: estadoTarget, cod_sap: codSap }
+  });
+
+  // Email notification si enviada
+  if (estadoTarget === 'enviada') {
+    await db.from('notificaciones').insert({
+      solicitud_id: solId,
+      destinatario: 'marketing@gorfactory.com',
+      asunto: `Nueva solicitud de portada — ${codSap}`,
+      cuerpo: `El comercial ${currentPerfil?.nombre} ha enviado una nueva solicitud para el cliente ${codSap} (${nombre}). Accede al panel para revisarla.`
+    });
+  }
+
+  closeModal('modal-solicitud');
+  await loadData();
+  showToast(estadoTarget === 'enviada' ? 'Solicitud enviada correctamente.' : 'Borrador guardado.');
+}
+
+// ── DETALLE ───────────────────────────────────────────────
+async function openDetalle(solId) {
+  const sol = allSolicitudes.find(s => s.id === solId);
+  if (!sol) return;
+  document.getElementById('det-title').textContent = `Solicitud ${sol.cod_sap}`;
+  document.getElementById('det-sub').textContent   = `${sol.nombre_empresa||''} · ${sol.provincia||''} · ${ESTADO_LABEL[sol.estado]}`;
+
+  // Load logs
+  const { data: logs } = await db.from('logs').select('*').eq('solicitud_id', solId).order('created_at', { ascending: false });
+
+  let html = '';
+  // Catalogos
+  CATS.forEach(cat => {
+    const c = sol.solicitud_catalogos?.find(x => x.catalogo === cat.key);
+    if (!c) return;
+    html += `<div class="cat-section cat-${cat.key}" style="margin-bottom:.75rem">
+      <div class="cat-header" style="cursor:default;padding:.6rem 1rem">
+        <h3>${cat.label}</h3>
+        <div style="margin-left:auto;display:flex;gap:8px;font-size:12px">
+          <span>Digital: <strong>${c.catalogo_digital===true?'SI':c.catalogo_digital===false?'NO':'—'}</strong></span>
+          <span>Impreso: <strong>${c.catalogo_impreso===true?'SI':c.catalogo_impreso===false?'NO':'—'}</strong></span>
+          <span>Portada: <strong>${c.portada_personalizada===true?'SI':c.portada_personalizada===false?'NO':'—'}</strong></span>
+          ${c.portada_personalizada ? `<span>P1: <strong>${c.portada_diseno_propio?'Propio':c.portada_opcion_1||'—'}</strong></span>` : ''}
+          ${c.portada_personalizada && !c.portada_diseno_propio ? `<span>P2: <strong>${c.portada_opcion_2||'—'}</strong></span><span>P3: <strong>${c.portada_opcion_3||'—'}</strong></span>` : ''}
+          ${c.portada_personalizada ? `<span>Logo: <strong>${c.posicion_logo||'—'}</strong></span>` : ''}
+          <span>Unds: <strong>${c.unidades||'—'}</strong></span>
+        </div>
+      </div>
+    </div>`;
+  });
+
+  if (sol.comentarios) html += `<div class="card" style="margin-bottom:1rem"><div class="card-title">Comentarios</div><p style="font-size:13px">${sol.comentarios}</p></div>`;
+
+  // Log
+  html += `<div class="card"><div class="card-title">Historial de cambios</div>`;
+  if (!logs?.length) html += '<p class="text-mid text-sm">Sin actividad registrada.</p>';
+  else html += logs.map(l => `
+    <div class="log-entry">
+      <div class="log-dot ${l.accion==='cambio_estado'?'estado':''}"></div>
+      <div class="log-time">${fmtDate(l.created_at)}</div>
+      <div class="log-text">
+        <strong>${l.usuario_nombre||'Sistema'}</strong> —
+        ${l.accion === 'cambio_estado'
+          ? `<span class="status s-${l.detalle?.estado_anterior}" style="font-size:10px">${ESTADO_LABEL[l.detalle?.estado_anterior]||l.detalle?.estado_anterior}</span> → <span class="status s-${l.detalle?.estado_nuevo}" style="font-size:10px">${ESTADO_LABEL[l.detalle?.estado_nuevo]||l.detalle?.estado_nuevo}</span>`
+          : l.accion}
+      </div>
+    </div>`).join('');
+  html += '</div>';
+
+  document.getElementById('det-body').innerHTML = html;
+
+  // Acciones según rol y estado
+  const footer = document.getElementById('det-footer');
+  const rol = currentPerfil?.rol;
+  const est = sol.estado;
+  let btns = `<button class="btn btn-outline" onclick="closeModal('modal-detalle')">Cerrar</button>`;
+  if (rol === 'marketing' || rol === 'admin') {
+    if (est === 'en_revision_marketing') {
+      btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstado('${solId}','borrador')">Devolver al comercial</button>`;
+      btns += `<button class="btn btn-amber" onclick="asignarYAvanzar('${solId}')">Asignar y enviar a diseño</button>`;
+    }
+    if (est === 'diseno_en_revision') {
+      btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstado('${solId}','modificar_diseno')">Pedir modificación</button>`;
+      btns += `<button class="btn btn-green" onclick="cambiarEstado('${solId}','confirmada')">Confirmar</button>`;
+    }
+  }
+  if (rol === 'disenador' || rol === 'admin' || rol === 'marketing') {
+    if (est === 'en_diseno' || est === 'modificar_diseno') {
+      btns += `<button class="btn btn-amber" onclick="cambiarEstado('${solId}','diseno_en_revision')">Marcar diseño listo</button>`;
+    }
+  }
+  footer.innerHTML = btns;
+  document.getElementById('modal-detalle').classList.add('open');
+}
+
+async function cambiarEstado(solId, nuevoEstado) {
+  await db.from('solicitudes').update({ estado: nuevoEstado }).eq('id', solId);
+  await db.from('logs').insert({
+    solicitud_id: solId, usuario_id: currentUser.id,
+    usuario_nombre: currentPerfil?.nombre, accion: 'cambio_estado',
+    detalle: { estado_anterior: allSolicitudes.find(s=>s.id===solId)?.estado, estado_nuevo: nuevoEstado }
+  });
+  closeModal('modal-detalle');
+  await loadData();
+  showToast(`Estado actualizado: ${ESTADO_LABEL[nuevoEstado]}`);
+}
+
+async function asignarYAvanzar(solId) {
+  const disenadores = allPerfiles.filter(p => p.rol === 'disenador');
+  if (!disenadores.length) { alert('No hay diseñadores disponibles.'); return; }
+  const sel = disenadores.length === 1 ? disenadores[0] : disenadores[Math.floor(Math.random() * disenadores.length)];
+  await db.from('solicitudes').update({ estado: 'en_diseno', asignado_id: sel.id }).eq('id', solId);
+  await db.from('notificaciones').insert({
+    solicitud_id: solId, destinatario: sel.email,
+    asunto: `Nueva portada asignada — ${allSolicitudes.find(s=>s.id===solId)?.cod_sap}`,
+    cuerpo: `Se te ha asignado una nueva solicitud de portada. Accede a la herramienta para ver los detalles.`
+  });
+  closeModal('modal-detalle');
+  await loadData();
+  showToast(`Asignado a ${sel.nombre} y enviado a diseño.`);
+}
+
+// ── USUARIOS ──────────────────────────────────────────────
+function openUserModal() { document.getElementById('modal-usuario').classList.add('open'); }
+
+async function createUser() {
+  const nombre = document.getElementById('u-nombre').value.trim();
+  const email  = document.getElementById('u-email').value.trim();
+  const rol    = document.getElementById('u-rol').value;
+  const codigo = document.getElementById('u-codigo').value.trim();
+  const pass   = document.getElementById('u-pass').value;
+  if (!nombre || !email || !pass) { showAlert('user-alert', 'Nombre, email y contraseña son obligatorios.', 'error'); return; }
+  const { error } = await db.auth.signUp({
+    email, password: pass,
+    options: { data: { nombre, rol, codigo } }
+  });
+  if (error) { showAlert('user-alert', error.message, 'error'); return; }
+  closeModal('modal-usuario');
+  await loadData();
+  showToast('Usuario creado. Recibirá un email de confirmación.');
+}
+
+async function toggleUser(id, activo) {
+  await db.from('perfiles').update({ activo: !activo }).eq('id', id);
+  await loadData();
+}
+
+// ── EXPORT EXCEL ──────────────────────────────────────────
+function exportExcel() {
+  const rows = allSolicitudes.map(sol => {
+    const get = (key) => sol.solicitud_catalogos?.find(c => c.catalogo === key);
+    const r = get('roly'), w = get('roly_wrk'), s = get('stamina');
+    const missing = missingFields(sol);
+    return {
+      'CÓD. SAP':               sol.cod_sap,
+      'NOMBRE EMPRESA':         sol.nombre_empresa,
+      'COMERCIAL':              sol.perfiles?.nombre || sol.perfiles?.codigo,
+      'PROVINCIA':              sol.provincia,
+      'DIG. ROLY':              r?.catalogo_digital === true ? 'SI' : r?.catalogo_digital === false ? 'NO' : '',
+      'IMP. ROLY':              r?.catalogo_impreso === true ? 'SI' : r?.catalogo_impreso === false ? 'NO' : '',
+      'PORTADA ROLY':           r?.portada_personalizada === true ? 'SI' : r?.portada_personalizada === false ? 'NO' : '',
+      'P1 ROLY':                r?.portada_diseno_propio ? 'DISEÑO PROPIO' : r?.portada_opcion_1 || '',
+      'P2 ROLY':                r?.portada_opcion_2 || '',
+      'P3 ROLY':                r?.portada_opcion_3 || '',
+      'POS. LOGO ROLY':         r?.posicion_logo || '',
+      'UNDS. ROLY':             r?.unidades || '',
+      'DIG. ROLY WRK':          w?.catalogo_digital === true ? 'SI' : w?.catalogo_digital === false ? 'NO' : '',
+      'IMP. ROLY WRK':          w?.catalogo_impreso === true ? 'SI' : w?.catalogo_impreso === false ? 'NO' : '',
+      'PORTADA ROLY WRK':       w?.portada_personalizada === true ? 'SI' : w?.portada_personalizada === false ? 'NO' : '',
+      'P1 ROLY WRK':            w?.portada_diseno_propio ? 'DISEÑO PROPIO' : w?.portada_opcion_1 || '',
+      'P2 ROLY WRK':            w?.portada_opcion_2 || '',
+      'P3 ROLY WRK':            w?.portada_opcion_3 || '',
+      'POS. LOGO ROLY WRK':     w?.posicion_logo || '',
+      'UNDS. ROLY WRK':         w?.unidades || '',
+      'DIG. STAMINA':           s?.catalogo_digital === true ? 'SI' : s?.catalogo_digital === false ? 'NO' : '',
+      'IMP. STAMINA':           s?.catalogo_impreso === true ? 'SI' : s?.catalogo_impreso === false ? 'NO' : '',
+      'PORTADA STAMINA':        s?.portada_personalizada === true ? 'SI' : s?.portada_personalizada === false ? 'NO' : '',
+      'P1 STAMINA':             s?.portada_diseno_propio ? 'DISEÑO PROPIO' : s?.portada_opcion_1 || '',
+      'P2 STAMINA':             s?.portada_opcion_2 || '',
+      'P3 STAMINA':             s?.portada_opcion_3 || '',
+      'POS. LOGO STAMINA':      s?.posicion_logo || '',
+      'UNDS. STAMINA':          s?.unidades || '',
+      'ESTADO':                 ESTADO_LABEL[sol.estado] || sol.estado,
+      'CAMPOS INCOMPLETOS':     missing.join(', '),
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Portadas');
+  XLSX.writeFile(wb, `Portadas_${activeCampana?.nombre?.replace(/\s/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ── UTILS ─────────────────────────────────────────────────
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function fmtDate(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) + ' ' + d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+}
+function showFormAlert(msg, type) { document.getElementById('form-alert').innerHTML = `<div class="alert alert-${type}">${msg}</div>`; }
+function showAlert(id, msg, type) { document.getElementById(id).innerHTML = `<div class="alert alert-${type}">${msg}</div>`; }
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;background:#2C2C2A;color:white;padding:.75rem 1.25rem;border-radius:6px;font-size:13px;font-weight:600;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.2)';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+</script>
+</body>
+</html>
