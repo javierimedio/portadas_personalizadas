@@ -386,7 +386,12 @@
           <div class="section-title">Dashboard</div>
           <div class="section-sub" id="dash-campana-label">Cargando...</div>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="renderDashboard()">↻ Actualizar</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="dash-filter-campana" onchange="renderDashboard()" style="font-size:13px">
+            <option value="">Todas las campañas</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="renderDashboard()">↻ Actualizar</button>
+        </div>
       </div>
 
       <!-- KPI Cards -->
@@ -1113,17 +1118,33 @@ async function filterCampana() {
 
 async function populateCampanaFilter() {
   const campanas = await loadAllCampanas();
+  allCampanas = campanas;
+
+  // Panel global selector
   const sel = document.getElementById('filter-campana');
-  if (!sel) return;
-  // Clear existing options except first ("Todas las campañas")
-  while (sel.options.length > 1) sel.remove(1);
-  campanas.forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c.id;
-    opt.textContent = c.nombre + (c.activa ? ' ★' : '');
-    if (c.id === activeCampana?.id) opt.selected = true;
-    sel.appendChild(opt);
-  });
+  if (sel) {
+    while (sel.options.length > 1) sel.remove(1);
+    campanas.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.nombre + (c.activa ? ' ★' : '');
+      if (c.id === activeCampana?.id) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  // Dashboard selector
+  const dashSel = document.getElementById('dash-filter-campana');
+  if (dashSel) {
+    while (dashSel.options.length > 1) dashSel.remove(1);
+    campanas.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.nombre + (c.activa ? ' ★' : '');
+      if (c.id === activeCampana?.id) opt.selected = true;
+      dashSel.appendChild(opt);
+    });
+  }
 }
 
 function renderMktTable() {
@@ -2337,10 +2358,26 @@ function destroyCharts() {
 function renderDashboard() {
   destroyCharts();
 
-  const sols = allSolicitudes;
-  const campNombre = activeCampana?.nombre || '—';
+  // Populate selector if empty
+  const dashSel = document.getElementById('dash-filter-campana');
+  if (dashSel && dashSel.options.length <= 1 && allCampanas.length) {
+    allCampanas.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.nombre + (c.activa ? ' ★' : '');
+      if (c.id === activeCampana?.id) opt.selected = true;
+      dashSel.appendChild(opt);
+    });
+  }
+  const dashCampanaId = dashSel?.value || '';
+  const sols = dashCampanaId
+    ? allSolicitudes.filter(s => s.campana_id === dashCampanaId)
+    : allSolicitudes;
+  const campNombre = dashCampanaId
+    ? (allCampanas.find(c => c.id === dashCampanaId)?.nombre || '—')
+    : 'Todas las campañas';
   const el = document.getElementById('dash-campana-label');
-  if (el) el.textContent = `Campaña activa: ${campNombre} · ${sols.length} solicitudes`;
+  if (el) el.textContent = `${campNombre} · ${sols.length} solicitudes`;
 
   // ── KPIs ──
   const total     = sols.length;
