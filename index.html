@@ -2,6 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Portadas Personalizadas · GOR Factory</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -29,7 +31,7 @@
     --shadow:    0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--c-light); color: var(--c-dark); font-size: 14px; min-height: 100vh; }
+  body { font-family: 'Inter', 'Segoe UI', Arial, sans-serif; background: var(--c-light); color: var(--c-dark); font-size: 14px; min-height: 100vh; }
 
   /* ── AUTH ── */
   #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }
@@ -175,6 +177,12 @@
   .chip-blue   { background: var(--c-blue-l);   color: var(--c-blue); }
   .chip-teal   { background: var(--c-teal-l);   color: var(--c-teal); }
   .chip-purple { background: var(--c-purple-l); color: var(--c-purple); }
+
+  .drop-zone { border: 1.5px dashed var(--c-line); border-radius: var(--radius); cursor: pointer; transition: border-color .15s, background .15s; }
+  .drop-zone:hover, .drop-zone.dz-over { border-color: var(--c-amber); background: var(--c-amber-l); }
+  .file-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; background: var(--c-light); border: 1px solid var(--c-line); border-radius: 4px; font-size: 11px; color: var(--c-dark); }
+  .file-chip button { background: none; border: none; cursor: pointer; color: var(--c-mid); font-size: 12px; padding: 0; line-height: 1; }
+  .file-chip button:hover { color: var(--c-red); }
   .loading { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: white; border-radius: 50%; animation: spin .6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .text-mid { color: var(--c-mid); }
@@ -187,7 +195,7 @@
 <body>
 
 <!-- ── AUTH ─────────────────────────────────────────────── -->
-<div id="auth-screen">
+<div id="auth-screen" style="display:none">
   <div class="auth-card">
     <div class="auth-logo">GOR Factory · Marketing</div>
     <div class="auth-title">Portadas Personalizadas</div>
@@ -223,7 +231,7 @@
     <div class="topbar-right">
       <span class="role-tag" id="role-tag">—</span>
       <span class="user-badge" id="user-name">—</span>
-      <button class="btn btn-outline btn-sm" onclick="doLogout()">Salir</button>
+      <button style="padding:.4rem .9rem;border-radius:4px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;" onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.1)'" onclick="doLogout()">Cerrar sesión</button>
     </div>
   </div>
 
@@ -489,14 +497,34 @@ function showAuthAlert(msg, type) {
 }
 
 // ── INIT ──────────────────────────────────────────────────
-db.auth.onAuthStateChange(async (event, session) => {
+async function bootstrap() {
+  const { data: { session } } = await db.auth.getSession();
   if (session?.user) {
     currentUser = session.user;
     await loadPerfil();
     await loadCampana();
     initApp();
+    return;
+  }
+  document.getElementById('auth-screen').style.display = 'flex';
+}
+
+db.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_IN' && !currentUser && session?.user) {
+    currentUser = session.user;
+    await loadPerfil();
+    await loadCampana();
+    initApp();
+  }
+  if (event === 'SIGNED_OUT') {
+    currentUser = null;
+    currentPerfil = null;
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
   }
 });
+
+bootstrap();
 
 async function loadPerfil() {
   const { data } = await db.from('perfiles').select('*').eq('id', currentUser.id).single();
@@ -705,6 +733,7 @@ function buildCatSections() {
         <span class="toggle" id="cat-toggle-${cat.key}">▼ Expandir</span>
       </div>
       <div class="cat-body" id="cat-body-${cat.key}">
+
         <div class="toggle-row">
           <span class="toggle-label">Catálogo digital</span>
           <div class="radio-group">
@@ -717,6 +746,7 @@ function buildCatSections() {
             <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_impreso" data-val="false" onclick="selectOpt(this)">NO</span>
           </div>
         </div>
+
         <div class="toggle-row">
           <span class="toggle-label">Portada personalizada</span>
           <div class="radio-group">
@@ -724,32 +754,37 @@ function buildCatSections() {
             <span class="radio-opt" data-cat="${cat.key}" data-field="portada_personalizada" data-val="false" onclick="selectOpt(this);togglePortadaFields('${cat.key}',false)">NO</span>
           </div>
         </div>
+
         <div class="cat-fields" id="portada-fields-${cat.key}">
+
           ${cat.key === 'stamina' ? `
           <div class="toggle-row" style="margin-bottom:.75rem">
-            <span class="toggle-label">Diseño propio</span>
+            <span class="toggle-label">Diseño 100% propio</span>
             <div class="radio-group">
-              <span class="radio-opt" data-cat="${cat.key}" data-field="portada_diseno_propio" data-val="true" onclick="selectOpt(this);toggleDisenoPropio('${cat.key}',true)">SI</span>
-              <span class="radio-opt" data-cat="${cat.key}" data-field="portada_diseno_propio" data-val="false" onclick="selectOpt(this);toggleDisenoPropio('${cat.key}',false)">NO</span>
+              <span class="radio-opt" data-cat="stamina" data-field="portada_diseno_propio" data-val="true" onclick="selectOpt(this);toggleDisenoPropio('stamina',true)">SI</span>
+              <span class="radio-opt" data-cat="stamina" data-field="portada_diseno_propio" data-val="false" onclick="selectOpt(this);toggleDisenoPropio('stamina',false)">NO</span>
             </div>
           </div>` : ''}
-          <div class="cat-fields ${cat.key !== 'stamina' ? 'visible' : ''}" id="opciones-fields-${cat.key}">
+
+          <div class="cat-fields visible" id="opciones-fields-${cat.key}">
+            <p style="font-size:12px;color:var(--c-mid);margin-bottom:.75rem">Indica las 3 portadas por orden de preferencia (1ª es la prioritaria):</p>
             <div class="form-grid" style="margin-bottom:.75rem">
               <div class="form-group">
-                <label>1ª Opción <span class="req">*</span></label>
+                <label>1ª Preferencia <span class="req">*</span></label>
                 <input type="text" id="${cat.key}-p1" placeholder="Nº de portada">
               </div>
               <div class="form-group">
-                <label>2ª Opción</label>
+                <label>2ª Preferencia</label>
                 <input type="text" id="${cat.key}-p2" placeholder="Nº de portada">
               </div>
               <div class="form-group">
-                <label>3ª Opción</label>
+                <label>3ª Preferencia</label>
                 <input type="text" id="${cat.key}-p3" placeholder="Nº de portada">
               </div>
             </div>
           </div>
-          <div class="form-grid">
+
+          <div class="form-grid" style="margin-bottom:.75rem">
             <div class="form-group">
               <label>Posición logo <span class="req">*</span></label>
               <select id="${cat.key}-pos">
@@ -764,6 +799,23 @@ function buildCatSections() {
               <input type="number" id="${cat.key}-und" placeholder="ej: 100" min="1">
             </div>
           </div>
+
+          <div class="form-group" style="margin-bottom:.5rem">
+            <label>Adjuntar archivos (logo, diseño propio...)</label>
+            <div class="drop-zone" id="drop-${cat.key}"
+              ondragover="event.preventDefault();this.classList.add('dz-over')"
+              ondragleave="this.classList.remove('dz-over')"
+              ondrop="handleDrop(event,'${cat.key}')"
+              onclick="document.getElementById('file-${cat.key}').click()">
+              <div style="font-size:11px;color:var(--c-mid);text-align:center;padding:.5rem">
+                <div style="font-size:20px;margin-bottom:4px">📎</div>
+                Arrastra archivos aquí o haz clic para seleccionar
+              </div>
+            </div>
+            <input type="file" id="file-${cat.key}" multiple style="display:none" onchange="handleFileInput(event,'${cat.key}')">
+            <div id="files-list-${cat.key}" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px"></div>
+          </div>
+
         </div>
       </div>
     </div>`).join('');
@@ -844,6 +896,7 @@ function openFormModal(solId = null) {
       });
     }
   }
+  resetFiles();
   document.getElementById('modal-solicitud').classList.add('open');
 }
 
@@ -1117,6 +1170,52 @@ function showToast(msg) {
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 3000);
 }
+
+// ── FILE HANDLING ─────────────────────────────────────────
+const catFiles = { roly: [], roly_wrk: [], stamina: [] };
+
+function handleDrop(event, cat) {
+  event.preventDefault();
+  document.getElementById('drop-' + cat).classList.remove('dz-over');
+  const files = Array.from(event.dataTransfer.files);
+  addFiles(cat, files);
+}
+
+function handleFileInput(event, cat) {
+  const files = Array.from(event.target.files);
+  addFiles(cat, files);
+  event.target.value = '';
+}
+
+function addFiles(cat, files) {
+  files.forEach(f => {
+    if (!catFiles[cat].find(x => x.name === f.name && x.size === f.size)) {
+      catFiles[cat].push(f);
+    }
+  });
+  renderFileList(cat);
+}
+
+function removeFile(cat, name) {
+  catFiles[cat] = catFiles[cat].filter(f => f.name !== name);
+  renderFileList(cat);
+}
+
+function renderFileList(cat) {
+  const container = document.getElementById('files-list-' + cat);
+  if (!container) return;
+  container.innerHTML = catFiles[cat].map(f => `
+    <div class="file-chip">
+      📄 ${f.name} <span style="color:var(--c-mid)">(${(f.size/1024).toFixed(0)}kb)</span>
+      <button onclick="removeFile('${cat}','${f.name}')" title="Eliminar">✕</button>
+    </div>`).join('');
+}
+
+function resetFiles() {
+  Object.keys(catFiles).forEach(k => catFiles[k] = []);
+  CATS.forEach(cat => { const el = document.getElementById('files-list-' + cat.key); if (el) el.innerHTML = ''; });
+}
+
 </script>
 </body>
 </html>
