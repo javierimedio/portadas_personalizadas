@@ -377,6 +377,26 @@
         </div>
       </div>
     </div>
+    <!-- CAMPAÑAS -->
+    <div class="page" id="page-campanas">
+      <div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:flex-start">
+        <div style="flex:1">
+          <div class="section-title">Campañas</div>
+          <div class="section-sub">Gestiona las campañas de portadas personalizadas por año.</div>
+        </div>
+        <button class="btn btn-amber" onclick="openCampanaModal()">+ Nueva campaña</button>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>Nombre</th><th>Descripción</th><th>Cierre</th><th>Solicitudes</th><th>Estado</th><th></th>
+            </tr></thead>
+            <tbody id="tbl-campanas"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -508,6 +528,43 @@
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-usuario')">Cancelar</button>
       <button class="btn btn-amber" id="btn-save-user" onclick="saveUser()">Crear usuario</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL CAMPAÑA ────────────────────────────────────── -->
+<div class="modal-bg" id="modal-campana">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-campana-title">Nueva campaña</div>
+      <button class="modal-close" onclick="closeModal('modal-campana')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="campana-alert"></div>
+      <input type="hidden" id="c-edit-id">
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label>Nombre <span class="req">*</span></label>
+        <input type="text" id="c-nombre" placeholder="ej: PORTADAS 2028">
+      </div>
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label>Descripción</label>
+        <input type="text" id="c-descripcion" placeholder="ej: Portadas personalizadas catálogos 2028">
+      </div>
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label>Fecha de cierre</label>
+        <input type="date" id="c-cierre">
+      </div>
+      <div class="form-group">
+        <label>Estado</label>
+        <div class="radio-group" style="margin-top:6px">
+          <span class="radio-opt selected-si" id="c-activa-si" onclick="selectCampanaActiva(true)">Activa</span>
+          <span class="radio-opt" id="c-activa-no" onclick="selectCampanaActiva(false)">Inactiva</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-campana')">Cancelar</button>
+      <button class="btn btn-amber" id="btn-save-campana" onclick="saveCampana()">Crear campaña</button>
     </div>
   </div>
 </div>
@@ -867,6 +924,7 @@ function buildNav() {
   if (['admin', 'marketing', 'disenador'].includes(rol)) items.push({ id: 'diseno', label: 'Diseño' });
   // Solo admin ve Usuarios
   if (['admin', 'marketing'].includes(rol))             items.push({ id: 'usuarios', label: 'Usuarios' });
+  if (['admin', 'marketing'].includes(rol))             items.push({ id: 'campanas', label: 'Campañas' });
   nav.innerHTML = items.map((it, i) =>
     `<button class="nav-btn ${i===0?'active':''}" onclick="showPage('${it.id}', this)">${it.label}</button>`
   ).join('');
@@ -880,6 +938,7 @@ function showPage(id, btn) {
   if (page) page.classList.add('active');
   if (btn) btn.classList.add('active');
   else { const b = document.querySelector(`.nav-btn[onclick*="'${id}'"]`); if(b) b.classList.add('active'); }
+  if (id === 'campanas') loadAndRenderCampanas();
 }
 
 // ── DATA ──────────────────────────────────────────────────
@@ -1886,6 +1945,111 @@ function resetFiles() {
     const el = document.getElementById('files-list-' + key);
     if (el) el.innerHTML = '';
   });
+}
+
+// ── CAMPAÑAS ──────────────────────────────────────────────
+let allCampanas = [];
+let campanaActiva = true;
+
+async function loadAndRenderCampanas() {
+  const { data } = await db.from('campanas').select('*').order('created_at', { ascending: false });
+  allCampanas = data || [];
+  renderCampanasTable();
+  populateCampanaFilter();
+}
+
+function renderCampanasTable() {
+  const tbody = document.getElementById('tbl-campanas');
+  if (!tbody) return;
+  if (!allCampanas.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>No hay campañas creadas.</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = allCampanas.map(c => {
+    const solCount = allSolicitudes.filter(s => s.campana_id === c.id).length;
+    const isActive = c.id === activeCampana?.id;
+    return `<tr>
+      <td>
+        <strong>${c.nombre}</strong>
+        ${isActive ? '<span style="font-size:10px;background:var(--c-green-l);color:var(--c-green);padding:1px 6px;border-radius:10px;margin-left:6px;font-weight:700">ACTIVA</span>' : ''}
+      </td>
+      <td class="text-sm text-mid">${c.descripcion||'—'}</td>
+      <td class="text-sm">${c.fecha_cierre ? c.fecha_cierre.slice(0,10) : '—'}</td>
+      <td class="text-sm" style="text-align:center">${solCount}</td>
+      <td>
+        <span style="color:${c.activa?'var(--c-green)':'var(--c-mid)'}">
+          ${c.activa ? '● Activa' : '● Inactiva'}
+        </span>
+      </td>
+      <td>
+        <div class="gap-8">
+          <button class="btn btn-sm btn-outline" onclick="openCampanaModal('${c.id}')">Editar</button>
+          ${!isActive && c.activa ? `<button class="btn btn-sm btn-green" onclick="setActiveCampana('${c.id}')">Usar como activa</button>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function selectCampanaActiva(val) {
+  campanaActiva = val;
+  document.getElementById('c-activa-si').className = 'radio-opt' + (val ? ' selected-si' : '');
+  document.getElementById('c-activa-no').className = 'radio-opt' + (!val ? ' selected-no' : '');
+}
+
+function openCampanaModal(editId = null) {
+  document.getElementById('c-edit-id').value = editId || '';
+  document.getElementById('c-nombre').value = '';
+  document.getElementById('c-descripcion').value = '';
+  document.getElementById('c-cierre').value = '';
+  document.getElementById('campana-alert').innerHTML = '';
+  campanaActiva = true;
+  selectCampanaActiva(true);
+
+  if (editId) {
+    const c = allCampanas.find(x => x.id === editId);
+    if (c) {
+      document.getElementById('c-nombre').value = c.nombre || '';
+      document.getElementById('c-descripcion').value = c.descripcion || '';
+      document.getElementById('c-cierre').value = c.fecha_cierre?.slice(0,10) || '';
+      campanaActiva = c.activa;
+      selectCampanaActiva(c.activa);
+    }
+    document.getElementById('modal-campana-title').textContent = 'Editar campaña';
+    document.getElementById('btn-save-campana').textContent = 'Guardar cambios';
+  } else {
+    document.getElementById('modal-campana-title').textContent = 'Nueva campaña';
+    document.getElementById('btn-save-campana').textContent = 'Crear campaña';
+  }
+  document.getElementById('modal-campana').classList.add('open');
+}
+
+async function saveCampana() {
+  const editId = document.getElementById('c-edit-id').value;
+  const nombre = document.getElementById('c-nombre').value.trim();
+  const descripcion = document.getElementById('c-descripcion').value.trim();
+  const fecha_cierre = document.getElementById('c-cierre').value || null;
+
+  if (!nombre) { showAlert('campana-alert', 'El nombre es obligatorio.', 'error'); return; }
+
+  if (editId) {
+    await db.from('campanas').update({ nombre, descripcion, fecha_cierre, activa: campanaActiva }).eq('id', editId);
+  } else {
+    await db.from('campanas').insert({ nombre, descripcion, fecha_cierre, activa: campanaActiva });
+  }
+
+  closeModal('modal-campana');
+  await loadAndRenderCampanas();
+  showToast(editId ? 'Campaña actualizada.' : `Campaña "${nombre}" creada.`);
+}
+
+async function setActiveCampana(id) {
+  if (!confirm('¿Establecer esta campaña como la activa para nuevas solicitudes?')) return;
+  const c = allCampanas.find(x => x.id === id);
+  activeCampana = c;
+  closeModal('modal-detalle');
+  await loadAndRenderCampanas();
+  showToast(`Campaña "${c.nombre}" establecida como activa.`);
 }
 
 // ── NOTIFICACIONES ────────────────────────────────────────
