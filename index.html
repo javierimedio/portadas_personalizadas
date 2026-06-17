@@ -1372,7 +1372,7 @@ function getRadioVal(cat, field) {
   return el.dataset.val === 'true';
 }
 
-function checkCampanaAndOpen() {
+async function checkCampanaAndOpen() {
   if (activeCampana?.fecha_cierre) {
     const cierre = new Date(activeCampana.fecha_cierre);
     cierre.setHours(23, 59, 59);
@@ -1382,10 +1382,10 @@ function checkCampanaAndOpen() {
       return;
     }
   }
-  openFormModal();
+  await openFormModal();
 }
 
-function openFormModal(solId = null) {
+async function openFormModal(solId = null) {
   editingId = solId;
   document.getElementById('form-alert').innerHTML = '';
   document.getElementById('modal-sol-title').textContent = solId ? 'Editar solicitud' : 'Nueva solicitud';
