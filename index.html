@@ -9,6 +9,7 @@
 <link rel="icon" type="image/jpeg" href="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAQFAwb/xAAjEAACAQMEAwADAAAAAAAAAAABAgMABBESEyExBRRBIlFx/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AOzopS7u5I5ore2jEk8gLfk2FVRjJJ/pHFJt5W5gmmjurZVEMasSjk7hYkKF4+kY5oK9FTfdvIZI1u7eFBMdEbJIWCvjIDcfcditPF3lxfQmWWBIkyVGH1FiCQT11xQZ+VV45YLmHcWRMqXSPcAU44ZRyRkDrqlbWzkv5byS6eUxyxoivo2zlSTlVPIAJGM9nNXKKCd6F1K8bXV2kmydUYWLSNWMBm55xnoYrbxtpJZWuzJMJcMSGCaezn9n6TTdFB//2Q==">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   :root {
     --c-dark:    #2C2C2A;
@@ -378,6 +379,54 @@
         </div>
       </div>
     </div>
+    <!-- DASHBOARD -->
+    <div class="page" id="page-dashboard">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
+        <div>
+          <div class="section-title">Dashboard</div>
+          <div class="section-sub" id="dash-campana-label">Cargando...</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="renderDashboard()">↻ Actualizar</button>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="stats-row" id="dash-kpis" style="margin-bottom:1.5rem"></div>
+
+      <!-- Charts row 1 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div class="card">
+          <div class="card-title">Estado de solicitudes</div>
+          <canvas id="chart-estados" height="220"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">Solicitudes por comercial</div>
+          <canvas id="chart-comerciales" height="220"></canvas>
+        </div>
+      </div>
+
+      <!-- Charts row 2 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div class="card">
+          <div class="card-title">Unidades por catálogo</div>
+          <canvas id="chart-unidades" height="200"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">Portada personalizada</div>
+          <canvas id="chart-portadas" height="200"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">Catálogo digital vs impreso</div>
+          <canvas id="chart-tipo" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Progress bar por estado -->
+      <div class="card">
+        <div class="card-title">Progreso de la campaña</div>
+        <div id="dash-progreso"></div>
+      </div>
+    </div>
+
     <!-- CAMPAÑAS -->
     <div class="page" id="page-campanas">
       <div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:flex-start">
@@ -931,6 +980,7 @@ function buildNav() {
   // Admin, marketing y diseñador ven Diseño
   if (['admin', 'marketing', 'disenador'].includes(rol)) items.push({ id: 'diseno', label: 'Diseño' });
   // Solo admin ve Usuarios
+  if (['admin', 'marketing', 'disenador'].includes(rol)) items.push({ id: 'dashboard', label: 'Dashboard' });
   if (['admin', 'marketing'].includes(rol))             items.push({ id: 'usuarios', label: 'Usuarios' });
   if (['admin', 'marketing'].includes(rol))             items.push({ id: 'campanas', label: 'Campañas' });
   nav.innerHTML = items.map((it, i) =>
@@ -947,6 +997,7 @@ function showPage(id, btn) {
   if (btn) btn.classList.add('active');
   else { const b = document.querySelector(`.nav-btn[onclick*="'${id}'"]`); if(b) b.classList.add('active'); }
   if (id === 'campanas') loadAndRenderCampanas();
+  if (id === 'dashboard') renderDashboard();
 }
 
 // ── DATA ──────────────────────────────────────────────────
@@ -2263,6 +2314,205 @@ function resetFiles() {
     const el = document.getElementById('files-list-' + key);
     if (el) el.innerHTML = '';
   });
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────
+let dashCharts = {};
+
+function destroyCharts() {
+  Object.values(dashCharts).forEach(c => { try { c.destroy(); } catch(e) {} });
+  dashCharts = {};
+}
+
+function renderDashboard() {
+  destroyCharts();
+
+  const sols = allSolicitudes;
+  const campNombre = activeCampana?.nombre || '—';
+  const el = document.getElementById('dash-campana-label');
+  if (el) el.textContent = `Campaña activa: ${campNombre} · ${sols.length} solicitudes`;
+
+  // ── KPIs ──
+  const total     = sols.length;
+  const completas = sols.filter(s => missingFields(s).length === 0).length;
+  const confirmadas = sols.filter(s => s.estado === 'confirmada').length;
+  const enDiseno  = sols.filter(s => ['en_diseno','modificar_diseno'].includes(s.estado)).length;
+  const pendientes= sols.filter(s => ['borrador','enviada','en_revision_marketing'].includes(s.estado)).length;
+  const unRoly    = sols.reduce((a,s) => a + (s.solicitud_catalogos?.find(c=>c.catalogo==='roly')?.unidades||0), 0);
+  const unWrk     = sols.reduce((a,s) => a + (s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.unidades||0), 0);
+  const unStamina = sols.reduce((a,s) => a + (s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0), 0);
+
+  document.getElementById('dash-kpis').innerHTML = [
+    { num: total,      lbl: 'Total solicitudes',   cls: '' },
+    { num: completas,  lbl: 'Completas',            cls: 'green' },
+    { num: confirmadas,lbl: 'Confirmadas',          cls: 'green' },
+    { num: enDiseno,   lbl: 'En diseño',            cls: 'blue' },
+    { num: pendientes, lbl: 'Pendientes revisión',  cls: 'amber' },
+    { num: (unRoly+unWrk+unStamina).toLocaleString(), lbl: 'Total unidades', cls: '' },
+  ].map(k => `
+    <div class="stat-card ${k.cls}">
+      <div class="stat-num">${k.num}</div>
+      <div class="stat-lbl">${k.lbl}</div>
+    </div>`).join('');
+
+  // ── CHART 1: Estados (Doughnut) ──
+  const estadoOrder = ['borrador','enviada','en_revision_marketing','en_diseno','diseno_en_revision_comercial','modificar_diseno','confirmada'];
+  const estadoColors = ['#E0DED6','#F59E0B','#003087','#534AB7','#FAB518','#E30613','#3B6D11'];
+  const estadoCounts = estadoOrder.map(e => sols.filter(s => s.estado === e).length);
+  const estadoLabels = estadoOrder.map(e => ESTADO_LABEL[e] || e);
+
+  const ctx1 = document.getElementById('chart-estados');
+  if (ctx1) {
+    dashCharts.estados = new Chart(ctx1, {
+      type: 'doughnut',
+      data: {
+        labels: estadoLabels,
+        datasets: [{ data: estadoCounts, backgroundColor: estadoColors, borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { font: { family: 'Inter', size: 11 }, padding: 10, boxWidth: 12 } },
+          tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.raw} (${total ? Math.round(ctx.raw/total*100) : 0}%)` } }
+        }
+      }
+    });
+  }
+
+  // ── CHART 2: Por comercial (Bar horizontal) ──
+  const comercialMap = {};
+  sols.forEach(s => {
+    const nom = s.perfiles?.nombre || s.perfiles?.codigo || 'Sin asignar';
+    comercialMap[nom] = (comercialMap[nom] || 0) + 1;
+  });
+  const comercialEntries = Object.entries(comercialMap).sort((a,b) => b[1]-a[1]).slice(0,10);
+
+  const ctx2 = document.getElementById('chart-comerciales');
+  if (ctx2) {
+    dashCharts.comerciales = new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels: comercialEntries.map(e => e[0]),
+        datasets: [{ label: 'Solicitudes', data: comercialEntries.map(e => e[1]),
+          backgroundColor: '#003087', borderRadius: 4 }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: '#F1EFE8' }, ticks: { font: { family: 'Inter', size: 10 } } },
+          y: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 10 } } }
+        }
+      }
+    });
+  }
+
+  // ── CHART 3: Unidades por catálogo (Bar) ──
+  const ctx3 = document.getElementById('chart-unidades');
+  if (ctx3) {
+    dashCharts.unidades = new Chart(ctx3, {
+      type: 'bar',
+      data: {
+        labels: ['Roly', 'Roly WRK', 'Stamina'],
+        datasets: [{ data: [unRoly, unWrk, unStamina],
+          backgroundColor: ['#003087','#FAB518','#E30613'], borderRadius: 6 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false },
+          tooltip: { callbacks: { label: (ctx) => ` ${ctx.raw.toLocaleString()} uds` } }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11 } } },
+          y: { grid: { color: '#F1EFE8' }, ticks: { font: { family: 'Inter', size: 10 } } }
+        }
+      }
+    });
+  }
+
+  // ── CHART 4: Portada personalizada por catálogo (Doughnut) ──
+  const portRoly    = sols.filter(s => s.solicitud_catalogos?.find(c=>c.catalogo==='roly')?.portada_personalizada).length;
+  const portWrk     = sols.filter(s => s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.portada_personalizada).length;
+  const portStamina = sols.filter(s => s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.portada_personalizada).length;
+
+  const ctx4 = document.getElementById('chart-portadas');
+  if (ctx4) {
+    dashCharts.portadas = new Chart(ctx4, {
+      type: 'bar',
+      data: {
+        labels: ['Roly', 'Roly WRK', 'Stamina'],
+        datasets: [
+          { label: 'Con portada', data: [portRoly, portWrk, portStamina],
+            backgroundColor: ['#003087','#FAB518','#E30613'], borderRadius: 4 },
+          { label: 'Sin portada', data: [total-portRoly, total-portWrk, total-portStamina],
+            backgroundColor: ['#E5EAF3','#FEF3D0','#FDECEA'], borderRadius: 4 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { font: { family: 'Inter', size: 10 }, boxWidth: 10 } } },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { font: { family: 'Inter', size: 11 } } },
+          y: { stacked: true, grid: { color: '#F1EFE8' }, ticks: { font: { family: 'Inter', size: 10 } } }
+        }
+      }
+    });
+  }
+
+  // ── CHART 5: Digital vs Impreso ──
+  const cats = ['roly','roly_wrk','stamina'];
+  const catLabels = ['Roly','Roly WRK','Stamina'];
+  const digCounts = cats.map(cat => sols.filter(s => s.solicitud_catalogos?.find(c=>c.catalogo===cat)?.catalogo_digital).length);
+  const impCounts = cats.map(cat => sols.filter(s => s.solicitud_catalogos?.find(c=>c.catalogo===cat)?.catalogo_impreso).length);
+
+  const ctx5 = document.getElementById('chart-tipo');
+  if (ctx5) {
+    dashCharts.tipo = new Chart(ctx5, {
+      type: 'bar',
+      data: {
+        labels: catLabels,
+        datasets: [
+          { label: 'Digital',  data: digCounts, backgroundColor: '#534AB7', borderRadius: 4 },
+          { label: 'Impreso',  data: impCounts, backgroundColor: '#BA7517', borderRadius: 4 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { font: { family: 'Inter', size: 10 }, boxWidth: 10 } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11 } } },
+          y: { grid: { color: '#F1EFE8' }, ticks: { font: { family: 'Inter', size: 10 } } }
+        }
+      }
+    });
+  }
+
+  // ── PROGRESO CAMPAÑA ──
+  const progresoSteps = [
+    { key: ['borrador'],                           label: 'Borrador',           color: '#E0DED6' },
+    { key: ['enviada'],                            label: 'Enviadas',           color: '#F59E0B' },
+    { key: ['en_revision_marketing'],              label: 'En revisión',        color: '#003087' },
+    { key: ['en_diseno','modificar_diseno'],       label: 'En diseño',          color: '#534AB7' },
+    { key: ['diseno_en_revision_comercial'],       label: 'Revisión cliente',   color: '#FAB518' },
+    { key: ['confirmada'],                         label: 'Confirmadas',        color: '#3B6D11' },
+  ];
+  const progEl = document.getElementById('dash-progreso');
+  if (progEl && total > 0) {
+    progEl.innerHTML = progresoSteps.map(step => {
+      const count = sols.filter(s => step.key.includes(s.estado)).length;
+      const pct = Math.round(count / total * 100);
+      return `
+        <div style="margin-bottom:.75rem">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+            <span style="font-weight:500">${step.label}</span>
+            <span style="color:var(--c-mid)">${count} solicitudes (${pct}%)</span>
+          </div>
+          <div style="background:var(--c-light);border-radius:20px;height:8px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${step.color};border-radius:20px;transition:width .4s ease"></div>
+          </div>
+        </div>`;
+    }).join('');
+  }
 }
 
 // ── MENCIONES ─────────────────────────────────────────────
