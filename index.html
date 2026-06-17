@@ -396,11 +396,15 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
         <div class="card">
           <div class="card-title">Estado de solicitudes</div>
-          <canvas id="chart-estados" height="220"></canvas>
+          <div style="position:relative;height:220px;overflow:hidden">
+            <canvas id="chart-estados"></canvas>
+          </div>
         </div>
         <div class="card">
           <div class="card-title">Solicitudes por comercial</div>
-          <canvas id="chart-comerciales" height="220"></canvas>
+          <div style="position:relative;height:220px;overflow:hidden">
+            <canvas id="chart-comerciales"></canvas>
+          </div>
         </div>
       </div>
 
@@ -408,15 +412,21 @@
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
         <div class="card">
           <div class="card-title">Unidades por catálogo</div>
-          <canvas id="chart-unidades" height="200"></canvas>
+          <div style="position:relative;height:200px;overflow:hidden">
+            <canvas id="chart-unidades"></canvas>
+          </div>
         </div>
         <div class="card">
           <div class="card-title">Portada personalizada</div>
-          <canvas id="chart-portadas" height="200"></canvas>
+          <div style="position:relative;height:200px;overflow:hidden">
+            <canvas id="chart-portadas"></canvas>
+          </div>
         </div>
         <div class="card">
           <div class="card-title">Catálogo digital vs impreso</div>
-          <canvas id="chart-tipo" height="200"></canvas>
+          <div style="position:relative;height:200px;overflow:hidden">
+            <canvas id="chart-tipo"></canvas>
+          </div>
         </div>
       </div>
 
@@ -2371,6 +2381,7 @@ function renderDashboard() {
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        animation: { duration: 400 },
         plugins: {
           legend: { position: 'right', labels: { font: { family: 'Inter', size: 11 }, padding: 10, boxWidth: 12 } },
           tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.raw} (${total ? Math.round(ctx.raw/total*100) : 0}%)` } }
@@ -2398,6 +2409,7 @@ function renderDashboard() {
       },
       options: {
         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        animation: { duration: 400 },
         plugins: { legend: { display: false } },
         scales: {
           x: { grid: { color: '#F1EFE8' }, ticks: { font: { family: 'Inter', size: 10 } } },
