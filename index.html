@@ -445,7 +445,18 @@
 const SUPA_URL = 'https://paqtohmxagfebeyyurlq.supabase.co';
 const SUPA_KEY = 'sb_publishable_dd7aM2WiMZMDpW6wESxhLA_cqtUAtXp';
 const { createClient } = supabase;
-const db = createClient(SUPA_URL, SUPA_KEY);
+const db = createClient(SUPA_URL, SUPA_KEY, {
+  global: {
+    headers: {
+      'apikey': SUPA_KEY,
+    }
+  },
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+  }
+});
 
 let currentUser = null;
 let currentPerfil = null;
