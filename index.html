@@ -335,15 +335,43 @@
 
     <!-- ADMIN: USUARIOS -->
     <div class="page" id="page-usuarios">
-      <div class="section-title">Gestión de usuarios</div>
-      <div class="section-sub">Administra los accesos a la herramienta.</div>
-      <div style="margin-bottom:1rem">
-        <button class="btn btn-amber" onclick="openUserModal()">+ Nuevo usuario</button>
+      <div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+        <div style="flex:1;min-width:280px">
+          <div class="section-title">Gestión de usuarios</div>
+          <div class="section-sub">Crea, edita y gestiona los accesos a la herramienta.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="openImportModal()">↑ Importar desde Excel</button>
+          <button class="btn btn-amber" onclick="openUserModal()">+ Nuevo usuario</button>
+        </div>
       </div>
+
+      <!-- Stats por rol -->
+      <div class="stats-row" id="user-stats-row" style="margin-bottom:1.5rem"></div>
+
+      <!-- Filtros -->
+      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+        <input type="text" id="search-users" placeholder="Buscar por nombre, email o código..." style="flex:1;min-width:200px" oninput="renderUsuariosTable()">
+        <select id="filter-rol-users" onchange="renderUsuariosTable()">
+          <option value="">Todos los roles</option>
+          <option value="comercial">Comercial</option>
+          <option value="marketing">Marketing</option>
+          <option value="disenador">Diseñador</option>
+          <option value="admin">Admin</option>
+        </select>
+        <select id="filter-activo-users" onchange="renderUsuariosTable()">
+          <option value="">Todos</option>
+          <option value="true">Activos</option>
+          <option value="false">Inactivos</option>
+        </select>
+      </div>
+
       <div class="card" style="padding:0">
         <div class="tbl-wrap">
           <table>
-            <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Código</th><th>Activo</th><th></th></tr></thead>
+            <thead><tr>
+              <th>Nombre</th><th>Email</th><th>Rol</th><th>Código</th><th>Estado</th><th>Creado</th><th></th>
+            </tr></thead>
             <tbody id="tbl-usuarios"></tbody>
           </table>
         </div>
@@ -438,42 +466,81 @@
 
 <!-- ── MODAL USUARIO ────────────────────────────────────── -->
 <div class="modal-bg" id="modal-usuario">
-  <div class="modal" style="max-width:480px">
+  <div class="modal" style="max-width:520px">
     <div class="modal-header">
-      <div class="modal-title">Nuevo usuario</div>
+      <div class="modal-title" id="modal-user-title">Nuevo usuario</div>
       <button class="modal-close" onclick="closeModal('modal-usuario')">✕</button>
     </div>
     <div class="modal-body">
       <div id="user-alert"></div>
-      <div class="form-group" style="margin-bottom:.75rem">
-        <label>Nombre completo <span class="req">*</span></label>
-        <input type="text" id="u-nombre" placeholder="Nombre y apellidos">
+      <input type="hidden" id="u-edit-id">
+      <div class="form-grid" style="margin-bottom:.75rem">
+        <div class="form-group">
+          <label>Nombre completo <span class="req">*</span></label>
+          <input type="text" id="u-nombre" placeholder="Nombre y apellidos">
+        </div>
+        <div class="form-group">
+          <label>Email corporativo <span class="req">*</span></label>
+          <input type="email" id="u-email" placeholder="correo@gorfactory.es">
+        </div>
       </div>
-      <div class="form-group" style="margin-bottom:.75rem">
-        <label>Email corporativo <span class="req">*</span></label>
-        <input type="email" id="u-email" placeholder="correo@gorfactory.com">
+      <div class="form-grid" style="margin-bottom:.75rem">
+        <div class="form-group">
+          <label>Rol <span class="req">*</span></label>
+          <select id="u-rol">
+            <option value="comercial">Comercial</option>
+            <option value="marketing">Marketing</option>
+            <option value="disenador">Diseñador</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Código</label>
+          <input type="text" id="u-codigo" placeholder="ej: EXPORT13">
+        </div>
       </div>
-      <div class="form-group" style="margin-bottom:.75rem">
-        <label>Rol <span class="req">*</span></label>
-        <select id="u-rol">
-          <option value="comercial">Comercial</option>
-          <option value="marketing">Marketing</option>
-          <option value="disenador">Diseñador</option>
-          <option value="admin">Admin</option>
-        </select>
-      </div>
-      <div class="form-group" style="margin-bottom:.75rem">
-        <label>Código comercial</label>
-        <input type="text" id="u-codigo" placeholder="ej: EXPORT13">
-      </div>
-      <div class="form-group">
+      <div class="form-group" id="pass-group">
         <label>Contraseña temporal <span class="req">*</span></label>
-        <input type="password" id="u-pass" placeholder="Mín. 8 caracteres">
+        <input type="password" id="u-pass" placeholder="Mín. 8 caracteres" autocomplete="new-password">
+        <span style="font-size:11px;color:var(--c-mid);margin-top:3px;display:block">El usuario podrá cambiarla después desde su perfil.</span>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-usuario')">Cancelar</button>
-      <button class="btn btn-amber" onclick="createUser()">Crear usuario</button>
+      <button class="btn btn-amber" id="btn-save-user" onclick="saveUser()">Crear usuario</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL IMPORTAR USUARIOS ──────────────────────────── -->
+<div class="modal-bg" id="modal-import-users">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <div class="modal-title">Importar usuarios desde Excel</div>
+      <button class="modal-close" onclick="closeModal('modal-import-users')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="import-alert"></div>
+      <div class="alert alert-info" style="margin-bottom:1rem">
+        El Excel debe tener estas columnas en orden: <strong>email · nombre · contraseña · rol · código</strong><br>
+        Roles válidos: <code>comercial</code>, <code>marketing</code>, <code>disenador</code>, <code>admin</code>
+      </div>
+      <div id="drop-import-excel"
+        style="border:2px dashed var(--c-line);border-radius:var(--radius);padding:2rem;text-align:center;cursor:pointer;transition:all .15s"
+        ondragover="event.preventDefault();this.style.borderColor='var(--c-amber)';this.style.background='var(--c-amber-l)'"
+        ondragleave="this.style.borderColor='var(--c-line)';this.style.background=''"
+        ondrop="event.preventDefault();this.style.borderColor='var(--c-line)';this.style.background='';handleImportDrop(event)"
+        onclick="document.getElementById('file-import-excel').click()">
+        <div style="font-size:32px;margin-bottom:8px">📊</div>
+        <div style="font-size:14px;font-weight:500">Arrastra el Excel aquí o haz clic</div>
+        <div style="font-size:12px;color:var(--c-mid);margin-top:4px">.xlsx o .csv</div>
+      </div>
+      <input type="file" id="file-import-excel" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleImportFile(event)">
+      <div id="import-preview" style="margin-top:1rem"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-import-users')">Cancelar</button>
+      <button class="btn btn-amber" id="btn-import-confirm" onclick="confirmImport()" style="display:none">Importar usuarios</button>
     </div>
   </div>
 </div>
@@ -799,7 +866,7 @@ function buildNav() {
   // Admin, marketing y diseñador ven Diseño
   if (['admin', 'marketing', 'disenador'].includes(rol)) items.push({ id: 'diseno', label: 'Diseño' });
   // Solo admin ve Usuarios
-  if (['admin'].includes(rol))                        items.push({ id: 'usuarios', label: 'Usuarios' });
+  if (['admin', 'marketing'].includes(rol))             items.push({ id: 'usuarios', label: 'Usuarios' });
   nav.innerHTML = items.map((it, i) =>
     `<button class="nav-btn ${i===0?'active':''}" onclick="showPage('${it.id}', this)">${it.label}</button>`
   ).join('');
@@ -984,17 +1051,56 @@ function renderDisenoTable() {
     </tr>`).join('');
 }
 
+const ROL_COLORS = { admin: 'var(--c-amber)', marketing: 'var(--c-blue)', comercial: 'var(--c-teal)', disenador: 'var(--c-purple)' };
+const ROL_LABELS = { admin: 'Admin', marketing: 'Marketing', comercial: 'Comercial', disenador: 'Diseñador' };
+
 function renderUsuariosTable() {
+  const q = document.getElementById('search-users')?.value.toLowerCase() || '';
+  const rolFilter = document.getElementById('filter-rol-users')?.value || '';
+  const activoFilter = document.getElementById('filter-activo-users')?.value || '';
+
+  let perfiles = allPerfiles;
+  if (q) perfiles = perfiles.filter(p => p.nombre?.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q) || p.codigo?.toLowerCase().includes(q));
+  if (rolFilter) perfiles = perfiles.filter(p => p.rol === rolFilter);
+  if (activoFilter) perfiles = perfiles.filter(p => String(p.activo) === activoFilter);
+
+  // Stats
+  const stats = ['comercial','marketing','disenador','admin'].map(rol => {
+    const count = allPerfiles.filter(p => p.rol === rol && p.activo).length;
+    return `<div class="stat-card"><div class="stat-num" style="color:${ROL_COLORS[rol]}">${count}</div><div class="stat-lbl">${ROL_LABELS[rol]}${count !== 1 ? 'es' : ''}</div></div>`;
+  });
+  const userStatsEl = document.getElementById('user-stats-row');
+  if (userStatsEl) userStatsEl.innerHTML = stats.join('');
+
   const tbody = document.getElementById('tbl-usuarios');
-  if (!allPerfiles.length) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>No hay usuarios.</p></div></td></tr>`; return; }
-  tbody.innerHTML = allPerfiles.map(p => `
-    <tr>
-      <td>${p.nombre}</td>
+  if (!perfiles.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">👥</div><p>No hay usuarios que coincidan.</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = perfiles.map(p => `
+    <tr style="${!p.activo ? 'opacity:.5' : ''}">
+      <td><strong>${p.nombre}</strong></td>
       <td class="text-sm text-mid">${p.email}</td>
-      <td><span class="status s-${p.rol}" style="background:var(--c-light);color:var(--c-dark)">${p.rol}</span></td>
+      <td>
+        <span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:${ROL_COLORS[p.rol]}20;color:${ROL_COLORS[p.rol]}">
+          ${ROL_LABELS[p.rol]||p.rol}
+        </span>
+      </td>
       <td class="text-sm">${p.codigo||'—'}</td>
-      <td>${p.activo ? '<span style="color:var(--c-green)">●</span>' : '<span style="color:var(--c-red)">●</span>'}</td>
-      <td><button class="btn btn-sm btn-outline" onclick="toggleUser('${p.id}',${p.activo})">${p.activo?'Desactivar':'Activar'}</button></td>
+      <td>
+        <span style="color:${p.activo?'var(--c-green)':'var(--c-red)'}">
+          ${p.activo ? '● Activo' : '● Inactivo'}
+        </span>
+      </td>
+      <td class="text-sm text-mid">${p.created_at ? fmtDate(p.created_at).split(' ')[0] : '—'}</td>
+      <td>
+        <div class="gap-8">
+          <button class="btn btn-sm btn-outline" onclick="openUserModal('${p.id}')">Editar</button>
+          <button class="btn btn-sm btn-outline ${p.activo ? 'btn-danger' : 'btn-green'}" onclick="toggleUser('${p.id}',${p.activo})">
+            ${p.activo ? 'Desactivar' : 'Activar'}
+          </button>
+        </div>
+      </td>
     </tr>`).join('');
 }
 
@@ -1362,15 +1468,8 @@ async function saveSolicitud(estadoTarget) {
     }
   }
 
-  // Email notification si enviada
-  if (estadoTarget === 'enviada') {
-    await db.from('notificaciones').insert({
-      solicitud_id: solId,
-      destinatario: 'marketing@gorfactory.com',
-      asunto: `Nueva solicitud de portada — ${codSap}`,
-      cuerpo: `El comercial ${currentPerfil?.nombre} ha enviado una nueva solicitud para el cliente ${codSap} (${nombre}). Accede al panel para revisarla.`
-    });
-  }
+  // Notificaciones por email según estado
+  await enviarNotificacion(solId, estadoTarget, { codSap, nombre, comercialNombre: currentPerfil?.nombre });
 
   const prog2 = document.getElementById('upload-progress');
   if (prog2) prog2.style.display = 'none';
@@ -1542,6 +1641,13 @@ async function cambiarEstadoDirecto(solId, nuevoEstado) {
     accion: 'cambio_estado',
     detalle: { estado_anterior: estadoAnterior, estado_nuevo: nuevoEstado }
   });
+  // Notificaciones
+  const solData = allSolicitudes.find(s => s.id === solId);
+  await enviarNotificacion(solId, nuevoEstado, {
+    codSap: solData?.cod_sap,
+    nombre: solData?.nombre_empresa,
+    comercialNombre: solData?.perfiles?.nombre
+  });
   closeModal('modal-detalle');
   await loadData();
   showToast(`Estado: ${ESTADO_LABEL[nuevoEstado] || nuevoEstado}`);
@@ -1577,23 +1683,80 @@ async function asignarYAvanzar(solId) {
 }
 
 // ── USUARIOS ──────────────────────────────────────────────
-function openUserModal() { document.getElementById('modal-usuario').classList.add('open'); }
+function openUserModal(editId = null) {
+  document.getElementById('u-edit-id').value = editId || '';
+  document.getElementById('u-nombre').value = '';
+  document.getElementById('u-email').value = '';
+  document.getElementById('u-rol').value = 'comercial';
+  document.getElementById('u-codigo').value = '';
+  document.getElementById('u-pass').value = '';
+  document.getElementById('user-alert').innerHTML = '';
+  const passGroup = document.getElementById('pass-group');
+  const title = document.getElementById('modal-user-title');
+  const btnSave = document.getElementById('btn-save-user');
 
-async function createUser() {
+  if (editId) {
+    const p = allPerfiles.find(x => x.id === editId);
+    if (p) {
+      document.getElementById('u-nombre').value = p.nombre || '';
+      document.getElementById('u-email').value = p.email || '';
+      document.getElementById('u-rol').value = p.rol || 'comercial';
+      document.getElementById('u-codigo').value = p.codigo || '';
+    }
+    title.textContent = 'Editar usuario';
+    btnSave.textContent = 'Guardar cambios';
+    if (passGroup) passGroup.style.display = 'none';
+  } else {
+    title.textContent = 'Nuevo usuario';
+    btnSave.textContent = 'Crear usuario';
+    if (passGroup) passGroup.style.display = 'block';
+  }
+  document.getElementById('modal-usuario').classList.add('open');
+}
+
+async function saveUser() {
+  const editId = document.getElementById('u-edit-id').value;
   const nombre = document.getElementById('u-nombre').value.trim();
   const email  = document.getElementById('u-email').value.trim();
   const rol    = document.getElementById('u-rol').value;
   const codigo = document.getElementById('u-codigo').value.trim();
   const pass   = document.getElementById('u-pass').value;
-  if (!nombre || !email || !pass) { showAlert('user-alert', 'Nombre, email y contraseña son obligatorios.', 'error'); return; }
-  const { error } = await db.auth.signUp({
-    email, password: pass,
-    options: { data: { nombre, rol, codigo } }
-  });
-  if (error) { showAlert('user-alert', error.message, 'error'); return; }
-  closeModal('modal-usuario');
-  await loadData();
-  showToast('Usuario creado. Recibirá un email de confirmación.');
+
+  if (!nombre || !email) { showAlert('user-alert', 'Nombre y email son obligatorios.', 'error'); return; }
+
+  if (editId) {
+    // Edit existing profile
+    await db.from('perfiles').update({ nombre, rol, codigo }).eq('id', editId);
+    closeModal('modal-usuario');
+    await loadData();
+    showToast('Usuario actualizado.');
+  } else {
+    // Create new user via Supabase Admin API
+    if (!pass || pass.length < 8) { showAlert('user-alert', 'La contraseña debe tener mínimo 8 caracteres.', 'error'); return; }
+    try {
+      const res = await fetch(`${SUPA_URL}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPA_KEY,
+          'Authorization': `Bearer ${loadSession()?.access_token || SUPA_KEY}`,
+        },
+        body: JSON.stringify({
+          email, password: pass, email_confirm: true,
+          user_metadata: { nombre, rol, codigo }
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || 'Error al crear usuario');
+      // Insert profile
+      await db.from('perfiles').insert({ id: data.id, nombre, email, rol, codigo, activo: true });
+      closeModal('modal-usuario');
+      await loadData();
+      showToast(`Usuario ${nombre} creado correctamente.`);
+    } catch(e) {
+      showAlert('user-alert', e.message, 'error');
+    }
+  }
 }
 
 async function toggleUser(id, activo) {
@@ -1723,6 +1886,185 @@ function resetFiles() {
     const el = document.getElementById('files-list-' + key);
     if (el) el.innerHTML = '';
   });
+}
+
+// ── NOTIFICACIONES ────────────────────────────────────────
+// Guarda en tabla notificaciones. Para envío real, configurar Supabase Edge Function con Resend.
+async function enviarNotificacion(solId, estado, { codSap, nombre, comercialNombre } = {}) {
+  const notifs = [];
+  const sol = allSolicitudes.find(s => s.id === solId);
+  const comercialEmail = sol ? allPerfiles.find(p => p.id === sol.comercial_id)?.email : null;
+  const disenadorEmail = sol?.asignado_id ? allPerfiles.find(p => p.id === sol.asignado_id)?.email : null;
+  const mktEmails = allPerfiles.filter(p => p.rol === 'marketing' && p.activo).map(p => p.email);
+
+  const baseAsunto = `[Portadas GOR] Solicitud ${codSap || ''}`;
+
+  if (estado === 'enviada' || estado === 'en_revision_marketing') {
+    mktEmails.forEach(email => notifs.push({
+      solicitud_id: solId, destinatario: email,
+      asunto: `${baseAsunto} — Nueva solicitud de ${comercialNombre}`,
+      cuerpo: `El comercial ${comercialNombre} ha enviado una solicitud de portada para el cliente ${codSap} (${nombre||''}). Accede al panel para revisarla.`
+    }));
+  }
+  if (estado === 'en_diseno' && disenadorEmail) {
+    notifs.push({
+      solicitud_id: solId, destinatario: disenadorEmail,
+      asunto: `${baseAsunto} — Asignada para diseño`,
+      cuerpo: `Se te ha asignado la solicitud de portada para el cliente ${codSap} (${nombre||''}). Accede a la herramienta para ver los detalles.`
+    });
+  }
+  if (estado === 'diseno_en_revision_comercial' && comercialEmail) {
+    notifs.push({
+      solicitud_id: solId, destinatario: comercialEmail,
+      asunto: `${baseAsunto} — Diseño listo para revisión`,
+      cuerpo: `El diseño de portada para tu cliente ${codSap} (${nombre||''}) está listo para que lo revises. Accede a la herramienta para aprobarlo o solicitar cambios.`
+    });
+  }
+  if (estado === 'modificar_diseno' && disenadorEmail) {
+    notifs.push({
+      solicitud_id: solId, destinatario: disenadorEmail,
+      asunto: `${baseAsunto} — Modificaciones solicitadas`,
+      cuerpo: `Se han solicitado modificaciones en el diseño de portada para el cliente ${codSap} (${nombre||''}). Accede a la herramienta para ver los comentarios.`
+    });
+  }
+  if (estado === 'confirmada') {
+    const recipients = [...mktEmails, comercialEmail].filter(Boolean);
+    recipients.forEach(email => notifs.push({
+      solicitud_id: solId, destinatario: email,
+      asunto: `${baseAsunto} — ✓ Confirmada`,
+      cuerpo: `La solicitud de portada para el cliente ${codSap} (${nombre||''}) ha sido confirmada.`
+    }));
+  }
+  if (estado === 'borrador' && comercialEmail) {
+    notifs.push({
+      solicitud_id: solId, destinatario: comercialEmail,
+      asunto: `${baseAsunto} — Devuelta para completar`,
+      cuerpo: `Tu solicitud de portada para el cliente ${codSap} (${nombre||''}) ha sido devuelta para que completes la información. Accede a la herramienta para editarla.`
+    });
+  }
+
+  for (const n of notifs) {
+    await db.from('notificaciones').insert({ ...n, enviado: false });
+  }
+}
+
+// ── IMPORT USERS ──────────────────────────────────────────
+let importData = [];
+
+function openImportModal() {
+  importData = [];
+  document.getElementById('import-preview').innerHTML = '';
+  document.getElementById('import-alert').innerHTML = '';
+  document.getElementById('btn-import-confirm').style.display = 'none';
+  document.getElementById('modal-import-users').classList.add('open');
+}
+
+function handleImportDrop(event) {
+  const file = event.dataTransfer.files[0];
+  if (file) processImportFile(file);
+}
+
+function handleImportFile(event) {
+  const file = event.target.files[0];
+  if (file) processImportFile(file);
+  event.target.value = '';
+}
+
+function processImportFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      // Skip header row if first cell looks like a header
+      const start = rows[0]?.[0]?.toString().toLowerCase().includes('email') ? 1 : 0;
+      importData = rows.slice(start).filter(r => r[0]).map(r => ({
+        email:  String(r[0]).trim(),
+        nombre: String(r[1]).trim(),
+        pass:   String(r[2]).trim(),
+        rol:    String(r[3]).trim().toLowerCase() || 'comercial',
+        codigo: String(r[4]).trim(),
+      })).filter(u => u.email && u.nombre && u.pass);
+
+      if (!importData.length) {
+        showAlert('import-alert', 'No se encontraron usuarios válidos en el archivo.', 'error');
+        return;
+      }
+
+      const validRoles = ['comercial','marketing','disenador','admin'];
+      const invalid = importData.filter(u => !validRoles.includes(u.rol));
+      if (invalid.length) {
+        showAlert('import-alert', `${invalid.length} fila(s) con rol no válido. Roles aceptados: comercial, marketing, disenador, admin`, 'error');
+      }
+
+      // Preview table
+      let html = `<div style="font-size:13px;font-weight:600;margin-bottom:.5rem">${importData.length} usuarios encontrados:</div>`;
+      html += `<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr style="background:var(--c-light)">
+          <th style="padding:6px 8px;text-align:left">Email</th>
+          <th style="padding:6px 8px;text-align:left">Nombre</th>
+          <th style="padding:6px 8px;text-align:left">Rol</th>
+          <th style="padding:6px 8px;text-align:left">Código</th>
+          <th style="padding:6px 8px;text-align:left">Pass</th>
+        </tr></thead><tbody>`;
+      importData.slice(0, 10).forEach(u => {
+        const rolOk = validRoles.includes(u.rol);
+        html += `<tr style="border-bottom:1px solid var(--c-line)">
+          <td style="padding:5px 8px">${u.email}</td>
+          <td style="padding:5px 8px">${u.nombre}</td>
+          <td style="padding:5px 8px;color:${rolOk?'var(--c-green)':'var(--c-red)'}">${u.rol}</td>
+          <td style="padding:5px 8px">${u.codigo||'—'}</td>
+          <td style="padding:5px 8px;color:var(--c-mid)">••••••••</td>
+        </tr>`;
+      });
+      if (importData.length > 10) html += `<tr><td colspan="5" style="padding:6px 8px;color:var(--c-mid);font-style:italic">...y ${importData.length - 10} más</td></tr>`;
+      html += '</tbody></table></div>';
+      document.getElementById('import-preview').innerHTML = html;
+      document.getElementById('btn-import-confirm').style.display = 'inline-flex';
+    } catch(e) {
+      showAlert('import-alert', 'Error al leer el archivo: ' + e.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function confirmImport() {
+  const btn = document.getElementById('btn-import-confirm');
+  btn.disabled = true;
+  btn.textContent = 'Importando...';
+  let ok = 0, errors = 0;
+
+  for (const u of importData) {
+    try {
+      const res = await fetch(`${SUPA_URL}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPA_KEY,
+          'Authorization': `Bearer ${loadSession()?.access_token || SUPA_KEY}`,
+        },
+        body: JSON.stringify({
+          email: u.email, password: u.pass, email_confirm: true,
+          user_metadata: { nombre: u.nombre, rol: u.rol, codigo: u.codigo }
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Error');
+      await db.from('perfiles').insert({ id: data.id, nombre: u.nombre, email: u.email, rol: u.rol, codigo: u.codigo, activo: true });
+      ok++;
+    } catch(e) {
+      console.warn('Import error for', u.email, e.message);
+      errors++;
+    }
+    btn.textContent = `Importando... ${ok + errors}/${importData.length}`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Importar usuarios';
+  closeModal('modal-import-users');
+  await loadData();
+  showToast(`Importación completada: ${ok} creados${errors > 0 ? `, ${errors} errores` : ''}.`);
 }
 
 </script>
