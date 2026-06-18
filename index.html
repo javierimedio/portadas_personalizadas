@@ -1402,7 +1402,7 @@ function renderDisenoTable() {
 }
 
 const ROL_COLORS = { admin: 'var(--c-amber)', marketing: 'var(--c-blue)', responsable: '#0F6E56', comercial: 'var(--c-teal)', disenador: 'var(--c-purple)' };
-const ROL_LABELS = { admin: 'Admin', marketing: 'Marketing', responsable: 'Resp. Comercial', comercial: 'Comercial', disenador: 'Diseñador' };
+const ROL_LABELS = { admin: 'Administrador', marketing: 'Marketing', responsable: 'Resp. Comercial', comercial: 'Comercial', disenador: 'Diseñador' };
 
 function renderUsuariosTable() {
   const q = document.getElementById('search-users')?.value.toLowerCase() || '';
@@ -1415,9 +1415,10 @@ function renderUsuariosTable() {
   if (activoFilter) perfiles = perfiles.filter(p => String(p.activo) === activoFilter);
 
   // Stats
+  const USER_STAT_LABELS = { comercial: 'Comercial', marketing: 'Marketing', disenador: 'Diseñador', admin: 'Administrador' };
   const stats = ['comercial','marketing','disenador','admin'].map(rol => {
     const count = allPerfiles.filter(p => p.rol === rol && p.activo).length;
-    return `<div class="stat-card"><div class="stat-num" style="color:${ROL_COLORS[rol]}">${count}</div><div class="stat-lbl">${ROL_LABELS[rol]}${count !== 1 ? 'es' : ''}</div></div>`;
+    return `<div class="stat-card"><div class="stat-num" style="color:${ROL_COLORS[rol]}">${count}</div><div class="stat-lbl">${USER_STAT_LABELS[rol]}</div></div>`;
   });
   const userStatsEl = document.getElementById('user-stats-row');
   if (userStatsEl) userStatsEl.innerHTML = stats.join('');
@@ -2838,12 +2839,15 @@ function renderDashboard() {
       (s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.unidades||0) +
       (s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0), 0);
 
+  const solEnRevision = sols.filter(s=>s.estado==='en_revision_marketing').length;
+  const solRevCliente = sols.filter(s=>s.estado==='diseno_en_revision_comercial').length;
   const solicitudesKpis = [
-    { num: total,                                           lbl: 'Total solicitudes', cls: '' },
-    { num: sols.filter(s=>s.estado==='enviada').length,     lbl: 'Enviadas',          cls: 'amber' },
-    { num: pendientes,                                      lbl: 'En revisión',       cls: '' },
-    { num: enDiseno,                                        lbl: 'En diseño',         cls: 'blue' },
-    { num: confirmadas,                                     lbl: 'Completadas ✓',     cls: 'green' },
+    { num: total,                                           lbl: 'Total solicitudes',  cls: '' },
+    { num: sols.filter(s=>s.estado==='enviada').length,     lbl: 'Enviadas',           cls: 'amber' },
+    { num: solEnRevision,                                   lbl: 'En revisión Mkt.',   cls: '' },
+    { num: enDiseno,                                        lbl: 'En diseño',          cls: 'blue' },
+    { num: solRevCliente,                                   lbl: 'Revisión cliente',   cls: '' },
+    { num: confirmadas,                                     lbl: 'Completadas ✓',      cls: 'green' },
   ];
   const unidadesKpis = [
     { num: (unRoly+unWrk+unStamina).toLocaleString(),      lbl: 'Total unidades',    cls: '' },
