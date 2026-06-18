@@ -286,11 +286,11 @@
       <div id="campana-banner"></div>
       <div class="stats-row" id="stats-row"></div>
       <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
-        <input type="text" id="search-mkt" placeholder="Buscar SAP, empresa, comercial..." style="flex:1;min-width:200px" oninput="renderMktTable()">
+        <input type="text" id="search-mkt" placeholder="Buscar SAP, empresa..." style="flex:1;min-width:160px" oninput="renderMktTable()">
         <select id="filter-campana" onchange="filterCampana()" style="min-width:130px">
           <option value="">Todas las campañas</option>
         </select>
-        <select id="filter-estado" onchange="renderMktTable()">
+        <select id="filter-estado" onchange="renderMktTable()" style="min-width:130px">
           <option value="">Todos los estados</option>
           <option value="borrador">Borrador</option>
           <option value="enviada">Enviada</option>
@@ -300,6 +300,10 @@
           <option value="modificar_diseno">Modificar diseño</option>
           <option value="confirmada">Confirmada</option>
         </select>
+        <select id="filter-comercial" onchange="renderMktTable()" style="min-width:130px">
+          <option value="">Todos los comerciales</option>
+        </select>
+        <input type="text" id="filter-provincia" placeholder="Provincia..." style="min-width:120px" oninput="renderMktTable()">
         <button class="btn btn-sm" style="background:var(--c-green-l);color:var(--c-green);border:1px solid var(--c-green);font-weight:600" onclick="exportExcel()">↓ Exportar Excel</button>
         <button class="btn btn-sm btn-amber" onclick="autoAdjudicar()" title="Asigna automáticamente la portada final a cada cliente según provincia y prioridad">⚡ Auto-adjudicar portadas</button>
         
@@ -308,37 +312,13 @@
         <div class="tbl-wrap">
           <table>
             <thead><tr>
-              <th style="min-width:90px">
-                <div onclick="sortMkt('cod_sap')" style="cursor:pointer;user-select:none;margin-bottom:4px;font-size:11px">Cód. SAP <span id="sort-cod_sap">↕</span></div>
-                <input type="text" id="fcol-sap" placeholder="Filtrar..." oninput="renderMktTable()" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--c-line);border-radius:3px">
-              </th>
-              <th style="min-width:120px">
-                <div onclick="sortMkt('nombre_empresa')" style="cursor:pointer;user-select:none;margin-bottom:4px;font-size:11px">Empresa <span id="sort-nombre_empresa">↕</span></div>
-                <input type="text" id="fcol-empresa" placeholder="Filtrar..." oninput="renderMktTable()" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--c-line);border-radius:3px">
-              </th>
-              <th style="min-width:110px">
-                <div onclick="sortMkt('comercial')" style="cursor:pointer;user-select:none;margin-bottom:4px;font-size:11px">Comercial <span id="sort-comercial">↕</span></div>
-                <input type="text" id="fcol-comercial" placeholder="Filtrar..." oninput="renderMktTable()" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--c-line);border-radius:3px">
-              </th>
-              <th style="min-width:110px">
-                <div onclick="sortMkt('provincia')" style="cursor:pointer;user-select:none;margin-bottom:4px;font-size:11px">Provincia <span id="sort-provincia">↕</span></div>
-                <input type="text" id="fcol-provincia" placeholder="Filtrar..." oninput="renderMktTable()" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--c-line);border-radius:3px">
-              </th>
+              <th onclick="sortMkt('cod_sap')" style="cursor:pointer;user-select:none">Cód. SAP <span id="sort-cod_sap">↕</span></th>
+              <th onclick="sortMkt('nombre_empresa')" style="cursor:pointer;user-select:none">Empresa <span id="sort-nombre_empresa">↕</span></th>
+              <th onclick="sortMkt('comercial')" style="cursor:pointer;user-select:none">Comercial <span id="sort-comercial">↕</span></th>
+              <th onclick="sortMkt('provincia')" style="cursor:pointer;user-select:none">Provincia <span id="sort-provincia">↕</span></th>
               <th>Roly</th><th>Roly WRK</th><th>Stamina</th>
-              <th style="min-width:130px">
-                <div onclick="sortMkt('estado')" style="cursor:pointer;user-select:none;margin-bottom:4px;font-size:11px">Estado <span id="sort-estado">↕</span></div>
-                <select id="fcol-estado" onchange="renderMktTable()" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--c-line);border-radius:3px">
-                  <option value="">Todos</option>
-                  <option value="borrador">Borrador</option>
-                  <option value="enviada">Enviada</option>
-                  <option value="en_revision_marketing">En revisión</option>
-                  <option value="en_diseno">En diseño</option>
-                  <option value="diseno_en_revision_comercial">Revisión cliente</option>
-                  <option value="modificar_diseno">Modificar diseño</option>
-                  <option value="confirmada">Confirmada</option>
-                </select>
-              </th>
-              <th onclick="sortMkt('updated_at')" style="cursor:pointer;user-select:none;font-size:11px">Actualizado <span id="sort-updated_at">↕</span></th>
+              <th onclick="sortMkt('estado')" style="cursor:pointer;user-select:none">Estado <span id="sort-estado">↕</span></th>
+              <th onclick="sortMkt('updated_at')" style="cursor:pointer;user-select:none">Actualizado <span id="sort-updated_at">↕</span></th>
               <th>Campos incompletos</th><th></th>
             </tr></thead>
             <tbody id="tbl-mkt"></tbody>
@@ -1266,6 +1246,22 @@ async function filterCampana() {
   renderComercialTable();
 }
 
+function populateComercialFilter() {
+  const sel = document.getElementById('filter-comercial');
+  if (!sel || !allPerfiles.length) return;
+  const current = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  const comerciales = allPerfiles.filter(p => ['comercial','responsable'].includes(p.rol) && p.activo);
+  comerciales.sort((a,b) => a.nombre.localeCompare(b.nombre));
+  comerciales.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.nombre + (p.codigo ? ` (${p.codigo})` : '');
+    if (p.id === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
 async function populateCampanaFilter() {
   const campanas = await loadAllCampanas();
   allCampanas = campanas;
@@ -1300,19 +1296,13 @@ async function populateCampanaFilter() {
 function renderMktTable() {
   const q          = document.getElementById('search-mkt')?.value.toLowerCase() || '';
   const est        = document.getElementById('filter-estado')?.value || '';
-  const fSap       = document.getElementById('fcol-sap')?.value.toLowerCase() || '';
-  const fEmpresa   = document.getElementById('fcol-empresa')?.value.toLowerCase() || '';
-  const fComercial = document.getElementById('fcol-comercial')?.value.toLowerCase() || '';
-  const fProvincia = document.getElementById('fcol-provincia')?.value.toLowerCase() || '';
-  const fEstado    = document.getElementById('fcol-estado')?.value || '';
+  const fComercial = document.getElementById('filter-comercial')?.value || '';
+  const fProvincia = document.getElementById('filter-provincia')?.value.toLowerCase() || '';
   let rows = allSolicitudes;
   if (q)          rows = rows.filter(s => s.cod_sap?.toLowerCase().includes(q) || s.nombre_empresa?.toLowerCase().includes(q) || s.perfiles?.codigo?.toLowerCase().includes(q) || s.perfiles?.nombre?.toLowerCase().includes(q));
   if (est)        rows = rows.filter(s => s.estado === est);
-  if (fSap)       rows = rows.filter(s => s.cod_sap?.toLowerCase().includes(fSap));
-  if (fEmpresa)   rows = rows.filter(s => s.nombre_empresa?.toLowerCase().includes(fEmpresa));
-  if (fComercial) rows = rows.filter(s => (s.perfiles?.nombre||s.perfiles?.codigo||'').toLowerCase().includes(fComercial));
+  if (fComercial) rows = rows.filter(s => s.comercial_id === fComercial);
   if (fProvincia) rows = rows.filter(s => s.provincia?.toLowerCase().includes(fProvincia));
-  if (fEstado)    rows = rows.filter(s => s.estado === fEstado);
   // Sort
   rows = [...rows].sort((a, b) => {
     let va = '', vb = '';
