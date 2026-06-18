@@ -1460,7 +1460,20 @@ function toggleImpresoFields(key, show) {
 
 function togglePortadaFields(key, show) {
   document.getElementById('portada-fields-' + key).classList.toggle('visible', show);
-  if (!show) document.getElementById('opciones-fields-' + key).classList.remove('visible');
+  if (!show) {
+    document.getElementById('opciones-fields-' + key).classList.remove('visible');
+    const posEl = document.getElementById('pos-logo-fields-' + key);
+    if (posEl) posEl.classList.remove('visible');
+  } else {
+    // Show posicion logo by default (except stamina with diseño propio)
+    const posEl = document.getElementById('pos-logo-fields-' + key);
+    if (posEl) {
+      const isPropio = key === 'stamina' && document.querySelector(
+        '.radio-opt[data-cat="stamina"][data-field="portada_diseno_propio"].selected-si'
+      );
+      posEl.classList.toggle('visible', !isPropio);
+    }
+  }
 }
 
 function toggleDisenoPropio(key, isPropio) {
