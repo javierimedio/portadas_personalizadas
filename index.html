@@ -308,13 +308,37 @@
         <div class="tbl-wrap">
           <table>
             <thead><tr>
-              <th onclick="sortMkt('cod_sap')" style="cursor:pointer;user-select:none">Cód. SAP <span id="sort-cod_sap">↕</span></th>
-              <th onclick="sortMkt('nombre_empresa')" style="cursor:pointer;user-select:none">Empresa <span id="sort-nombre_empresa">↕</span></th>
-              <th onclick="sortMkt('comercial')" style="cursor:pointer;user-select:none">Comercial <span id="sort-comercial">↕</span></th>
-              <th onclick="sortMkt('provincia')" style="cursor:pointer;user-select:none">Provincia <span id="sort-provincia">↕</span></th>
+              <th style="min-width:90px">
+                <div onclick="sortMkt('cod_sap')" style="cursor:pointer;user-select:none;margin-bottom:4px;font-size:11px">Cód. SAP <span id="sort-cod_sap">↕</span></div>
+                <input type="text" id="fcol-sap" placeholder="Filtrar..." oninput="renderMktTable()" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--c-line);border-radius:3px">
+              </th>
+              <th style="min-width:120px">
+                <div onclick="sortMkt('nombre_empresa')" style="cursor:pointer;user-select:none;margin-bottom:4px;font-size:11px">Empresa <span id="sort-nombre_empresa">↕</span></div>
+                <input type="text" id="fcol-empresa" placeholder="Filtrar..." oninput="renderMktTable()" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--c-line);border-radius:3px">
+              </th>
+              <th style="min-width:110px">
+                <div onclick="sortMkt('comercial')" style="cursor:pointer;user-select:none;margin-bottom:4px;font-size:11px">Comercial <span id="sort-comercial">↕</span></div>
+                <input type="text" id="fcol-comercial" placeholder="Filtrar..." oninput="renderMktTable()" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--c-line);border-radius:3px">
+              </th>
+              <th style="min-width:110px">
+                <div onclick="sortMkt('provincia')" style="cursor:pointer;user-select:none;margin-bottom:4px;font-size:11px">Provincia <span id="sort-provincia">↕</span></div>
+                <input type="text" id="fcol-provincia" placeholder="Filtrar..." oninput="renderMktTable()" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--c-line);border-radius:3px">
+              </th>
               <th>Roly</th><th>Roly WRK</th><th>Stamina</th>
-              <th onclick="sortMkt('estado')" style="cursor:pointer;user-select:none">Estado <span id="sort-estado">↕</span></th>
-              <th onclick="sortMkt('updated_at')" style="cursor:pointer;user-select:none">Actualizado <span id="sort-updated_at">↕</span></th>
+              <th style="min-width:130px">
+                <div onclick="sortMkt('estado')" style="cursor:pointer;user-select:none;margin-bottom:4px;font-size:11px">Estado <span id="sort-estado">↕</span></div>
+                <select id="fcol-estado" onchange="renderMktTable()" style="width:100%;font-size:10px;padding:2px 4px;border:1px solid var(--c-line);border-radius:3px">
+                  <option value="">Todos</option>
+                  <option value="borrador">Borrador</option>
+                  <option value="enviada">Enviada</option>
+                  <option value="en_revision_marketing">En revisión</option>
+                  <option value="en_diseno">En diseño</option>
+                  <option value="diseno_en_revision_comercial">Revisión cliente</option>
+                  <option value="modificar_diseno">Modificar diseño</option>
+                  <option value="confirmada">Confirmada</option>
+                </select>
+              </th>
+              <th onclick="sortMkt('updated_at')" style="cursor:pointer;user-select:none;font-size:11px">Actualizado <span id="sort-updated_at">↕</span></th>
               <th>Campos incompletos</th><th></th>
             </tr></thead>
             <tbody id="tbl-mkt"></tbody>
@@ -1274,11 +1298,21 @@ async function populateCampanaFilter() {
 }
 
 function renderMktTable() {
-  const q  = document.getElementById('search-mkt')?.value.toLowerCase() || '';
-  const est = document.getElementById('filter-estado')?.value || '';
+  const q          = document.getElementById('search-mkt')?.value.toLowerCase() || '';
+  const est        = document.getElementById('filter-estado')?.value || '';
+  const fSap       = document.getElementById('fcol-sap')?.value.toLowerCase() || '';
+  const fEmpresa   = document.getElementById('fcol-empresa')?.value.toLowerCase() || '';
+  const fComercial = document.getElementById('fcol-comercial')?.value.toLowerCase() || '';
+  const fProvincia = document.getElementById('fcol-provincia')?.value.toLowerCase() || '';
+  const fEstado    = document.getElementById('fcol-estado')?.value || '';
   let rows = allSolicitudes;
-  if (q)   rows = rows.filter(s => s.cod_sap?.toLowerCase().includes(q) || s.nombre_empresa?.toLowerCase().includes(q) || s.perfiles?.codigo?.toLowerCase().includes(q) || s.perfiles?.nombre?.toLowerCase().includes(q));
-  if (est) rows = rows.filter(s => s.estado === est);
+  if (q)          rows = rows.filter(s => s.cod_sap?.toLowerCase().includes(q) || s.nombre_empresa?.toLowerCase().includes(q) || s.perfiles?.codigo?.toLowerCase().includes(q) || s.perfiles?.nombre?.toLowerCase().includes(q));
+  if (est)        rows = rows.filter(s => s.estado === est);
+  if (fSap)       rows = rows.filter(s => s.cod_sap?.toLowerCase().includes(fSap));
+  if (fEmpresa)   rows = rows.filter(s => s.nombre_empresa?.toLowerCase().includes(fEmpresa));
+  if (fComercial) rows = rows.filter(s => (s.perfiles?.nombre||s.perfiles?.codigo||'').toLowerCase().includes(fComercial));
+  if (fProvincia) rows = rows.filter(s => s.provincia?.toLowerCase().includes(fProvincia));
+  if (fEstado)    rows = rows.filter(s => s.estado === fEstado);
   // Sort
   rows = [...rows].sort((a, b) => {
     let va = '', vb = '';
