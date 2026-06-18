@@ -1123,8 +1123,8 @@ function buildNav() {
   const items = [];
   // DASHBOARD | SOLICITUDES | PANEL GLOBAL | DISEÑO | CAMPAÑAS | USUARIOS
   if (['admin', 'marketing', 'responsable', 'disenador'].includes(rol)) items.push({ id: 'dashboard',     label: 'Dashboard' });
-  items.push({ id: 'mis-solicitudes', label: 'Solicitudes' });
-  if (['admin', 'marketing', 'disenador'].includes(rol))                 items.push({ id: 'panel',         label: 'Panel global' });
+  if (rol !== 'disenador') items.push({ id: 'mis-solicitudes', label: 'Solicitudes' });
+  if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'panel',         label: 'Panel global' });
   if (['admin', 'marketing', 'disenador'].includes(rol))                 items.push({ id: 'diseno',        label: 'Diseño' });
   if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'campanas',      label: 'Campañas' });
   if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'usuarios',      label: 'Usuarios' });
@@ -1554,7 +1554,7 @@ function buildCatSections() {
                 <div style="font-size:12px;font-weight:500;color:var(--c-dark)">Arrastra el diseño aquí o haz clic</div>
                 <div style="font-size:10px;color:var(--c-mid);margin-top:3px">PDF · 300 dpi · textos trazados</div>
               </div>
-              <input type="file" id="file-stamina-diseno" accept=".pdf,.ai,.eps" style="display:none" onchange="handleFileInput(event,'stamina_diseno')">
+              <input type="file" id="file-stamina-diseno" accept=".pdf,.ai,.eps" multiple style="display:none" onchange="handleFileInput(event,'stamina_diseno')">
               <div id="files-list-stamina_diseno" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px"></div>
             </div>
           </div>` : ''}
@@ -2178,7 +2178,7 @@ async function openDetalle(solId) {
           <div id="diseno-upload-label" style="font-size:13px;font-weight:500;color:var(--c-dark)">Arrastra el diseño aquí o haz clic</div>
           <div style="font-size:11px;color:var(--c-mid);margin-top:2px">PDF · JPG · PNG · AI · EPS</div>
         </div>
-        <input type="file" id="file-diseno-det" accept=".pdf,.jpg,.jpeg,.png,.ai,.eps" style="display:none"
+        <input type="file" id="file-diseno-det" accept=".pdf,.jpg,.jpeg,.png,.ai,.eps" multiple style="display:none"
           onchange="handleDisenoFileInput(event,'${solId}')">
         <button class="btn btn-amber btn-sm" onclick="marcarDisenoListo('${solId}')">
           Diseño listo → Revisión cliente
@@ -3136,48 +3136,49 @@ function showRealtimeToast() {
 }
 
 async function subscribeToTable(table, callback) {
-  // Supabase Realtime WebSocket URL
   const wsUrl = SUPA_URL.replace('https://', 'wss://') + '/realtime/v1/websocket?apikey=' + SUPA_KEY + '&vsn=1.0.0';
-  
   const ws = new WebSocket(wsUrl);
   let heartbeatInterval;
+  let ref = 1;
 
   ws.onopen = () => {
-    // Join channel
     ws.send(JSON.stringify({
-      topic: 'realtime:public:' + table,
+      topic: `realtime:public:${table}`,
       event: 'phx_join',
-      payload: { config: { broadcast: { self: false }, presence: { key: '' }, postgres_changes: [{ event: '*', schema: 'public', table }] } },
-      ref: '1'
+      payload: {
+        config: {
+          postgres_changes: [{ event: '*', schema: 'public', table }]
+        }
+      },
+      ref: String(ref++)
     }));
-    // Heartbeat every 25s
     heartbeatInterval = setInterval(() => {
-      ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: null }));
-    }, 25000);
+      ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(ref++) }));
+    }, 20000);
   };
 
   ws.onmessage = (event) => {
     try {
       const msg = JSON.parse(event.data);
-      if (msg.event === 'postgres_changes' && msg.payload?.data) {
-        callback(msg.payload.data);
+      // v2 postgres_changes event
+      if (msg.event === 'postgres_changes') {
+        callback(msg.payload);
+      }
+      // v1 format
+      if (msg.payload?.type && ['INSERT','UPDATE','DELETE'].includes(msg.payload.type)) {
+        callback(msg.payload);
       }
     } catch(e) {}
   };
 
-  ws.onerror = (e) => {
-    console.warn('Realtime WS error:', e);
+  ws.onerror = () => {
     clearInterval(heartbeatInterval);
-    startPolling(); // fallback
+    startPolling();
   };
 
   ws.onclose = () => {
     clearInterval(heartbeatInterval);
-    // Reconnect after 5s
-    setTimeout(() => {
-      _realtimeChannel = null;
-      initRealtime();
-    }, 5000);
+    setTimeout(() => { _realtimeChannel = null; initRealtime(); }, 5000);
   };
 
   return ws;
@@ -3488,16 +3489,22 @@ async function openDetalleFromNotif(solId) {
 }
 
 // ── SUBIDA DISEÑO POR DISEÑADOR ───────────────────────────
-let disenoFileToUpload = null;
+let disenoFilesToUpload = [];
 
 function handleDisenoUpload(event, solId) {
-  const file = event.dataTransfer.files[0];
-  if (file) { disenoFileToUpload = file; updateDisenoZone(file.name); }
+  const files = Array.from(event.dataTransfer.files);
+  if (files.length) {
+    disenoFilesToUpload = files;
+    updateDisenoZone(files.length === 1 ? files[0].name : `${files.length} archivos`);
+  }
 }
 
 function handleDisenoFileInput(event, solId) {
-  const file = event.target.files[0];
-  if (file) { disenoFileToUpload = file; updateDisenoZone(file.name); }
+  const files = Array.from(event.target.files);
+  if (files.length) {
+    disenoFilesToUpload = files;
+    updateDisenoZone(files.length === 1 ? files[0].name : `${files.length} archivos seleccionados`);
+  }
   event.target.value = '';
 }
 
@@ -3515,29 +3522,28 @@ function updateDisenoZone(nombre) {
 }
 
 async function marcarDisenoListo(solId) {
-  if (disenoFileToUpload) {
-    showToast('Subiendo diseño...');
-    try {
-      const session = loadSession();
-      const token = session?.access_token || SUPA_KEY;
-      const fileName = `${solId}/diseno/${Date.now()}_${disenoFileToUpload.name}`;
-      const uploadRes = await fetch(
-        `${SUPA_URL}/storage/v1/object/portadas-adjuntos/${fileName}`,
-        { method: 'POST', headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': disenoFileToUpload.type || 'application/octet-stream', 'x-upsert': 'true' }, body: disenoFileToUpload }
-      );
-      if (uploadRes.ok) {
-        const publicUrl = `${SUPA_URL}/storage/v1/object/public/portadas-adjuntos/${fileName}`;
-        await db.from('adjuntos').insert({
-          solicitud_id: solId, nombre: disenoFileToUpload.name,
-          tipo: 'diseno_portada', url: publicUrl,
-          subido_por: currentUser.id, subido_por_nombre: currentPerfil?.nombre,
-        });
-        // Update diseno_url on catalog
-        await db.from('solicitud_catalogos').update({ diseno_url: publicUrl, diseno_at: new Date().toISOString() })
-          .eq('solicitud_id', solId);
-      }
-    } catch(e) { console.warn('Diseno upload error:', e); }
-    disenoFileToUpload = null;
+  if (disenoFilesToUpload.length) {
+    showToast(`Subiendo ${disenoFilesToUpload.length} archivo(s) de diseño...`);
+    const session = loadSession();
+    const token = session?.access_token || SUPA_KEY;
+    for (const file of disenoFilesToUpload) {
+      try {
+        const fileName = `${solId}/diseno/${Date.now()}_${file.name}`;
+        const uploadRes = await fetch(
+          `${SUPA_URL}/storage/v1/object/portadas-adjuntos/${fileName}`,
+          { method: 'POST', headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': file.type || 'application/octet-stream', 'x-upsert': 'true' }, body: file }
+        );
+        if (uploadRes.ok) {
+          const publicUrl = `${SUPA_URL}/storage/v1/object/public/portadas-adjuntos/${fileName}`;
+          await db.from('adjuntos').insert({
+            solicitud_id: solId, nombre: file.name,
+            tipo: 'diseno_portada', url: publicUrl,
+            subido_por: currentUser.id, subido_por_nombre: currentPerfil?.nombre,
+          });
+        }
+      } catch(e) { console.warn('Diseno upload error:', e); }
+    }
+    disenoFilesToUpload = [];
   }
   await cambiarEstadoDirecto(solId, 'diseno_en_revision_comercial');
 }
