@@ -246,6 +246,10 @@
       <span style="color:rgba(255,255,255,.65);font-weight:400">GOR FACTORY</span>
     </div>
     <div class="topbar-right">
+      <button id="notif-btn" onclick="toggleNotifPanel()" style="position:relative;background:none;border:none;cursor:pointer;color:white;font-size:18px;padding:4px 8px;line-height:1">
+        🔔
+        <span id="notif-badge" style="display:none;position:absolute;top:0;right:0;background:#E30613;color:white;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px;min-width:14px;text-align:center"></span>
+      </button>
       <span class="role-tag" id="role-tag">—</span>
       <span class="user-badge" id="user-name">—</span>
       <button style="padding:.4rem .9rem;border-radius:4px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;" onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.1)'" onclick="doLogout()">Cerrar sesión</button>
@@ -472,6 +476,19 @@
     </div>
   </div>
 </div>
+
+<!-- ── PANEL NOTIFICACIONES ──────────────────────────── -->
+<div id="notif-panel" style="position:fixed;top:52px;right:0;width:360px;height:calc(100vh - 52px);background:white;box-shadow:-4px 0 20px rgba(0,0,0,.12);z-index:150;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .2s ease">
+  <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--c-line);display:flex;justify-content:space-between;align-items:center">
+    <div style="font-size:14px;font-weight:700">Notificaciones</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="markAllRead()" style="font-size:11px;color:var(--c-mid);background:none;border:none;cursor:pointer;text-decoration:underline">Marcar todo como leído</button>
+      <button onclick="toggleNotifPanel()" style="background:none;border:none;cursor:pointer;color:var(--c-mid);font-size:18px;line-height:1">✕</button>
+    </div>
+  </div>
+  <div id="notif-list" style="flex:1;overflow-y:auto;padding:.5rem 0"></div>
+</div>
+<div id="notif-overlay" onclick="toggleNotifPanel()" style="display:none;position:fixed;inset:0;z-index:149"></div>
 
 <!-- ── MODAL SOLICITUD ──────────────────────────────────── -->
 <div class="modal-bg" id="modal-solicitud">
@@ -1987,6 +2004,7 @@ async function cambiarEstadoDirecto(solId, nuevoEstado) {
   });
   closeModal('modal-detalle');
   await loadData();
+  await loadNotifications();
   showToast(`Estado: ${ESTADO_LABEL[nuevoEstado] || nuevoEstado}`);
 }
 
@@ -2835,6 +2853,117 @@ async function setActiveCampana(id) {
   showToast(`Campaña "${c.nombre}" establecida como activa.`);
 }
 
+// ── PANEL DE NOTIFICACIONES ───────────────────────────────
+let allNotifs = [];
+let notifPanelOpen = false;
+const READ_KEY = 'portadas_notifs_read';
+
+function getReadIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(READ_KEY) || '[]')); } catch(e) { return new Set(); }
+}
+function markReadId(id) {
+  const ids = getReadIds();
+  ids.add(id);
+  localStorage.setItem(READ_KEY, JSON.stringify([...ids]));
+}
+function markAllRead() {
+  allNotifs.forEach(n => markReadId(n.id));
+  renderNotifPanel();
+  updateNotifBadge();
+}
+
+async function loadNotifications() {
+  try {
+    const { data } = await db.from('notificaciones')
+      .select('*')
+      .eq('destinatario', currentPerfil?.email || currentUser?.email)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    allNotifs = data || [];
+    updateNotifBadge();
+  } catch(e) { console.warn('loadNotifications:', e); }
+}
+
+function updateNotifBadge() {
+  const readIds = getReadIds();
+  const unread = allNotifs.filter(n => !readIds.has(n.id)).length;
+  const badge = document.getElementById('notif-badge');
+  if (badge) {
+    badge.textContent = unread > 9 ? '9+' : unread;
+    badge.style.display = unread > 0 ? 'block' : 'none';
+  }
+}
+
+function toggleNotifPanel() {
+  notifPanelOpen = !notifPanelOpen;
+  const panel = document.getElementById('notif-panel');
+  const overlay = document.getElementById('notif-overlay');
+  if (notifPanelOpen) {
+    panel.style.transform = 'translateX(0)';
+    overlay.style.display = 'block';
+    renderNotifPanel();
+    // Mark visible as read after 2s
+    setTimeout(() => {
+      allNotifs.forEach(n => markReadId(n.id));
+      updateNotifBadge();
+    }, 2000);
+  } else {
+    panel.style.transform = 'translateX(100%)';
+    overlay.style.display = 'none';
+  }
+}
+
+function renderNotifPanel() {
+  const list = document.getElementById('notif-list');
+  if (!list) return;
+  const readIds = getReadIds();
+
+  if (!allNotifs.length) {
+    list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--c-mid);font-size:13px">No hay notificaciones</div>';
+    return;
+  }
+
+  list.innerHTML = allNotifs.map(n => {
+    const isRead = readIds.has(n.id);
+    const date = fmtDate(n.created_at);
+    // Extract sol id from solicitud_id to open detalle
+    const solId = n.solicitud_id;
+    return `<div onclick="${solId ? `openDetalleFromNotif('${solId}')` : ''}"
+      style="padding:.875rem 1.25rem;border-bottom:1px solid var(--c-line);cursor:${solId?'pointer':'default'};
+             background:${isRead ? 'white' : 'var(--c-amber-l)'};transition:background .2s"
+      onmouseover="this.style.background='var(--c-light)'"
+      onmouseout="this.style.background='${isRead ? 'white' : 'var(--c-amber-l)'}'">
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <span style="font-size:16px;flex-shrink:0">${isRead ? '🔔' : '🔔'}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:${isRead?'400':'600'};color:var(--c-dark);margin-bottom:2px;line-height:1.4">
+            ${n.asunto}
+          </div>
+          <div style="font-size:11px;color:var(--c-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            ${n.cuerpo?.split('
+')[0] || ''}
+          </div>
+          <div style="font-size:10px;color:var(--c-mid);margin-top:4px">${date}</div>
+        </div>
+        ${!isRead ? '<span style="width:8px;height:8px;border-radius:50%;background:var(--c-amber);flex-shrink:0;margin-top:4px"></span>' : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openDetalleFromNotif(solId) {
+  toggleNotifPanel();
+  // Find solicitud and show detalle
+  const sol = allSolicitudes.find(s => s.id === solId);
+  if (sol) {
+    openDetalle(solId);
+  } else {
+    // Load it if not in current view
+    await loadSolicitudes('');
+    openDetalle(solId);
+  }
+}
+
 // ── SUBIDA DISEÑO POR DISEÑADOR ───────────────────────────
 let disenoFileToUpload = null;
 
@@ -2949,22 +3078,7 @@ async function enviarNotificacion(solId, estado, { codSap, nombre, comercialNomb
     await db.from('notificaciones').insert({ ...n, enviado: false });
   }
 
-  // Trigger Edge Function to send emails immediately
-  if (notifs.length > 0) {
-    try {
-      const session = loadSession();
-      await fetch('https://paqtohmxagfebeyyurlq.supabase.co/functions/v1/send-notifications', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || SUPA_KEY}`,
-        },
-        body: JSON.stringify({}),
-      });
-    } catch(e) {
-      console.warn('Email dispatch error:', e);
-    }
-  }
+  // Email disabled — notifications shown in-app panel
 }
 
 // ── IMPORT USERS ──────────────────────────────────────────
