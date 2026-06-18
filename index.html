@@ -1845,7 +1845,27 @@ async function openDetalle(solId) {
           <span>Unds: <strong>${c.unidades||'—'}</strong></span>
         </div>
       </div>
-    </div>`;
+      ${(()=>{
+        if (!c.portada_personalizada || c.portada_diseno_propio) return '';
+        const canChoose = ['marketing','admin'].includes(rol) && ['en_revision_marketing','en_diseno'].includes(est);
+        const opciones = [c.portada_opcion_1,c.portada_opcion_2,c.portada_opcion_3].filter(Boolean);
+        if (canChoose && opciones.length) return \`<div style="padding:.5rem 1rem .75rem">
+          <div style="background:var(--c-amber-l);border:1px solid var(--c-amber);border-radius:6px;padding:10px 12px">
+            <label style="font-size:11px;font-weight:700;color:var(--c-amber);display:block;margin-bottom:6px">✓ SELECCIONAR PORTADA FINAL</label>
+            <select onchange="guardarPortadaElegida('\${sol.id}','\${cat.key}',this.value)"
+              style="width:100%;font-size:13px;border:1px solid var(--c-amber);border-radius:4px;padding:5px 8px;background:white">
+              <option value="">— selecciona la portada final —</option>
+              \${opciones.map((o,i)=>\`<option value="\${o}" \${c.portada_elegida===o?'selected':''}>\${['1ª','2ª','3ª'][i]} opción: \${o}</option>\`).join('')}
+            </select>
+            \${c.portada_elegida ? \`<div style="font-size:11px;color:var(--c-amber);margin-top:6px;font-weight:600">✓ Elegida: \${c.portada_elegida}</div>\` : ''}
+          </div></div>\`;
+        if (c.portada_elegida) return \`<div style="padding:.25rem 1rem .5rem">
+          <div style="background:var(--c-green-l);border-radius:4px;padding:5px 10px;font-size:12px;font-weight:600;color:var(--c-green)">
+            ✓ Portada elegida: \${c.portada_elegida}
+          </div></div>\`;
+        return '';
+      })()}
+    </div>\`;
   });
 
   if (sol.comentarios) htmlLeft += `<div class="card" style="margin-bottom:1rem"><div class="card-title">Comentarios generales</div><p style="font-size:13px">${sol.comentarios}</p></div>`;
@@ -2951,11 +2971,12 @@ function markAllRead() {
 
 async function loadNotifications() {
   try {
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data } = await db.from('notificaciones')
       .select('*')
       .eq('destinatario', currentPerfil?.email || currentUser?.email)
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(30);
     allNotifs = data || [];
     updateNotifBadge();
   } catch(e) { console.warn('loadNotifications:', e); }
@@ -3118,11 +3139,19 @@ async function enviarNotificacion(solId, estado, { codSap, nombre, comercialNomb
 
   const baseAsunto = `[Portadas GOR] Solicitud ${codSap || ''}`;
 
-  if (estado === 'enviada' || estado === 'en_revision_marketing') {
+  if (estado === 'enviada') {
+    const destEmails = [...mktEmails, ...perfilesData.filter(p=>p.rol==='responsable'&&p.activo).map(p=>p.email)];
+    [...new Set(destEmails)].forEach(email => notifs.push({
+      solicitud_id: solId, destinatario: email,
+      asunto: `${baseAsunto} — Nueva solicitud de ${comercialNombre||'Comercial'}`,
+      cuerpo: `Nueva solicitud de portada para el cliente ${codSap} (${nombre||''}) enviada por ${comercialNombre||'un comercial'}. Accede al panel para revisarla.`
+    }));
+  }
+  if (estado === 'en_revision_marketing') {
     mktEmails.forEach(email => notifs.push({
       solicitud_id: solId, destinatario: email,
-      asunto: `${baseAsunto} — Nueva solicitud de ${comercialNombre}`,
-      cuerpo: `El comercial ${comercialNombre} ha enviado una solicitud de portada para el cliente ${codSap} (${nombre||''}). Accede al panel para revisarla.`
+      asunto: `${baseAsunto} — En revisión`,
+      cuerpo: `La solicitud de portada para ${codSap} (${nombre||''}) ha pasado a revisión.`
     }));
   }
   if (estado === 'en_diseno' && disenadorEmail) {
