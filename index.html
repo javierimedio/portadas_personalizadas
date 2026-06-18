@@ -1569,40 +1569,31 @@ async function saveSolicitud(estadoTarget) {
   else { document.getElementById('err-provincia').textContent = ''; document.getElementById('f-provincia').classList.remove('error'); }
   if (!valid) { showFormAlert('Corrige los campos marcados antes de continuar.', 'error'); return; }
 
-  // Check campaign closing date
-  if (!editingId && activeCampana?.fecha_cierre) {
-    const cierre = new Date(activeCampana.fecha_cierre);
-    cierre.setHours(23, 59, 59);
-    if (new Date() > cierre) {
-      showFormAlert(`La campaña ${activeCampana.nombre} cerró el ${activeCampana.fecha_cierre.slice(0,10)}. Crea una nueva campaña para continuar.`, 'error');
-      return;
-    }
-  }
-
-  // Check duplicate SAP in same campaign
-  if (!editingId && campanaId) {
-    const duplicate = allSolicitudes.find(s =>
-      s.cod_sap?.trim() === codSap &&
-      s.campana_id === campanaId
-    );
-    if (duplicate) {
-      const campNom = campSeleccionada?.nombre || campanaId;
-      showFormAlert(`Ya existe una solicitud para el cliente ${codSap} en la campaña ${campNom}.`, 'error');
-      document.getElementById('f-cod-sap').classList.add('error');
-      return;
-    }
-  }
-
+  // Get campaign — must be declared before any use
   const campanaId = document.getElementById('f-campana')?.value || activeCampana?.id;
   if (!campanaId) { showFormAlert('Selecciona una campaña.', 'error'); return; }
 
   // Check closing date of selected campaign
-  const campSeleccionada = (await loadAllCampanas()).find(c => c.id === campanaId);
+  const allCamps = await loadAllCampanas();
+  const campSeleccionada = allCamps.find(c => c.id === campanaId);
   if (campSeleccionada?.fecha_cierre) {
     const cierre = new Date(campSeleccionada.fecha_cierre);
     cierre.setHours(23, 59, 59);
     if (new Date() > cierre) {
       showFormAlert(`La campaña ${campSeleccionada.nombre} está cerrada (${campSeleccionada.fecha_cierre.slice(0,10)}). Selecciona otra campaña.`, 'error');
+      return;
+    }
+  }
+
+  // Check duplicate SAP in same campaign
+  if (!editingId) {
+    const duplicate = allSolicitudes.find(s =>
+      s.cod_sap?.trim() === codSap &&
+      s.campana_id === campanaId
+    );
+    if (duplicate) {
+      showFormAlert(`Ya existe una solicitud para el cliente ${codSap} en la campaña ${campSeleccionada?.nombre || ''}.`, 'error');
+      document.getElementById('f-cod-sap').classList.add('error');
       return;
     }
   }
