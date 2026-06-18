@@ -414,7 +414,7 @@
       </div>
 
       <!-- KPI Cards -->
-      <div class="stats-row" id="dash-kpis" style="margin-bottom:1.5rem"></div>
+      <div id="dash-kpis" style="margin-bottom:1.5rem"></div>
 
       <!-- Charts row 1 -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
@@ -2827,22 +2827,31 @@ function renderDashboard() {
   ];
   const unidadesKpis = [
     { num: (unRoly+unWrk+unStamina).toLocaleString(),      lbl: 'Total unidades',    cls: '' },
-    { num: unNacional.toLocaleString(),                     lbl: 'Nacional (ES)',     cls: '' },
-    { num: unExport.toLocaleString(),                       lbl: 'Export',            cls: '' },
+    { num: unNacional.toLocaleString(),                     lbl: 'Total Nacional (ES)', cls: '' },
+    { num: unExport.toLocaleString(),                       lbl: 'Total Export',      cls: '' },
   ];
 
-  document.getElementById('dash-kpis').innerHTML =
-    solicitudesKpis.map(k => `
-      <div class="stat-card ${k.cls}">
-        <div class="stat-num">${k.num}</div>
-        <div class="stat-lbl">${k.lbl}</div>
-      </div>`).join('') +
-    `<div style="width:1px;background:var(--c-line);margin:0 4px;align-self:stretch"></div>` +
-    unidadesKpis.map(k => `
-      <div class="stat-card ${k.cls}">
-        <div class="stat-num">${k.num}</div>
-        <div class="stat-lbl">${k.lbl}</div>
-      </div>`).join('');
+  document.getElementById('dash-kpis').innerHTML = `
+    <div style="width:100%">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--c-mid);text-transform:uppercase;margin-bottom:8px">Estado de solicitudes</div>
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+        ${solicitudesKpis.map(k => `
+          <div class="stat-card ${k.cls}" style="flex:1;min-width:100px">
+            <div class="stat-num">${k.num}</div>
+            <div class="stat-lbl">${k.lbl}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div style="width:100%;margin-top:1rem">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--c-mid);text-transform:uppercase;margin-bottom:8px">Unidades de catálogo</div>
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+        ${unidadesKpis.map(k => `
+          <div class="stat-card ${k.cls}" style="flex:1;min-width:140px">
+            <div class="stat-num">${k.num}</div>
+            <div class="stat-lbl">${k.lbl}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
 
   // ── CHART 1: Estados (Doughnut) ──
   const estadoOrder = ['borrador','enviada','en_revision_marketing','en_diseno','diseno_en_revision_comercial','modificar_diseno','confirmada'];
