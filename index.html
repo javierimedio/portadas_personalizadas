@@ -1222,7 +1222,7 @@ function missingFields(sol) {
     if (!c) { missing.push(cat.key.toUpperCase()); return; }
     if (c.catalogo_impreso === null) missing.push(`Cat. imp. ${cat.key}`);
     if (c.catalogo_digital  === null) missing.push(`Cat. dig. ${cat.key}`);
-    if (c.portada_personalizada && !c.portada_diseno_propio && !c.portada_opcion_1) missing.push(`Portada ${cat.key}`);
+    if (c.portada_personalizada && !c.portada_diseno_propio && !c.portada_opcion_1) missing.push(`Portada ${cat.label||cat.key}`);
     if (c.portada_personalizada && !c.posicion_logo) missing.push(`Pos. logo ${cat.key}`);
     if (c.catalogo_impreso && !c.unidades) missing.push(`Unidades ${cat.key}`);
   });
