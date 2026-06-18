@@ -295,7 +295,7 @@
           <option value="modificar_diseno">Modificar diseño</option>
           <option value="confirmada">Confirmada</option>
         </select>
-        <button class="btn btn-outline" onclick="exportExcel()">↓ Exportar Excel</button>
+        <button class="btn btn-sm" style="background:var(--c-green-l);color:var(--c-green);border:1px solid var(--c-green);font-weight:600" onclick="exportExcel()">↓ Exportar Excel</button>
         <button class="btn btn-amber" onclick="openUserModal()">+ Usuario</button>
       </div>
       <div class="card" style="padding:0">
@@ -1877,13 +1877,13 @@ async function openDetalle(solId) {
 
   // Marketing/Admin: solicitud enviada → pasar a revisión
   if ((rol === 'marketing' || rol === 'admin') && est === 'enviada') {
-    btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstadoDirecto('${solId}','borrador')">Devolver al comercial</button>`;
+    btns += `<button class="btn btn-outline btn-danger btn-sm" onclick="cambiarEstadoDirecto('${solId}','borrador')">Devolver al comercial</button>`;
     btns += `<button class="btn btn-amber" onclick="cambiarEstadoDirecto('${solId}','en_revision_marketing')">Iniciar revisión</button>`;
   }
 
   // Marketing/Admin: en revisión → enviar a diseño o devolver
   if ((rol === 'marketing' || rol === 'admin') && est === 'en_revision_marketing') {
-    btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstadoDirecto('${solId}','borrador')">Devolver al comercial</button>`;
+    btns += `<button class="btn btn-outline btn-danger btn-sm" onclick="cambiarEstadoDirecto('${solId}','borrador')">Devolver al comercial</button>`;
     btns += `<button class="btn btn-amber" onclick="asignarYAvanzar('${solId}')">Enviar a diseño</button>`;
   }
 
@@ -1903,7 +1903,7 @@ async function openDetalle(solId) {
         </div>
         <input type="file" id="file-diseno-det" accept=".pdf,.jpg,.jpeg,.png,.ai,.eps" style="display:none"
           onchange="handleDisenoFileInput(event,'${solId}')">
-        <button class="btn btn-amber" style="width:100%" onclick="marcarDisenoListo('${solId}')">
+        <button class="btn btn-amber btn-sm" onclick="marcarDisenoListo('${solId}')">
           Diseño listo → Revisión cliente
         </button>
       </div>`;
@@ -1917,7 +1917,7 @@ async function openDetalle(solId) {
 
   // Eliminar — borrador siempre, admin cualquier estado
   if (est === 'borrador' || rol === 'admin') {
-    btns += `<button class="btn btn-outline btn-danger" onclick="eliminarSolicitud('${solId}')" style="margin-left:auto">🗑 Eliminar</button>`;
+    btns += `<button class="btn btn-outline btn-danger btn-sm" onclick="eliminarSolicitud('${solId}')" style="margin-left:auto">🗑 Eliminar</button>`;
   }
   footer.innerHTML = btns;
   document.getElementById('modal-detalle').classList.add('open');
@@ -2294,45 +2294,8 @@ function exportExcel() {
     });
   });
 
-  // TOTALS ROW — one label + sum per catalog, no merged cells
-  const totalRow = dataRows.length + 3;
-
-  // Fill all cells in total row with dark style first
-  for (let ci = 0; ci < totalCols; ci++) {
-    const addr = XLSX.utils.encode_cell({r: totalRow, c: ci});
-    setCell(ws, addr, '', headerStyle(C.white, C.dark));
-  }
-
-  // Labels before each UNDS column
-  const totalLabels = [
-    { ci: 7,  label: 'TOTAL ROLY' },
-    { ci: 15, label: 'TOTAL ROLY WRK' },
-    { ci: 23, label: 'TOTAL STAMINA' },
-  ];
-  totalLabels.forEach(({ ci, label }) => {
-    const addr = XLSX.utils.encode_cell({r: totalRow, c: ci});
-    setCell(ws, addr, label, headerStyle(C.white, C.dark));
-  });
-
-  // Sum cells
-  [11, 19, 27].forEach(ci => {
-    const addr = XLSX.utils.encode_cell({r: totalRow, c: ci});
-    const colLetter = XLSX.utils.encode_col(ci);
-    ws[addr] = {
-      f: `SUM(${colLetter}4:${colLetter}${totalRow})`,
-      t: 'n',
-      s: {
-        font: { bold: true, color: { rgb: C.white }, name: 'Arial', sz: 10 },
-        fill: { patternType: 'solid', fgColor: { rgb: C.dark } },
-        alignment: { horizontal: 'center', vertical: 'center' },
-        border: { top:{style:'thin',color:{rgb:'FFD3D1C7'}}, bottom:{style:'thin',color:{rgb:'FFD3D1C7'}},
-                  left:{style:'thin',color:{rgb:'FFD3D1C7'}}, right:{style:'thin',color:{rgb:'FFD3D1C7'}} }
-      }
-    };
-  });
-
-  // Set ref range
-  ws['!ref'] = `A1:${XLSX.utils.encode_cell({r: totalRow, c: totalCols-1})}`;
+  // Set ref range (no total row)
+  ws['!ref'] = `A1:${XLSX.utils.encode_cell({r: dataRows.length + 2, c: totalCols-1})}`;
 
   // Row heights
   ws['!rows'] = [{ hpt: 24 }, { hpt: 20 }, { hpt: 20 }];
@@ -2362,6 +2325,16 @@ function exportExcel() {
 
 // ── UTILS ─────────────────────────────────────────────────
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Close modals on ESC
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    ['modal-detalle','modal-solicitud','modal-usuario','modal-campana','modal-import-users'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el?.classList.contains('open')) el.classList.remove('open');
+    });
+  }
+});
 function fmtDate(ts) {
   if (!ts) return '—';
   const d = new Date(ts);
