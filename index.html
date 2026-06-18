@@ -3556,88 +3556,90 @@ async function enviarNotificacion(solId, estado, { codSap, nombre, comercialNomb
   const notifs = [];
   const sol = allSolicitudes.find(s => s.id === solId);
 
-  // Load perfiles if not available (e.g. comercial role)
-  let perfilesData = allPerfiles;
-  if (!perfilesData?.length) {
-    const { data } = await db.from('perfiles').select('id, email, rol, activo').eq('activo', true);
-    perfilesData = data || [];
+  // Load perfiles if needed
+  let perfs = allPerfiles;
+  if (!perfs?.length) {
+    const { data } = await db.from('perfiles').select('id,email,rol,nombre,activo').eq('activo', true);
+    perfs = data || [];
   }
 
-  const comercialEmail = sol?.perfiles?.email ||
-    perfilesData.find(p => p.id === sol?.comercial_id)?.email || null;
-  const disenadorEmail = sol?.asignado_id ?
-    perfilesData.find(p => p.id === sol.asignado_id)?.email : null;
-  const mktEmails = perfilesData.filter(p => ['marketing','admin'].includes(p.rol) && p.activo).map(p => p.email);
+  // Recipients
+  const comercialEmail   = sol?.perfiles?.email || perfs.find(p => p.id === sol?.comercial_id)?.email;
+  const disenadorEmail   = sol?.asignado_id ? perfs.find(p => p.id === sol.asignado_id)?.email : null;
+  const mktAdminResp     = perfs.filter(p => ['marketing','admin','responsable'].includes(p.rol) && p.activo).map(p => p.email);
 
-  const baseAsunto = `[Portadas GOR] Solicitud ${codSap || ''}`;
+  const base = `[Portadas GOR] ${codSap || sol?.cod_sap || ''}`;
 
-  if (estado === 'enviada') {
-    const destEmails = [...mktEmails, ...perfilesData.filter(p=>p.rol==='responsable'&&p.activo).map(p=>p.email)];
-    [...new Set(destEmails)].forEach(email => notifs.push({
-      solicitud_id: solId, destinatario: email,
-      asunto: `${baseAsunto} — Nueva solicitud de ${comercialNombre||'Comercial'}`,
-      cuerpo: `Nueva solicitud de portada para el cliente ${codSap} (${nombre||''}) enviada por ${comercialNombre||'un comercial'}. Accede al panel para revisarla.`
-    }));
-  }
-  if (estado === 'en_revision_marketing') {
-    mktEmails.forEach(email => notifs.push({
-      solicitud_id: solId, destinatario: email,
-      asunto: `${baseAsunto} — En revisión`,
-      cuerpo: `La solicitud de portada para ${codSap} (${nombre||''}) ha pasado a revisión.`
-    }));
-  }
-  if (estado === 'en_diseno' && disenadorEmail) {
-    notifs.push({
-      solicitud_id: solId, destinatario: disenadorEmail,
-      asunto: `${baseAsunto} — Asignada para diseño`,
-      cuerpo: `Se te ha asignado la solicitud de portada para el cliente ${codSap} (${nombre||''}). Accede a la herramienta para ver los detalles.`
+  function push(emails, asunto, cuerpo) {
+    [...new Set(emails.filter(Boolean))].forEach(destinatario => {
+      notifs.push({ solicitud_id: solId, destinatario, asunto, cuerpo, enviado: false });
     });
   }
-  if (estado === 'diseno_en_revision_comercial' && comercialEmail) {
-    notifs.push({
-      solicitud_id: solId, destinatario: comercialEmail,
-      asunto: `${baseAsunto} — Diseño listo para revisión`,
-      cuerpo: `El diseño de portada para tu cliente ${codSap} (${nombre||''}) está listo para que lo revises. Accede a la herramienta para aprobarlo o solicitar cambios.`
-    });
-  }
-  if (estado === 'modificar_diseno' && disenadorEmail) {
-    notifs.push({
-      solicitud_id: solId, destinatario: disenadorEmail,
-      asunto: `${baseAsunto} — Modificaciones solicitadas`,
-      cuerpo: `Se han solicitado modificaciones en el diseño de portada para el cliente ${codSap} (${nombre||''}). Accede a la herramienta para ver los comentarios.`
-    });
-  }
-  if (estado === 'confirmada') {
-    const recipients = [...mktEmails, comercialEmail].filter(Boolean);
-    recipients.forEach(email => notifs.push({
-      solicitud_id: solId, destinatario: email,
-      asunto: `${baseAsunto} — ✓ Confirmada`,
-      cuerpo: `La solicitud de portada para el cliente ${codSap} (${nombre||''}) ha sido confirmada.`
-    }));
-  }
-  if (estado === 'borrador' && comercialEmail) {
-    notifs.push({
-      solicitud_id: solId, destinatario: comercialEmail,
-      asunto: `${baseAsunto} — Devuelta para completar`,
-      cuerpo: `Tu solicitud de portada para el cliente ${codSap} (${nombre||''}) ha sido devuelta. Accede a la herramienta para editarla y reenviarla.`
-    });
-  }
-  // Also notify responsables
-  if (['en_revision_marketing','en_diseno','diseno_en_revision_comercial','confirmada'].includes(estado)) {
-    const responsableEmails = perfilesData.filter(p => p.rol === 'responsable' && p.activo).map(p => p.email);
-    responsableEmails.forEach(email => {
-      if (!notifs.find(n => n.destinatario === email)) {
-        notifs.push({
-          solicitud_id: solId, destinatario: email,
-          asunto: `${baseAsunto} — ${ESTADO_LABEL[estado]||estado}`,
-          cuerpo: `La solicitud de portada para ${codSap} (${nombre||''}) ha cambiado de estado: ${ESTADO_LABEL[estado]||estado}.`
-        });
-      }
-    });
+
+  switch (estado) {
+    case 'enviada':
+      // Comercial crea tarea → notificar a marketing/admin/responsable
+      push(mktAdminResp,
+        `${base} — Nueva solicitud de ${comercialNombre || sol?.perfiles?.nombre}`,
+        `Nueva solicitud de portada para el cliente ${codSap} (${nombre||''}) creada por ${comercialNombre || sol?.perfiles?.nombre}. Accede al panel para revisarla.`
+      );
+      break;
+
+    case 'en_revision_marketing':
+      // Notificar a marketing/admin/responsable
+      push(mktAdminResp,
+        `${base} — En revisión`,
+        `La solicitud de portada para ${codSap} (${nombre||''}) está en revisión.`
+      );
+      break;
+
+    case 'en_diseno':
+      // Notificar al diseñador asignado, al comercial creador y a marketing/admin/responsable
+      push([disenadorEmail],
+        `${base} — Asignada para diseño`,
+        `Se te ha asignado la solicitud de portada para el cliente ${codSap} (${nombre||''}). Accede a la herramienta para ver los detalles.`
+      );
+      push([comercialEmail, ...mktAdminResp],
+        `${base} — En diseño`,
+        `La solicitud para ${codSap} (${nombre||''}) ha pasado a diseño.`
+      );
+      break;
+
+    case 'diseno_en_revision_comercial':
+      // Notificar al comercial que creó la tarea, al diseñador y a marketing/admin/responsable
+      push([comercialEmail, disenadorEmail, ...mktAdminResp],
+        `${base} — Diseño listo para revisión`,
+        `El diseño de portada para el cliente ${codSap} (${nombre||''}) está listo para que lo revises. Accede a la herramienta para aprobarlo o solicitar cambios.`
+      );
+      break;
+
+    case 'modificar_diseno':
+      // Notificar al diseñador y al comercial
+      push([disenadorEmail, comercialEmail, ...mktAdminResp],
+        `${base} — Modificaciones solicitadas`,
+        `Se han solicitado modificaciones en el diseño de portada para el cliente ${codSap} (${nombre||''}). Accede a la herramienta para ver los comentarios.`
+      );
+      break;
+
+    case 'confirmada':
+      // Notificar a todos
+      push([comercialEmail, disenadorEmail, ...mktAdminResp],
+        `${base} — ✓ Confirmada`,
+        `La solicitud de portada para el cliente ${codSap} (${nombre||''}) ha sido confirmada.`
+      );
+      break;
+
+    case 'borrador':
+      // Devuelta al comercial
+      push([comercialEmail],
+        `${base} — Devuelta para completar`,
+        `Tu solicitud de portada para el cliente ${codSap} (${nombre||''}) ha sido devuelta. Accede a la herramienta para editarla y reenviarla.`
+      );
+      break;
   }
 
   for (const n of notifs) {
-    await db.from('notificaciones').insert({ ...n, enviado: false });
+    await db.from('notificaciones').insert(n);
   }
 
   // Email disabled — notifications shown in-app panel
