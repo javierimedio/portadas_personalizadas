@@ -1581,11 +1581,60 @@ async function saveSolicitud(estadoTarget) {
   const comentarios = document.getElementById('f-comentarios').value.trim();
 
   let valid = true;
-  if (!codSap) { document.getElementById('err-cod-sap').textContent = 'Campo obligatorio'; document.getElementById('f-cod-sap').classList.add('error'); valid = false; }
-  else { document.getElementById('err-cod-sap').textContent = ''; document.getElementById('f-cod-sap').classList.remove('error'); }
-  if (estadoTarget === 'enviada' && !provincia) { document.getElementById('err-provincia').textContent = 'Campo obligatorio'; document.getElementById('f-provincia').classList.add('error'); valid = false; }
-  else { document.getElementById('err-provincia').textContent = ''; document.getElementById('f-provincia').classList.remove('error'); }
-  if (!valid) { showFormAlert('Corrige los campos marcados antes de continuar.', 'error'); return; }
+  const errors = [];
+
+  // Basic fields
+  if (!codSap) {
+    document.getElementById('err-cod-sap').textContent = 'Campo obligatorio';
+    document.getElementById('f-cod-sap').classList.add('error');
+    valid = false; errors.push('Código SAP');
+  } else {
+    document.getElementById('err-cod-sap').textContent = '';
+    document.getElementById('f-cod-sap').classList.remove('error');
+  }
+  if (!provincia) {
+    document.getElementById('err-provincia').textContent = 'Campo obligatorio';
+    document.getElementById('f-provincia').classList.add('error');
+    valid = false; errors.push('Provincia');
+  } else {
+    document.getElementById('err-provincia').textContent = '';
+    document.getElementById('f-provincia').classList.remove('error');
+  }
+
+  // Validate activated catalogs — all fields required
+  if (estadoTarget === 'enviada') {
+    let atLeastOneCat = false;
+    CATS.forEach(cat => {
+      const digital  = document.querySelector(`.radio-opt[data-cat="${cat.key}"][data-field="catalogo_digital"].selected-si, .radio-opt[data-cat="${cat.key}"][data-field="catalogo_digital"].selected-no`);
+      const impreso  = document.querySelector(`.radio-opt[data-cat="${cat.key}"][data-field="catalogo_impreso"].selected-si`);
+      const portada  = document.querySelector(`.radio-opt[data-cat="${cat.key}"][data-field="portada_personalizada"].selected-si`);
+      const hasDigital = document.querySelector(`.radio-opt[data-cat="${cat.key}"][data-field="catalogo_digital"].selected-si`);
+      const hasImpreso = impreso !== null;
+      const hasPortada = portada !== null;
+
+      if (!digital && !impreso) return; // catalog not touched, skip
+      atLeastOneCat = true;
+
+      if (hasImpreso) {
+        const und = document.getElementById(cat.key + '-und')?.value;
+        if (!und) { valid = false; errors.push(`${cat.label} — Unidades`); }
+      }
+      if (hasPortada) {
+        const p1 = document.getElementById(cat.key + '-p1')?.value;
+        if (!p1) { valid = false; errors.push(`${cat.label} — Selección 1`); }
+        const pos = document.getElementById(cat.key + '-pos')?.value;
+        if (!pos) { valid = false; errors.push(`${cat.label} — Posición logo`); }
+      }
+    });
+    if (!atLeastOneCat) {
+      valid = false; errors.push('Al menos un catálogo debe estar configurado');
+    }
+  }
+
+  if (!valid) {
+    showFormAlert(`Completa los campos obligatorios: ${errors.slice(0,3).join(', ')}${errors.length>3?' y '+(errors.length-3)+' más'  :''}`, 'error');
+    return;
+  }
 
   // Get campaign — must be declared before any use
   const campanaId = document.getElementById('f-campana')?.value || activeCampana?.id;
@@ -1979,6 +2028,15 @@ async function addComentario(solId) {
   input.value = '';
   await openDetalle(solId);
   showToast(mentionedUsers.length > 0 ? `Comentario añadido. ${mentionedUsers.length} mención(es) notificada(s).` : 'Comentario añadido.');
+}
+
+async function guardarPortadaElegida(solId, catalogo, portadaElegida) {
+  await db.from('solicitud_catalogos')
+    .update({ portada_elegida: portadaElegida })
+    .eq('solicitud_id', solId)
+    .eq('catalogo', catalogo);
+  showToast(`Portada elegida guardada: ${portadaElegida}`);
+  await loadData();
 }
 
 async function cambiarEstado(solId, nuevoEstado) {
@@ -3025,9 +3083,19 @@ async function marcarDisenoListo(solId) {
 async function enviarNotificacion(solId, estado, { codSap, nombre, comercialNombre } = {}) {
   const notifs = [];
   const sol = allSolicitudes.find(s => s.id === solId);
-  const comercialEmail = sol ? allPerfiles.find(p => p.id === sol.comercial_id)?.email : null;
-  const disenadorEmail = sol?.asignado_id ? allPerfiles.find(p => p.id === sol.asignado_id)?.email : null;
-  const mktEmails = allPerfiles.filter(p => p.rol === 'marketing' && p.activo).map(p => p.email);
+
+  // Load perfiles if not available (e.g. comercial role)
+  let perfilesData = allPerfiles;
+  if (!perfilesData?.length) {
+    const { data } = await db.from('perfiles').select('id, email, rol, activo').eq('activo', true);
+    perfilesData = data || [];
+  }
+
+  const comercialEmail = sol?.perfiles?.email ||
+    perfilesData.find(p => p.id === sol?.comercial_id)?.email || null;
+  const disenadorEmail = sol?.asignado_id ?
+    perfilesData.find(p => p.id === sol.asignado_id)?.email : null;
+  const mktEmails = perfilesData.filter(p => ['marketing','admin'].includes(p.rol) && p.activo).map(p => p.email);
 
   const baseAsunto = `[Portadas GOR] Solicitud ${codSap || ''}`;
 
@@ -3071,7 +3139,20 @@ async function enviarNotificacion(solId, estado, { codSap, nombre, comercialNomb
     notifs.push({
       solicitud_id: solId, destinatario: comercialEmail,
       asunto: `${baseAsunto} — Devuelta para completar`,
-      cuerpo: `Tu solicitud de portada para el cliente ${codSap} (${nombre||''}) ha sido devuelta para que completes la información. Accede a la herramienta para editarla.`
+      cuerpo: `Tu solicitud de portada para el cliente ${codSap} (${nombre||''}) ha sido devuelta. Accede a la herramienta para editarla y reenviarla.`
+    });
+  }
+  // Also notify responsables
+  if (['en_revision_marketing','en_diseno','diseno_en_revision_comercial','confirmada'].includes(estado)) {
+    const responsableEmails = perfilesData.filter(p => p.rol === 'responsable' && p.activo).map(p => p.email);
+    responsableEmails.forEach(email => {
+      if (!notifs.find(n => n.destinatario === email)) {
+        notifs.push({
+          solicitud_id: solId, destinatario: email,
+          asunto: `${baseAsunto} — ${ESTADO_LABEL[estado]||estado}`,
+          cuerpo: `La solicitud de portada para ${codSap} (${nombre||''}) ha cambiado de estado: ${ESTADO_LABEL[estado]||estado}.`
+        });
+      }
     });
   }
 
