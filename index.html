@@ -2948,6 +2948,23 @@ async function enviarNotificacion(solId, estado, { codSap, nombre, comercialNomb
   for (const n of notifs) {
     await db.from('notificaciones').insert({ ...n, enviado: false });
   }
+
+  // Trigger Edge Function to send emails immediately
+  if (notifs.length > 0) {
+    try {
+      const session = loadSession();
+      await fetch('https://paqtohmxagfebeyyurlq.supabase.co/functions/v1/send-notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || SUPA_KEY}`,
+        },
+        body: JSON.stringify({}),
+      });
+    } catch(e) {
+      console.warn('Email dispatch error:', e);
+    }
+  }
 }
 
 // ── IMPORT USERS ──────────────────────────────────────────
