@@ -2459,15 +2459,15 @@ async function exportExcel() {
       bool(r?.catalogo_digital), bool(r?.catalogo_impreso),
       bool(r?.portada_personalizada),
       r?.portada_diseno_propio ? 'DISEÑO PROPIO' : (r?.portada_opcion_1 || ''),
-      r?.portada_opcion_2 || '', r?.portada_opcion_3 || '', r?.posicion_logo || '', r?.unidades || 0,
+      r?.portada_opcion_2 || '', r?.portada_opcion_3 || '', r?.portada_elegida || '', r?.posicion_logo || '', r?.unidades || 0,
       bool(w?.catalogo_digital), bool(w?.catalogo_impreso),
       bool(w?.portada_personalizada),
       w?.portada_diseno_propio ? 'DISEÑO PROPIO' : (w?.portada_opcion_1 || ''),
-      w?.portada_opcion_2 || '', w?.portada_opcion_3 || '', w?.posicion_logo || '', w?.unidades || 0,
+      w?.portada_opcion_2 || '', w?.portada_opcion_3 || '', w?.portada_elegida || '', w?.posicion_logo || '', w?.unidades || 0,
       bool(s?.catalogo_digital), bool(s?.catalogo_impreso),
       bool(s?.portada_personalizada),
       s?.portada_diseno_propio ? 'DISEÑO PROPIO' : (s?.portada_opcion_1 || ''),
-      s?.portada_opcion_2 || '', s?.portada_opcion_3 || '', s?.posicion_logo || '', s?.unidades || 0,
+      s?.portada_opcion_2 || '', s?.portada_opcion_3 || '', s?.portada_elegida || '', s?.posicion_logo || '', s?.unidades || 0,
       sol.comentarios || '',
       ESTADO_LABEL[sol.estado] || sol.estado,
       missing.length ? missing.join(', ') : '✓ Completa',
@@ -2480,13 +2480,13 @@ async function exportExcel() {
   // Column widths
   ws.columns = [
     {width:12},{width:30},{width:18},{width:14},{width:16},
-    {width:9},{width:9},{width:22},{width:13},{width:13},{width:13},{width:14},{width:9},
-    {width:9},{width:9},{width:22},{width:13},{width:13},{width:13},{width:14},{width:9},
-    {width:9},{width:9},{width:22},{width:13},{width:13},{width:13},{width:14},{width:9},
+    {width:9},{width:9},{width:22},{width:13},{width:13},{width:13},{width:14},{width:14},{width:9},
+    {width:9},{width:9},{width:22},{width:13},{width:13},{width:13},{width:14},{width:14},{width:9},
+    {width:9},{width:9},{width:22},{width:13},{width:13},{width:13},{width:14},{width:14},{width:9},
     {width:30},{width:16},{width:32},
   ];
 
-  const totalCols = 32;
+  const totalCols = 35;
 
   // Color palette
   const BLACK  = 'FF000000';
@@ -2535,10 +2535,10 @@ async function exportExcel() {
   // ROW 2: Group headers
   const groups = [
     { label:'DATOS GENERALES',  s:1,  e:5,  bg:BLACK,  fg:WHITE },
-    { label:'ROLY',              s:6,  e:13, bg:BLUE,   fg:WHITE },
-    { label:'ROLY WRK',         s:14, e:21, bg:YELLW,  fg:BLACK },
-    { label:'STAMINA',           s:22, e:29, bg:RED,    fg:WHITE },
-    { label:'CAMPAÑA / ESTADO',  s:30, e:32, bg:DARK,   fg:WHITE },
+    { label:'ROLY',              s:6,  e:14, bg:BLUE,   fg:WHITE },
+    { label:'ROLY WRK',         s:15, e:23, bg:YELLW,  fg:BLACK },
+    { label:'STAMINA',           s:24, e:32, bg:RED,    fg:WHITE },
+    { label:'CAMPAÑA / ESTADO',  s:33, e:35, bg:DARK,   fg:WHITE },
   ];
   groups.forEach(g => {
     ws.mergeCells(2, g.s, 2, g.e);
@@ -2553,12 +2553,15 @@ async function exportExcel() {
     ['CÓD. SAP',BLACK,LIGHT],['NOMBRE EMPRESA',BLACK,LIGHT],['COMERCIAL',BLACK,LIGHT],['IDIOMA',BLACK,LIGHT],['PROVINCIA',BLACK,LIGHT],
     ['DIGITAL',BLUE,BLUE_LL],['IMPRESO',BLUE,BLUE_LL],['PORTADA PERSONALIZADA',BLUE,BLUE_LL],
     ['SELECCIÓN 1',BLUE,BLUE_LL],['SELECCIÓN 2',BLUE,BLUE_LL],['SELECCIÓN 3',BLUE,BLUE_LL],
+    ['PORTADA ELEGIDA',WHITE,BLUE],
     ['POSICIÓN LOGO',BLUE,BLUE_LL],['UNDS.',BLUE,BLUE_LL],
     ['DIGITAL',AMBER,YELLLL],['IMPRESO',AMBER,YELLLL],['PORTADA PERSONALIZADA',AMBER,YELLLL],
     ['SELECCIÓN 1',AMBER,YELLLL],['SELECCIÓN 2',AMBER,YELLLL],['SELECCIÓN 3',AMBER,YELLLL],
+    ['PORTADA ELEGIDA',BLACK,YELLW],
     ['POSICIÓN LOGO',AMBER,YELLLL],['UNDS.',AMBER,YELLLL],
     ['DIGITAL',RED,RED_LL],['IMPRESO',RED,RED_LL],['PORTADA PERSONALIZADA',RED,RED_LL],
     ['SELECCIÓN 1',RED,RED_LL],['SELECCIÓN 2',RED,RED_LL],['SELECCIÓN 3',RED,RED_LL],
+    ['PORTADA ELEGIDA',WHITE,RED],
     ['POSICIÓN LOGO',RED,RED_LL],['UNDS.',RED,RED_LL],
     ['COMENTARIOS',MID,LIGHT],['ESTADO',MID,LIGHT],['CAMPOS INCOMPLETOS',MID,LIGHT],
   ];
@@ -3123,6 +3126,10 @@ async function initRealtime() {
       showRealtimeToast();
     });
     console.log('Realtime: subscribed to solicitudes');
+    // Also subscribe to notificaciones for live notification updates
+    subscribeToTable('notificaciones', async () => {
+      loadNotifications();
+    });
   } catch(e) {
     console.warn('Realtime not available, falling back to polling:', e.message);
     startPolling();
@@ -3138,47 +3145,61 @@ function showRealtimeToast() {
 }
 
 async function subscribeToTable(table, callback) {
+  const session = loadSession();
+  const token = session?.access_token || SUPA_KEY;
   const wsUrl = SUPA_URL.replace('https://', 'wss://') + '/realtime/v1/websocket?apikey=' + SUPA_KEY + '&vsn=1.0.0';
   const ws = new WebSocket(wsUrl);
   let heartbeatInterval;
   let ref = 1;
+  const channelId = `portadas-${Math.random().toString(36).slice(2,8)}`;
 
   ws.onopen = () => {
+    // Authenticate first
     ws.send(JSON.stringify({
-      topic: `realtime:public:${table}`,
+      topic: 'realtime:' + channelId,
       event: 'phx_join',
       payload: {
         config: {
           postgres_changes: [{ event: '*', schema: 'public', table }]
-        }
+        },
+        access_token: token
       },
       ref: String(ref++)
     }));
     heartbeatInterval = setInterval(() => {
-      ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(ref++) }));
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(ref++) }));
+      }
     }, 20000);
+    console.log('Realtime WS connected');
   };
 
   ws.onmessage = (event) => {
     try {
       const msg = JSON.parse(event.data);
-      // v2 postgres_changes event
-      if (msg.event === 'postgres_changes') {
-        callback(msg.payload);
+      if (msg.event === 'phx_reply' && msg.payload?.status === 'ok') {
+        console.log('Realtime: channel joined OK');
       }
-      // v1 format
-      if (msg.payload?.type && ['INSERT','UPDATE','DELETE'].includes(msg.payload.type)) {
+      if (msg.event === 'postgres_changes') {
+        console.log('Realtime event:', msg.payload?.data?.type);
+        callback(msg.payload?.data || msg.payload);
+      }
+      // Also handle INSERT/UPDATE/DELETE directly
+      if (['INSERT','UPDATE','DELETE'].includes(msg.payload?.type)) {
+        console.log('Realtime direct event:', msg.payload.type);
         callback(msg.payload);
       }
     } catch(e) {}
   };
 
-  ws.onerror = () => {
+  ws.onerror = (e) => {
+    console.warn('Realtime WS error — switching to polling');
     clearInterval(heartbeatInterval);
     startPolling();
   };
 
-  ws.onclose = () => {
+  ws.onclose = (e) => {
+    console.warn('Realtime WS closed, code:', e.code, '— reconnecting in 5s');
     clearInterval(heartbeatInterval);
     setTimeout(() => { _realtimeChannel = null; initRealtime(); }, 5000);
   };
