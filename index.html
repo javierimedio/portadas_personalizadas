@@ -2104,30 +2104,40 @@ async function saveUser() {
     await loadData();
     showToast('Usuario actualizado.');
   } else {
-    // Create new user via Supabase Admin API
+    // Create user via Supabase signup (email + password)
     if (!pass || pass.length < 8) { showAlert('user-alert', 'La contraseña debe tener mínimo 8 caracteres.', 'error'); return; }
     try {
-      const res = await fetch(`${SUPA_URL}/auth/v1/admin/users`, {
+      // Use signUp — works without admin API
+      const signupRes = await db.auth.signUpUser(email, pass, { nombre, rol, codigo });
+
+      // Since we don't have admin API, use a workaround:
+      // 1. Register via /auth/v1/signup
+      const res = await fetch(`${SUPA_URL}/auth/v1/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPA_KEY,
-          'Authorization': `Bearer ${loadSession()?.access_token || SUPA_KEY}`,
         },
         body: JSON.stringify({
-          email, password: pass, email_confirm: true,
-          user_metadata: { nombre, rol, codigo }
+          email,
+          password: pass,
+          data: { nombre, rol, codigo }
         })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Error al crear usuario');
-      // Insert profile
-      await db.from('perfiles').insert({ id: data.id, nombre, email, rol, codigo, activo: true });
+      if (!res.ok || !data.id) throw new Error(data.msg || data.error_description || data.message || 'Error al crear usuario');
+
+      // 2. Insert profile manually
+      const profileRes = await db.from('perfiles').insert({
+        id: data.id,
+        nombre, email, rol, codigo, activo: true
+      });
+
       closeModal('modal-usuario');
       await loadData();
-      showToast(`Usuario ${nombre} creado correctamente.`);
+      showToast(`Usuario ${nombre} creado. Debe confirmar su email para acceder.`);
     } catch(e) {
-      showAlert('user-alert', e.message, 'error');
+      showAlert('user-alert', 'Error: ' + e.message, 'error');
     }
   }
 }
