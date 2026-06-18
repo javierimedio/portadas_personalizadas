@@ -2942,8 +2942,7 @@ function renderNotifPanel() {
             ${n.asunto}
           </div>
           <div style="font-size:11px;color:var(--c-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-            ${n.cuerpo?.split('
-')[0] || ''}
+            ${(n.cuerpo||'').substring(0, 80)}
           </div>
           <div style="font-size:10px;color:var(--c-mid);margin-top:4px">${date}</div>
         </div>
