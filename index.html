@@ -974,14 +974,14 @@ async function loadAllCampanas() {
   } catch(e) { return []; }
 }
 
-function initApp() {
+async function initApp() {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('user-name').textContent = currentPerfil?.nombre || currentUser.email;
   document.getElementById('role-tag').textContent = currentPerfil?.rol || '—';
-  buildNav();
   buildCatSections();
-  loadData();
+  await loadData();
+  buildNav(); // Build nav after data loaded so dashboard renders correctly
 }
 
 // ── NAV ───────────────────────────────────────────────────
@@ -989,16 +989,13 @@ function buildNav() {
   const rol = currentPerfil?.rol;
   const nav = document.getElementById('main-nav');
   const items = [];
-  // Todos los roles ven Solicitudes
+  // DASHBOARD | SOLICITUDES | PANEL GLOBAL | DISEÑO | CAMPAÑAS | USUARIOS
+  if (['admin', 'marketing', 'responsable', 'disenador'].includes(rol)) items.push({ id: 'dashboard',     label: 'Dashboard' });
   items.push({ id: 'mis-solicitudes', label: 'Solicitudes' });
-  // Admin, marketing y diseñador ven Panel global
-  if (['admin', 'marketing', 'disenador'].includes(rol)) items.push({ id: 'panel', label: 'Panel global' });
-  // Admin, marketing y diseñador ven Diseño
-  if (['admin', 'marketing', 'responsable', 'disenador'].includes(rol)) items.push({ id: 'diseno', label: 'Diseño' });
-  // Solo admin ve Usuarios
-  if (['admin', 'marketing', 'disenador'].includes(rol)) items.push({ id: 'dashboard', label: 'Dashboard' });
-  if (['admin', 'marketing'].includes(rol))             items.push({ id: 'usuarios', label: 'Usuarios' });
-  if (['admin', 'marketing'].includes(rol))             items.push({ id: 'campanas', label: 'Campañas' });
+  if (['admin', 'marketing', 'responsable', 'disenador'].includes(rol)) items.push({ id: 'panel',         label: 'Panel global' });
+  if (['admin', 'marketing', 'responsable', 'disenador'].includes(rol)) items.push({ id: 'diseno',        label: 'Diseño' });
+  if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'campanas',      label: 'Campañas' });
+  if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'usuarios',      label: 'Usuarios' });
   nav.innerHTML = items.map((it, i) =>
     `<button class="nav-btn ${i===0?'active':''}" onclick="showPage('${it.id}', this)">${it.label}</button>`
   ).join('');
@@ -1013,7 +1010,7 @@ function showPage(id, btn) {
   if (btn) btn.classList.add('active');
   else { const b = document.querySelector(`.nav-btn[onclick*="'${id}'"]`); if(b) b.classList.add('active'); }
   if (id === 'campanas') loadAndRenderCampanas();
-  if (id === 'dashboard') renderDashboard();
+  if (id === 'dashboard') { if (allSolicitudes) renderDashboard(); }
 }
 
 // ── DATA ──────────────────────────────────────────────────
@@ -2424,7 +2421,7 @@ function renderDashboard() {
 
   // Populate selector if empty
   const dashSel = document.getElementById('dash-filter-campana');
-  if (dashSel && dashSel.options.length <= 1 && allCampanas.length) {
+  if (dashSel && dashSel.options.length <= 1 && allCampanas?.length) {
     allCampanas.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.id;
