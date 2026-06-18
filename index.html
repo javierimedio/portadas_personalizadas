@@ -2419,7 +2419,8 @@ async function exportExcel() {
     const bool = (v) => v === true ? 'SI' : v === false ? 'NO' : '';
     return [
       sol.cod_sap || '', sol.nombre_empresa || '',
-      sol.perfiles?.nombre || sol.perfiles?.codigo || '', sol.provincia || '',
+      sol.perfiles?.nombre || sol.perfiles?.codigo || '',
+      sol.idioma || '', sol.provincia || '',
       bool(r?.catalogo_digital), bool(r?.catalogo_impreso),
       bool(r?.portada_personalizada),
       r?.portada_diseno_propio ? 'DISEÑO PROPIO' : (r?.portada_opcion_1 || ''),
@@ -2432,7 +2433,6 @@ async function exportExcel() {
       bool(s?.portada_personalizada),
       s?.portada_diseno_propio ? 'DISEÑO PROPIO' : (s?.portada_opcion_1 || ''),
       s?.portada_opcion_2 || '', s?.portada_opcion_3 || '', s?.posicion_logo || '', s?.unidades || 0,
-      sol.idioma || '', sol.provincia || '',
       sol.comentarios || '',
       ESTADO_LABEL[sol.estado] || sol.estado,
       missing.length ? missing.join(', ') : '✓ Completa',
@@ -2444,14 +2444,14 @@ async function exportExcel() {
 
   // Column widths
   ws.columns = [
-    {width:12},{width:30},{width:18},{width:16},
+    {width:12},{width:30},{width:18},{width:14},{width:16},
     {width:9},{width:9},{width:22},{width:13},{width:13},{width:13},{width:14},{width:9},
     {width:9},{width:9},{width:22},{width:13},{width:13},{width:13},{width:14},{width:9},
     {width:9},{width:9},{width:22},{width:13},{width:13},{width:13},{width:14},{width:9},
-    {width:30},{width:18},{width:32},
+    {width:30},{width:16},{width:32},
   ];
 
-  const totalCols = 33;
+  const totalCols = 32;
 
   // Color palette
   const BLACK  = 'FF000000';
@@ -2499,11 +2499,11 @@ async function exportExcel() {
 
   // ROW 2: Group headers
   const groups = [
-    { label:'DATOS GENERALES',  s:1,  e:4,  bg:BLACK,  fg:WHITE },
-    { label:'ROLY',              s:5,  e:12, bg:BLUE,   fg:WHITE },
-    { label:'ROLY WRK',         s:13, e:20, bg:YELLW,  fg:BLACK },
-    { label:'STAMINA',           s:21, e:28, bg:RED,    fg:WHITE },
-    { label:'CAMPAÑA / ESTADO',  s:31, e:33, bg:DARK,   fg:WHITE },
+    { label:'DATOS GENERALES',  s:1,  e:5,  bg:BLACK,  fg:WHITE },
+    { label:'ROLY',              s:6,  e:13, bg:BLUE,   fg:WHITE },
+    { label:'ROLY WRK',         s:14, e:21, bg:YELLW,  fg:BLACK },
+    { label:'STAMINA',           s:22, e:29, bg:RED,    fg:WHITE },
+    { label:'CAMPAÑA / ESTADO',  s:30, e:32, bg:DARK,   fg:WHITE },
   ];
   groups.forEach(g => {
     ws.mergeCells(2, g.s, 2, g.e);
@@ -2515,7 +2515,7 @@ async function exportExcel() {
 
   // ROW 3: Column headers
   const headers = [
-    ['CÓD. SAP',BLACK,LIGHT],['NOMBRE EMPRESA',BLACK,LIGHT],['COMERCIAL',BLACK,LIGHT],['PROVINCIA',BLACK,LIGHT],
+    ['CÓD. SAP',BLACK,LIGHT],['NOMBRE EMPRESA',BLACK,LIGHT],['COMERCIAL',BLACK,LIGHT],['IDIOMA',BLACK,LIGHT],['PROVINCIA',BLACK,LIGHT],
     ['DIGITAL',BLUE,BLUE_LL],['IMPRESO',BLUE,BLUE_LL],['PORTADA PERSONALIZADA',BLUE,BLUE_LL],
     ['SELECCIÓN 1',BLUE,BLUE_LL],['SELECCIÓN 2',BLUE,BLUE_LL],['SELECCIÓN 3',BLUE,BLUE_LL],
     ['POSICIÓN LOGO',BLUE,BLUE_LL],['UNDS.',BLUE,BLUE_LL],
@@ -2525,7 +2525,7 @@ async function exportExcel() {
     ['DIGITAL',RED,RED_LL],['IMPRESO',RED,RED_LL],['PORTADA PERSONALIZADA',RED,RED_LL],
     ['SELECCIÓN 1',RED,RED_LL],['SELECCIÓN 2',RED,RED_LL],['SELECCIÓN 3',RED,RED_LL],
     ['POSICIÓN LOGO',RED,RED_LL],['UNDS.',RED,RED_LL],
-    ['IDIOMA',MID,LIGHT],['PROVINCIA',MID,LIGHT],['COMENTARIOS',MID,LIGHT],['ESTADO',MID,LIGHT],['CAMPOS INCOMPLETOS',MID,LIGHT],
+    ['COMENTARIOS',MID,LIGHT],['ESTADO',MID,LIGHT],['CAMPOS INCOMPLETOS',MID,LIGHT],
   ];
   headers.forEach(([label, fg, bg], i) => {
     const cell = ws.getCell(3, i+1);
