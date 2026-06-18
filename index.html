@@ -999,8 +999,8 @@ function buildNav() {
   // DASHBOARD | SOLICITUDES | PANEL GLOBAL | DISEÑO | CAMPAÑAS | USUARIOS
   if (['admin', 'marketing', 'responsable', 'disenador'].includes(rol)) items.push({ id: 'dashboard',     label: 'Dashboard' });
   items.push({ id: 'mis-solicitudes', label: 'Solicitudes' });
-  if (['admin', 'marketing', 'responsable', 'disenador'].includes(rol)) items.push({ id: 'panel',         label: 'Panel global' });
-  if (['admin', 'marketing', 'responsable', 'disenador'].includes(rol)) items.push({ id: 'diseno',        label: 'Diseño' });
+  if (['admin', 'marketing', 'disenador'].includes(rol))                 items.push({ id: 'panel',         label: 'Panel global' });
+  if (['admin', 'marketing', 'disenador'].includes(rol))                 items.push({ id: 'diseno',        label: 'Diseño' });
   if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'campanas',      label: 'Campañas' });
   if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'usuarios',      label: 'Usuarios' });
   nav.innerHTML = items.map((it, i) =>
@@ -1038,6 +1038,7 @@ async function loadSolicitudes(campanaId = null) {
     .select(`*, solicitud_catalogos(*), adjuntos(*), perfiles!solicitudes_comercial_id_fkey(nombre, codigo)`)
     .order('updated_at', { ascending: false });
   if (['comercial'].includes(currentPerfil?.rol)) q = q.eq('comercial_id', currentUser.id);
+  // responsable sees all — no filter needed
   // Default: filter by active campaign. If campanaId passed explicitly use that. '' = all.
   const campFiltro = campanaId !== null ? campanaId : activeCampana?.id;
   if (campFiltro) q = q.eq('campana_id', campFiltro);
