@@ -1492,7 +1492,7 @@ function renderStats() {
   document.getElementById('stats-row').innerHTML = `
     <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">Total</div></div>
     <div class="stat-card amber"><div class="stat-num">${porEstado('enviada')}</div><div class="stat-lbl">Enviadas</div></div>
-    <div class="stat-card blue"><div class="stat-num">${porEstado('en_revision_marketing')}</div><div class="stat-lbl">En revisión Marketing</div></div>
+    <div class="stat-card blue"><div class="stat-num">${porEstado('en_revision_marketing')}</div><div class="stat-lbl">En revisión de Marketing</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--c-purple)">${porEstado('en_diseno') + porEstado('modificar_diseno')}</div><div class="stat-lbl">En diseño</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--c-amber)">${porEstado('diseno_en_revision_comercial')}</div><div class="stat-lbl">En revisión del cliente</div></div>
     <div class="stat-card green"><div class="stat-num">${porEstado('confirmada')}</div><div class="stat-lbl">Confirmadas</div></div>
@@ -2844,9 +2844,9 @@ function renderDashboard() {
   const solicitudesKpis = [
     { num: total,                                           lbl: 'Total solicitudes',  cls: '' },
     { num: sols.filter(s=>s.estado==='enviada').length,     lbl: 'Enviadas',           cls: 'amber' },
-    { num: solEnRevision,                                   lbl: 'En revisión Mkt.',   cls: '' },
+    { num: solEnRevision,                                   lbl: 'En revisión de marketing',   cls: '' },
     { num: enDiseno,                                        lbl: 'En diseño',          cls: 'blue' },
-    { num: solRevCliente,                                   lbl: 'Revisión cliente',   cls: '' },
+    { num: solRevCliente,                                   lbl: 'En revisión del cliente',   cls: '' },
     { num: confirmadas,                                     lbl: 'Completadas ✓',      cls: 'green' },
   ];
   const unidadesKpis = [
