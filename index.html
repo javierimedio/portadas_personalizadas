@@ -2618,10 +2618,10 @@ function fmtDate(ts) {
   return d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) + ' ' + d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
 }
 function showFormAlert(msg, type) {
-  // Show in-form alert
+  // Clear any in-form alert
   const el = document.getElementById('form-alert');
-  if (el) el.innerHTML = `<div class="alert alert-${type}" style="margin-top:.5rem">${msg}</div>`;
-  // Also show as toast popup (reuse showToast with red background)
+  if (el) el.innerHTML = '';
+  // Show as toast popup only
   const t = document.createElement('div');
   t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;background:#E30613;color:white;padding:.875rem 1.25rem;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(227,6,19,.35);max-width:360px;line-height:1.4';
   t.innerHTML = '⚠️ ' + msg;
