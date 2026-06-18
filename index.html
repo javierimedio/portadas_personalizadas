@@ -562,6 +562,7 @@
       <button class="btn btn-outline" onclick="saveSolicitud('borrador')" id="btn-guardar-borrador">Guardar borrador</button>
       <button class="btn btn-amber" onclick="saveSolicitud('enviada')" id="btn-enviar">Enviar solicitud</button>
       <span id="upload-progress" style="font-size:12px;color:var(--c-mid);display:none">⏳ Subiendo archivos...</span>
+      <div id="form-alert" style="width:100%;margin-top:.5rem"></div>
     </div>
   </div>
 </div>
@@ -1620,10 +1621,16 @@ async function saveSolicitud(estadoTarget) {
         if (!und) { valid = false; errors.push(`${cat.label} — Unidades`); }
       }
       if (hasPortada) {
-        const p1 = document.getElementById(cat.key + '-p1')?.value;
-        if (!p1) { valid = false; errors.push(`${cat.label} — Selección 1`); }
-        const pos = document.getElementById(cat.key + '-pos')?.value;
-        if (!pos) { valid = false; errors.push(`${cat.label} — Posición logo`); }
+        // Stamina: diseño propio exempts from selección and posición logo
+        const disenoPropio = cat.key === 'stamina' &&
+          document.querySelector(`.radio-opt[data-cat="stamina"][data-field="portada_diseno_propio"].selected-si`);
+
+        if (!disenoPropio) {
+          const p1 = document.getElementById(cat.key + '-p1')?.value;
+          if (!p1) { valid = false; errors.push(`${cat.label} — Selección 1`); }
+          const pos = document.getElementById(cat.key + '-pos')?.value;
+          if (!pos) { valid = false; errors.push(`${cat.label} — Posición logo`); }
+        }
       }
     });
     if (!atLeastOneCat) {
