@@ -338,14 +338,20 @@
 
     <!-- ADMIN: USUARIOS -->
     <div class="page" id="page-usuarios">
-      <div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+      <div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:flex-start">
         <div style="flex:1;min-width:280px">
           <div class="section-title">Gestión de usuarios</div>
-          <div class="section-sub">Crea, edita y gestiona los accesos a la herramienta.</div>
+          <div class="section-sub">Edita roles, activa y desactiva accesos a la herramienta.</div>
         </div>
-        <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap">
-          <button class="btn btn-outline" onclick="openImportModal()">↑ Importar desde Excel</button>
-          <button class="btn btn-amber" onclick="openUserModal()">+ Nuevo usuario</button>
+      </div>
+      <div class="alert alert-info" style="margin-bottom:1.5rem">
+        <strong>¿Cómo crear un usuario nuevo?</strong><br>
+        Los usuarios se crean desde <strong>Supabase → Authentication → Users → Add user</strong> (marca "Auto Confirm User"). 
+        Una vez creado, edita su perfil aquí para asignarle rol y código.
+        <div style="margin-top:8px">
+          <a href="https://supabase.com/dashboard/project/paqtohmxagfebeyyurlq/auth/users" target="_blank" class="btn btn-sm btn-outline" style="font-size:12px">
+            Ir a Supabase → Usuarios ↗
+          </a>
         </div>
       </div>
 
