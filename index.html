@@ -761,6 +761,23 @@
         <input type="date" id="c-cierre">
       </div>
       <div class="form-group">
+        <label>Catálogos incluidos <span class="req">*</span></label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px" id="c-catalogos">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
+            <input type="checkbox" value="roly" checked> Roly
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
+            <input type="checkbox" value="roly_wrk" checked> Roly WRK
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
+            <input type="checkbox" value="stamina" checked> Stamina
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
+            <input type="checkbox" value="xmas"> XMAS
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
         <label>Estado</label>
         <div class="radio-group" style="margin-top:6px">
           <span class="radio-opt selected-si" id="c-activa-si" onclick="selectCampanaActiva(true)">Activa</span>
@@ -961,11 +978,14 @@ let allPerfiles = [];
 let editingId = null;
 let activeCampana = null;
 
-const CATS = [
-  { key: 'roly',     label: 'ROLY',     logo: 'https://static.gorfactory.es/images/header/logo_Roly_2025.svg',   color: 'var(--c-blue)' },
-  { key: 'roly_wrk', label: 'ROLY WRK', logo: 'https://static.gorfactory.es/images/home/Logo_WRK_color.svg',     color: 'var(--c-teal)' },
-  { key: 'stamina',  label: 'STAMINA',  logo: 'https://static.gorfactory.es/images/header/logo-stm-small.svg',   color: 'var(--c-purple)' },
+const ALL_CATS = [
+  { key: 'roly',     label: 'ROLY',     logo: 'https://static.gorfactory.es/images/header/logo_Roly_2025.svg',   color: 'var(--c-blue)',   hasDisenoProp: false },
+  { key: 'roly_wrk', label: 'ROLY WRK', logo: 'https://static.gorfactory.es/images/home/Logo_WRK_color.svg',     color: 'var(--c-teal)',   hasDisenoProp: false },
+  { key: 'stamina',  label: 'STAMINA',  logo: 'https://static.gorfactory.es/images/header/logo-stm-small.svg',   color: 'var(--c-purple)', hasDisenoProp: true },
+  { key: 'xmas',     label: 'XMAS',     logo: '',                                                                  color: '#C41E3A',         hasDisenoProp: true },
 ];
+// CATS is filtered per active campaign — updated in loadCampana
+let CATS = ALL_CATS.filter(c => ['roly','roly_wrk','stamina'].includes(c.key));
 
 const ESTADO_LABEL = {
   borrador:                     'Borrador',
@@ -1093,11 +1113,17 @@ async function loadCampana() {
   try {
     const { data } = await db.from('campanas').select('*').eq('activa', 'true').order('created_at', { ascending: false }).limit(1).maybeSingle();
     activeCampana = data;
-    console.log('loadCampana:', activeCampana?.nombre);
+    updateCatsForCampana(data);
+    console.log('loadCampana:', activeCampana?.nombre, 'catalogos:', CATS.map(c=>c.key));
   } catch(e) {
     console.warn('loadCampana error:', e);
     activeCampana = null;
   }
+}
+
+function updateCatsForCampana(campana) {
+  const keys = campana?.catalogos || ['roly','roly_wrk','stamina'];
+  CATS = ALL_CATS.filter(c => keys.includes(c.key));
 }
 
 async function loadAllCampanas() {
@@ -1503,7 +1529,7 @@ function buildCatSections() {
         <!-- Campos portada personalizada -->
         <div class="cat-fields" id="portada-fields-${cat.key}">
 
-          ${cat.key === 'stamina' ? `
+          ${cat.hasDisenoProp ? `
           <div class="toggle-row" style="margin-bottom:.75rem">
             <span class="toggle-label">Diseño 100% propio</span>
             <div class="radio-group">
@@ -1543,7 +1569,7 @@ function buildCatSections() {
             </div>
           </div>
 
-          ${cat.key === 'stamina' ? `
+          ${cat.hasDisenoProp ? `
           <!-- Subir diseño propio — solo Stamina -->
           <div class="cat-fields" id="diseno-propio-upload-stamina">
             <div class="form-group" style="margin-bottom:.5rem">
@@ -1553,13 +1579,13 @@ function buildCatSections() {
                 ondragover="event.preventDefault();event.stopPropagation();this.style.background='var(--c-purple-l)'"
                 ondragleave="this.style.background='var(--c-white)'"
                 ondrop="event.preventDefault();event.stopPropagation();this.style.background='var(--c-white)';handleDrop(event,'stamina_diseno')"
-                onclick="document.getElementById('file-stamina-diseno').click()">
+                onclick="document.getElementById('file-${cat.key}-diseno').click()">
                 <div style="font-size:24px;margin-bottom:4px">🎨</div>
                 <div style="font-size:12px;font-weight:500;color:var(--c-dark)">Arrastra el diseño aquí o haz clic</div>
                 <div style="font-size:10px;color:var(--c-mid);margin-top:3px">PDF · 300 dpi · textos trazados</div>
               </div>
-              <input type="file" id="file-stamina-diseno" accept=".pdf,.ai,.eps" multiple style="display:none" onchange="handleFileInput(event,'stamina_diseno')">
-              <div id="files-list-stamina_diseno" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px"></div>
+              <input type="file" id="file-${cat.key}-diseno" accept=".pdf,.ai,.eps" multiple style="display:none" onchange="handleFileInput(event,'${cat.key}_diseno')">
+              <div id="files-list-${cat.key}_diseno" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px"></div>
             </div>
           </div>` : ''}
 
@@ -1805,8 +1831,8 @@ async function saveSolicitud(estadoTarget) {
       }
       if (hasPortada) {
         // Stamina: diseño propio exempts from selección and posición logo
-        const disenoPropio = cat.key === 'stamina' &&
-          document.querySelector(`.radio-opt[data-cat="stamina"][data-field="portada_diseno_propio"].selected-si`);
+        const disenoPropio = cat.hasDisenoProp &&
+          document.querySelector(`.radio-opt[data-cat="${cat.key}"][data-field="portada_diseno_propio"].selected-si`);
 
         if (!disenoPropio) {
           const p1 = document.getElementById(cat.key + '-p1')?.value;
@@ -2678,7 +2704,7 @@ function showToast(msg) {
 }
 
 // ── FILE HANDLING ─────────────────────────────────────────
-const catFiles = { roly: [], roly_wrk: [], stamina: [], stamina_diseno: [], logo_general: [] };
+const catFiles = { roly: [], roly_wrk: [], stamina: [], xmas: [], stamina_diseno: [], xmas_diseno: [], logo_general: [] };
 
 function handleDropGeneral(event) {
   const files = Array.from(event.dataTransfer.files);
@@ -3362,6 +3388,11 @@ function openCampanaModal(editId = null) {
       document.getElementById('c-cierre').value = c.fecha_cierre?.slice(0,10) || '';
       campanaActiva = c.activa;
       selectCampanaActiva(c.activa);
+      // Restore catalogos checkboxes
+      const keys = c.catalogos || ['roly','roly_wrk','stamina'];
+      document.querySelectorAll('#c-catalogos input[type=checkbox]').forEach(cb => {
+        cb.checked = keys.includes(cb.value);
+      });
     }
     document.getElementById('modal-campana-title').textContent = 'Editar campaña';
     document.getElementById('btn-save-campana').textContent = 'Guardar cambios';
@@ -3380,10 +3411,13 @@ async function saveCampana() {
 
   if (!nombre) { showAlert('campana-alert', 'El nombre es obligatorio.', 'error'); return; }
 
+  const catalogosSelected = [...document.querySelectorAll('#c-catalogos input[type=checkbox]:checked')].map(cb => cb.value);
+  if (!catalogosSelected.length) { showAlert('campana-alert', 'Selecciona al menos un catálogo.', 'error'); return; }
+
   if (editId) {
-    await db.from('campanas').update({ nombre, descripcion, fecha_cierre, activa: campanaActiva }).eq('id', editId);
+    await db.from('campanas').update({ nombre, descripcion, fecha_cierre, activa: campanaActiva, catalogos: catalogosSelected }).eq('id', editId);
   } else {
-    await db.from('campanas').insert({ nombre, descripcion, fecha_cierre, activa: campanaActiva });
+    await db.from('campanas').insert({ nombre, descripcion, fecha_cierre, activa: campanaActiva, catalogos: catalogosSelected });
   }
 
   closeModal('modal-campana');
