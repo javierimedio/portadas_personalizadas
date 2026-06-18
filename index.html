@@ -144,6 +144,8 @@
   .stat-card.amber .stat-num { color: var(--c-amber); }
   .stat-card.blue  .stat-num { color: var(--c-blue); }
   .stat-card.green .stat-num { color: var(--c-green); }
+  .stat-card.amber .stat-num { color: var(--c-amber); }
+  .stat-card.blue  .stat-num  { color: var(--c-blue); }
   .stat-card.red   .stat-num { color: var(--c-red); }
 
   /* ── LOG ── */
@@ -2780,12 +2782,12 @@ function renderDashboard() {
   const unStamina = sols.reduce((a,s) => a + (s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0), 0);
 
   document.getElementById('dash-kpis').innerHTML = [
-    { num: total,      lbl: 'Total solicitudes',   cls: '' },
-    { num: completas,  lbl: 'Completas',            cls: 'green' },
-    { num: confirmadas,lbl: 'Confirmadas',          cls: 'green' },
-    { num: enDiseno,   lbl: 'En diseño',            cls: 'blue' },
-    { num: pendientes, lbl: 'Pendientes revisión',  cls: 'amber' },
-    { num: (unRoly+unWrk+unStamina).toLocaleString(), lbl: 'Total unidades', cls: '' },
+    { num: total,                                          lbl: 'Total solicitudes',  cls: '' },
+    { num: sols.filter(s=>s.estado==='enviada').length,    lbl: 'Enviadas',            cls: 'amber' },
+    { num: confirmadas,                                    lbl: 'Completadas ✓',       cls: 'green' },
+    { num: enDiseno,                                       lbl: 'En diseño',           cls: 'blue' },
+    { num: pendientes,                                     lbl: 'En revisión',         cls: '' },
+    { num: (unRoly+unWrk+unStamina).toLocaleString(),     lbl: 'Total unidades',      cls: '' },
   ].map(k => `
     <div class="stat-card ${k.cls}">
       <div class="stat-num">${k.num}</div>
@@ -2994,7 +2996,7 @@ function renderDashboard() {
     { key: ['en_revision_marketing'],              label: 'En revisión',        color: '#003087' },
     { key: ['en_diseno','modificar_diseno'],       label: 'En diseño',          color: '#534AB7' },
     { key: ['diseno_en_revision_comercial'],       label: 'Revisión cliente',   color: '#FAB518' },
-    { key: ['confirmada'],                         label: 'Confirmadas',        color: '#3B6D11' },
+    { key: ['confirmada'],                         label: 'Completadas',        color: '#3B6D11' },
   ];
   const progEl = document.getElementById('dash-progreso');
   if (progEl && total > 0) {
