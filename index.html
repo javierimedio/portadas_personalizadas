@@ -478,7 +478,7 @@
 </div>
 
 <!-- ── PANEL NOTIFICACIONES ──────────────────────────── -->
-<div id="notif-panel" style="position:fixed;top:52px;right:0;width:360px;height:calc(100vh - 52px);background:white;box-shadow:-4px 0 20px rgba(0,0,0,.12);z-index:150;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .2s ease">
+<div id="notif-panel" style="position:fixed;top:52px;right:0;width:360px;height:calc(100vh - 52px);background:white;box-shadow:-4px 0 20px rgba(0,0,0,.12);z-index:150;flex-direction:column;transform:translateX(100%);transition:transform .2s ease;display:none">
   <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--c-line);display:flex;justify-content:space-between;align-items:center">
     <div style="font-size:14px;font-weight:700">Notificaciones</div>
     <div style="display:flex;gap:8px;align-items:center">
@@ -2004,7 +2004,7 @@ async function cambiarEstadoDirecto(solId, nuevoEstado) {
   });
   closeModal('modal-detalle');
   await loadData();
-  await loadNotifications();
+  loadNotifications();
   showToast(`Estado: ${ESTADO_LABEL[nuevoEstado] || nuevoEstado}`);
 }
 
@@ -2899,7 +2899,8 @@ function toggleNotifPanel() {
   const panel = document.getElementById('notif-panel');
   const overlay = document.getElementById('notif-overlay');
   if (notifPanelOpen) {
-    panel.style.transform = 'translateX(0)';
+    panel.style.display = 'flex';
+    setTimeout(() => { panel.style.transform = 'translateX(0)'; }, 10);
     overlay.style.display = 'block';
     renderNotifPanel();
     // Mark visible as read after 2s
@@ -2910,6 +2911,7 @@ function toggleNotifPanel() {
   } else {
     panel.style.transform = 'translateX(100%)';
     overlay.style.display = 'none';
+    setTimeout(() => { panel.style.display = 'none'; }, 220);
   }
 }
 
