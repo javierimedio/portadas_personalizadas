@@ -210,7 +210,22 @@
 <!-- ── AUTH ─────────────────────────────────────────────── -->
 <div id="auth-screen" style="display:none">
   <div class="auth-card">
-    <div class="auth-logo">GOR Factory · Marketing</div>
+    <div style="text-align:center;margin-bottom:1.5rem">
+      <img src="https://dev.gorfactory.com/wp-content/uploads/2026/05/Logo_GOR.png"
+           alt="GOR Factory" style="height:48px;display:block;margin:0 auto"
+           onerror="this.style.display='none'">
+      <div style="display:flex;justify-content:center;align-items:center;margin-top:14px;width:100%">
+        <img src="https://static.gorfactory.es/images/header/logo_Roly_2025.svg"
+             alt="Roly" style="height:16px;flex:1;object-fit:contain"
+             onerror="this.style.display='none'">
+        <img src="https://static.gorfactory.es/images/home/Logo_WRK_color.svg"
+             alt="Roly WRK" style="height:16px;flex:1;object-fit:contain"
+             onerror="this.style.display='none'">
+        <img src="https://static.gorfactory.es/images/header/logo-stm-small.svg"
+             alt="Stamina" style="height:16px;flex:1;object-fit:contain"
+             onerror="this.style.display='none'">
+      </div>
+    </div>
     <div class="auth-title">Portadas Personalizadas</div>
     <div class="auth-sub">Accede con tu correo corporativo</div>
     <div id="auth-alert"></div>
@@ -1476,8 +1491,9 @@ function renderStats() {
   document.getElementById('stats-row').innerHTML = `
     <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">Total</div></div>
     <div class="stat-card amber"><div class="stat-num">${porEstado('enviada')}</div><div class="stat-lbl">Enviadas</div></div>
-    <div class="stat-card blue"><div class="stat-num">${porEstado('en_revision_marketing')}</div><div class="stat-lbl">En revisión</div></div>
-    <div class="stat-card"><div class="stat-num">${porEstado('en_diseno') + porEstado('diseno_en_revision')}</div><div class="stat-lbl">En diseño</div></div>
+    <div class="stat-card blue"><div class="stat-num">${porEstado('en_revision_marketing')}</div><div class="stat-lbl">En revisión Mkt.</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--c-purple)">${porEstado('en_diseno') + porEstado('modificar_diseno')}</div><div class="stat-lbl">En diseño</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--c-amber)">${porEstado('diseno_en_revision_comercial')}</div><div class="stat-lbl">Revisión cliente</div></div>
     <div class="stat-card green"><div class="stat-num">${porEstado('confirmada')}</div><div class="stat-lbl">Confirmadas</div></div>
     <div class="stat-card red"><div class="stat-num">${total - completas}</div><div class="stat-lbl">Incompletas</div></div>
   `;
