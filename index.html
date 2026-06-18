@@ -357,6 +357,7 @@
         <select id="filter-rol-users" onchange="renderUsuariosTable()">
           <option value="">Todos los roles</option>
           <option value="comercial">Comercial</option>
+          <option value="responsable">Responsable Comercial</option>
           <option value="marketing">Marketing</option>
           <option value="disenador">Diseñador</option>
           <option value="admin">Admin</option>
@@ -828,9 +829,9 @@ let editingId = null;
 let activeCampana = null;
 
 const CATS = [
-  { key: 'roly',     label: '🔵 ROLY',     color: 'var(--c-blue)' },
-  { key: 'roly_wrk', label: '🟢 ROLY WRK', color: 'var(--c-teal)' },
-  { key: 'stamina',  label: '🟣 STAMINA',  color: 'var(--c-purple)' },
+  { key: 'roly',     label: 'ROLY',     logo: 'https://static.gorfactory.es/images/header/logo_Roly_2025.svg',   color: 'var(--c-blue)' },
+  { key: 'roly_wrk', label: 'ROLY WRK', logo: 'https://static.gorfactory.es/images/home/Logo_WRK_color.svg',     color: 'var(--c-teal)' },
+  { key: 'stamina',  label: 'STAMINA',  logo: 'https://static.gorfactory.es/images/header/logo-stm-small.svg',   color: 'var(--c-purple)' },
 ];
 
 const ESTADO_LABEL = {
@@ -993,7 +994,7 @@ function buildNav() {
   // Admin, marketing y diseñador ven Panel global
   if (['admin', 'marketing', 'disenador'].includes(rol)) items.push({ id: 'panel', label: 'Panel global' });
   // Admin, marketing y diseñador ven Diseño
-  if (['admin', 'marketing', 'disenador'].includes(rol)) items.push({ id: 'diseno', label: 'Diseño' });
+  if (['admin', 'marketing', 'responsable', 'disenador'].includes(rol)) items.push({ id: 'diseno', label: 'Diseño' });
   // Solo admin ve Usuarios
   if (['admin', 'marketing', 'disenador'].includes(rol)) items.push({ id: 'dashboard', label: 'Dashboard' });
   if (['admin', 'marketing'].includes(rol))             items.push({ id: 'usuarios', label: 'Usuarios' });
@@ -1032,7 +1033,7 @@ async function loadSolicitudes(campanaId = null) {
   let q = db.from('solicitudes')
     .select(`*, solicitud_catalogos(*), adjuntos(*), perfiles!solicitudes_comercial_id_fkey(nombre, codigo)`)
     .order('updated_at', { ascending: false });
-  if (currentPerfil?.rol === 'comercial') q = q.eq('comercial_id', currentUser.id);
+  if (['comercial'].includes(currentPerfil?.rol)) q = q.eq('comercial_id', currentUser.id);
   // Default: filter by active campaign. If campanaId passed explicitly use that. '' = all.
   const campFiltro = campanaId !== null ? campanaId : activeCampana?.id;
   if (campFiltro) q = q.eq('campana_id', campFiltro);
@@ -1201,8 +1202,8 @@ function renderDisenoTable() {
     </tr>`).join('');
 }
 
-const ROL_COLORS = { admin: 'var(--c-amber)', marketing: 'var(--c-blue)', comercial: 'var(--c-teal)', disenador: 'var(--c-purple)' };
-const ROL_LABELS = { admin: 'Admin', marketing: 'Marketing', comercial: 'Comercial', disenador: 'Diseñador' };
+const ROL_COLORS = { admin: 'var(--c-amber)', marketing: 'var(--c-blue)', responsable: '#0F6E56', comercial: 'var(--c-teal)', disenador: 'var(--c-purple)' };
+const ROL_LABELS = { admin: 'Admin', marketing: 'Marketing', responsable: 'Resp. Comercial', comercial: 'Comercial', disenador: 'Diseñador' };
 
 function renderUsuariosTable() {
   const q = document.getElementById('search-users')?.value.toLowerCase() || '';
@@ -1303,7 +1304,7 @@ function buildCatSections() {
   document.getElementById('cat-sections').innerHTML = CATS.map(cat => `
     <div class="cat-section cat-${cat.key}" id="cat-sec-${cat.key}">
       <div class="cat-header" onclick="toggleCat('${cat.key}')">
-        <h3>${cat.label}</h3>
+        <img src="${cat.logo}" alt="${cat.label}" style="height:20px;max-width:80px;object-fit:contain" onerror="this.style.display='none'">
         <span class="toggle" id="cat-toggle-${cat.key}">▼ Expandir</span>
       </div>
       <div class="cat-body" id="cat-body-${cat.key}">
@@ -1738,14 +1739,15 @@ async function openDetalle(solId) {
   // Load logs
   const { data: logs } = await db.from('logs').select('*').eq('solicitud_id', solId).order('created_at', { ascending: false });
 
-  let html = '';
+  let htmlLeft = '';
+  let htmlRight = '';
   // Catalogos
   CATS.forEach(cat => {
     const c = sol.solicitud_catalogos?.find(x => x.catalogo === cat.key);
     if (!c) return;
-    html += `<div class="cat-section cat-${cat.key}" style="margin-bottom:.75rem">
+    htmlLeft += `<div class="cat-section cat-${cat.key}" style="margin-bottom:.75rem">
       <div class="cat-header" style="cursor:default;padding:.6rem 1rem">
-        <h3>${cat.label}</h3>
+        <img src="${cat.logo}" alt="${cat.label}" style="height:18px;max-width:70px;object-fit:contain" onerror="this.style.display='none'">
         <div style="margin-left:auto;display:flex;gap:8px;font-size:12px">
           <span>Digital: <strong>${c.catalogo_digital===true?'SI':c.catalogo_digital===false?'NO':'—'}</strong></span>
           <span>Impreso: <strong>${c.catalogo_impreso===true?'SI':c.catalogo_impreso===false?'NO':'—'}</strong></span>
@@ -1759,13 +1761,13 @@ async function openDetalle(solId) {
     </div>`;
   });
 
-  if (sol.comentarios) html += `<div class="card" style="margin-bottom:1rem"><div class="card-title">Comentarios</div><p style="font-size:13px">${sol.comentarios}</p></div>`;
+  if (sol.comentarios) htmlLeft += `<div class="card" style="margin-bottom:1rem"><div class="card-title">Comentarios generales</div><p style="font-size:13px">${sol.comentarios}</p></div>`;
 
   // Load adjuntos from table
   const { data: adjuntos } = await db.from('adjuntos').select('*').eq('solicitud_id', solId).order('created_at', { ascending: true });
-  if (adjuntos?.length) {
+  if (adjuntos?.length) { // adjuntos go left
     const tipoLabel = { logo_general: 'Logo cliente', stamina_diseno: 'Diseño Stamina', roly: 'Roly', roly_wrk: 'Roly WRK', stamina: 'Stamina' };
-    html += `<div class="card" style="margin-bottom:1rem"><div class="card-title">Archivos adjuntos (${adjuntos.length})</div>`;
+    htmlLeft += `<div class="card" style="margin-bottom:1rem"><div class="card-title">Archivos adjuntos (${adjuntos.length})</div>`;
     adjuntos.forEach(a => {
       html += `<div style="font-size:12px;padding:8px 0;display:flex;gap:10px;align-items:center;border-bottom:0.5px solid var(--c-line)">
         <span style="font-size:18px">📎</span>
@@ -1781,8 +1783,8 @@ async function openDetalle(solId) {
     html += '</div>';
   }
 
-  // Add comment section with @mention support
-  html += `<div class="card" style="margin-bottom:1rem">
+  // Add comment section and log to RIGHT column
+  htmlRight += `<div class="card" style="margin-bottom:1rem">
     <div class="card-title">Añadir comentario</div>
     <div style="position:relative">
       <textarea id="nuevo-comentario-${solId}"
@@ -1798,13 +1800,13 @@ async function openDetalle(solId) {
     </div>
   </div>`;
 
-  // Log
-  html += `<div class="card"><div class="card-title">Historial de cambios</div>`;
+  // Log → right
+  htmlRight += `<div class="card"><div class="card-title">Historial de cambios</div>`;
   if (!logs?.length) html += '<p class="text-mid text-sm">Sin actividad registrada.</p>';
   // Filter out adjunto entries from log (shown separately above)
   const logsToShow = (logs || []).filter(l => l.accion !== 'adjunto');
   if (!logsToShow.length) html += '<p class="text-mid text-sm">Sin actividad registrada.</p>';
-  else html += logsToShow.map(l => `
+  else htmlRight += logsToShow.map(l => `
     <div class="log-entry">
       <div class="log-dot ${l.accion==='cambio_estado'?'estado':''}"></div>
       <div class="log-time">${fmtDate(l.created_at)}</div>
@@ -1817,9 +1819,14 @@ async function openDetalle(solId) {
           : l.accion}
       </div>
     </div>`).join('');
-  html += '</div>';
+  htmlRight += '</div>';
 
-  document.getElementById('det-body').innerHTML = html;
+  // Two-column layout
+  document.getElementById('det-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 340px;gap:1rem;align-items:start">
+      <div>${htmlLeft}</div>
+      <div style="position:sticky;top:0">${htmlRight}</div>
+    </div>`;
 
   // Acciones según rol y estado
   const footer = document.getElementById('det-footer');
@@ -1846,9 +1853,22 @@ async function openDetalle(solId) {
     btns += `<button class="btn btn-amber" onclick="asignarYAvanzar('${solId}')">Enviar a diseño</button>`;
   }
 
-  // Diseñador/Marketing/Admin: en diseño o modificar → diseño listo
+  // Diseñador/Marketing/Admin: en diseño o modificar → subir diseño y marcar listo
   if ((rol === 'disenador' || rol === 'admin' || rol === 'marketing') && (est === 'en_diseno' || est === 'modificar_diseno')) {
-    btns += `<button class="btn btn-amber" onclick="cambiarEstadoDirecto('${solId}','diseno_en_revision_comercial')">Diseño listo → Revisión cliente</button>`;
+    btns += `
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div id="diseno-upload-zone"
+          style="border:1.5px dashed var(--c-line);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--c-mid);display:flex;align-items:center;gap:6px"
+          ondragover="event.preventDefault();this.style.borderColor='var(--c-amber)'"
+          ondragleave="this.style.borderColor='var(--c-line)'"
+          ondrop="event.preventDefault();this.style.borderColor='var(--c-line)';handleDisenoUpload(event,'${solId}')"
+          onclick="document.getElementById('file-diseno-det').click()">
+          🎨 Subir diseño de portada
+        </div>
+        <input type="file" id="file-diseno-det" accept=".pdf,.jpg,.jpeg,.png,.ai,.eps" style="display:none"
+          onchange="handleDisenoFileInput(event,'${solId}')">
+        <button class="btn btn-amber" onclick="marcarDisenoListo('${solId}')">Diseño listo → Revisión cliente</button>
+      </div>`;
   }
 
   // Comercial/Admin/Marketing: revisión cliente → confirmar o pedir cambios
@@ -1948,18 +1968,52 @@ async function eliminarSolicitud(solId) {
 }
 
 async function asignarYAvanzar(solId) {
-  const disenadores = allPerfiles.filter(p => p.rol === 'disenador');
-  if (!disenadores.length) { alert('No hay diseñadores disponibles.'); return; }
-  const sel = disenadores.length === 1 ? disenadores[0] : disenadores[Math.floor(Math.random() * disenadores.length)];
-  await db.from('solicitudes').update({ estado: 'en_diseno', asignado_id: sel.id }).eq('id', solId);
+  const disenadores = allPerfiles.filter(p => p.rol === 'disenador' && p.activo);
+  if (!disenadores.length) { showToast('No hay diseñadores disponibles.'); return; }
+
+  // Show designer picker
+  const sol = allSolicitudes.find(s => s.id === solId);
+  const currentAsignado = sol?.asignado_id;
+
+  const pickerHtml = `
+    <div style="padding:1rem">
+      <div style="font-size:13px;font-weight:600;margin-bottom:.75rem">Asignar diseñador</div>
+      <select id="picker-disenador" style="width:100%;margin-bottom:1rem">
+        ${disenadores.map(d => `<option value="${d.id}" ${d.id===currentAsignado?'selected':''}>${d.nombre} ${d.codigo?'('+d.codigo+')':''}</option>`).join('')}
+      </select>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('picker-overlay').remove()">Cancelar</button>
+        <button class="btn btn-amber btn-sm" onclick="confirmAsignar('${solId}')">Asignar y enviar a diseño</button>
+      </div>
+    </div>`;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'picker-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = `<div style="background:white;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.15);width:320px">${pickerHtml}</div>`;
+  document.body.appendChild(overlay);
+}
+
+async function confirmAsignar(solId) {
+  const disenadorId = document.getElementById('picker-disenador')?.value;
+  document.getElementById('picker-overlay')?.remove();
+  if (!disenadorId) return;
+  const disenador = allPerfiles.find(p => p.id === disenadorId);
+  await db.from('solicitudes').update({ estado: 'en_diseno', asignado_id: disenadorId }).eq('id', solId);
+  const sol = allSolicitudes.find(s => s.id === solId);
   await db.from('notificaciones').insert({
-    solicitud_id: solId, destinatario: sel.email,
-    asunto: `Nueva portada asignada — ${allSolicitudes.find(s=>s.id===solId)?.cod_sap}`,
-    cuerpo: `Se te ha asignado una nueva solicitud de portada. Accede a la herramienta para ver los detalles.`
+    solicitud_id: solId, destinatario: disenador.email,
+    asunto: `Nueva portada asignada — ${sol?.cod_sap}`,
+    cuerpo: `Se te ha asignado la solicitud de portada para ${sol?.cod_sap} (${sol?.nombre_empresa||''}). Accede a la herramienta para ver los detalles.`
+  });
+  await db.from('logs').insert({
+    solicitud_id: solId, usuario_id: currentUser.id,
+    usuario_nombre: currentPerfil?.nombre, accion: 'asignacion',
+    detalle: { disenador: disenador.nombre }
   });
   closeModal('modal-detalle');
   await loadData();
-  showToast(`Asignado a ${sel.nombre} y enviado a diseño.`);
+  showToast(`Asignado a ${disenador.nombre} y enviado a diseño.`);
 }
 
 // ── USUARIOS ──────────────────────────────────────────────
@@ -2754,6 +2808,57 @@ async function setActiveCampana(id) {
   closeModal('modal-detalle');
   await loadAndRenderCampanas();
   showToast(`Campaña "${c.nombre}" establecida como activa.`);
+}
+
+// ── SUBIDA DISEÑO POR DISEÑADOR ───────────────────────────
+let disenoFileToUpload = null;
+
+function handleDisenoUpload(event, solId) {
+  const file = event.dataTransfer.files[0];
+  if (file) { disenoFileToUpload = file; updateDisenoZone(file.name); }
+}
+
+function handleDisenoFileInput(event, solId) {
+  const file = event.target.files[0];
+  if (file) { disenoFileToUpload = file; updateDisenoZone(file.name); }
+  event.target.value = '';
+}
+
+function updateDisenoZone(nombre) {
+  const zone = document.getElementById('diseno-upload-zone');
+  if (zone) {
+    zone.style.borderColor = 'var(--c-green)';
+    zone.style.color = 'var(--c-green)';
+    zone.innerHTML = `✓ ${nombre}`;
+  }
+}
+
+async function marcarDisenoListo(solId) {
+  if (disenoFileToUpload) {
+    showToast('Subiendo diseño...');
+    try {
+      const session = loadSession();
+      const token = session?.access_token || SUPA_KEY;
+      const fileName = `${solId}/diseno/${Date.now()}_${disenoFileToUpload.name}`;
+      const uploadRes = await fetch(
+        `${SUPA_URL}/storage/v1/object/portadas-adjuntos/${fileName}`,
+        { method: 'POST', headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': disenoFileToUpload.type || 'application/octet-stream', 'x-upsert': 'true' }, body: disenoFileToUpload }
+      );
+      if (uploadRes.ok) {
+        const publicUrl = `${SUPA_URL}/storage/v1/object/public/portadas-adjuntos/${fileName}`;
+        await db.from('adjuntos').insert({
+          solicitud_id: solId, nombre: disenoFileToUpload.name,
+          tipo: 'diseno_portada', url: publicUrl,
+          subido_por: currentUser.id, subido_por_nombre: currentPerfil?.nombre,
+        });
+        // Update diseno_url on catalog
+        await db.from('solicitud_catalogos').update({ diseno_url: publicUrl, diseno_at: new Date().toISOString() })
+          .eq('solicitud_id', solId);
+      }
+    } catch(e) { console.warn('Diseno upload error:', e); }
+    disenoFileToUpload = null;
+  }
+  await cambiarEstadoDirecto(solId, 'diseno_en_revision_comercial');
 }
 
 // ── NOTIFICACIONES ────────────────────────────────────────
