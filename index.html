@@ -52,7 +52,7 @@
   .role-tag { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px; border-radius: 20px; background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); }
 
   /* ── NAV ── */
-  .nav { background: var(--c-white); border-bottom: 1px solid var(--c-line); padding: 0 1.5rem; display: flex; gap: 0; }
+  .nav { background: var(--c-white); border-bottom: 1px solid var(--c-line); padding: 0 1.5rem; display: flex; gap: 0; position: sticky; top: 52px; z-index: 99; }
   .nav-btn { padding: .75rem 1rem; font-size: 13px; font-weight: 500; color: var(--c-mid); background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; transition: color .15s, border-color .15s; white-space: nowrap; }
   .nav-btn:hover { color: var(--c-dark); }
   .nav-btn.active { color: var(--c-dark); border-bottom-color: var(--c-amber); }
@@ -544,7 +544,7 @@
 
 <!-- ── MODAL DETALLE ────────────────────────────────────── -->
 <div class="modal-bg" id="modal-detalle">
-  <div class="modal" style="max-width:760px">
+  <div class="modal" style="max-width:900px;max-height:92vh;overflow-y:auto">
     <div class="modal-header">
       <div>
         <div class="modal-title" id="det-title">Solicitud</div>
@@ -1732,7 +1732,13 @@ async function saveSolicitud(estadoTarget) {
 async function openDetalle(solId) {
   const sol = allSolicitudes.find(s => s.id === solId);
   if (!sol) return;
+
+  // Show modal immediately with loading state
   document.getElementById('det-title').textContent = `Solicitud ${sol.cod_sap}`;
+  document.getElementById('det-sub').textContent = 'Cargando...';
+  document.getElementById('det-body').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--c-mid)"><div class="loading" style="border-top-color:var(--c-amber);width:24px;height:24px;border-width:3px;display:inline-block"></div><p style="margin-top:.75rem;font-size:13px">Cargando solicitud...</p></div>';
+  document.getElementById('det-footer').innerHTML = '<button class="btn btn-outline" onclick="closeModal('modal-detalle')">Cerrar</button>';
+  document.getElementById('modal-detalle').classList.add('open');
   const campNombre = allCampanas?.find?.(c => c.id === sol.campana_id)?.nombre || activeCampana?.nombre || '';
   document.getElementById('det-sub').textContent = `${sol.nombre_empresa||''} · ${sol.provincia||''} · ${ESTADO_LABEL[sol.estado]}${campNombre ? ' · ' + campNombre : ''}`;
 
@@ -1823,9 +1829,13 @@ async function openDetalle(solId) {
 
   // Two-column layout
   document.getElementById('det-body').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 340px;gap:1rem;align-items:start">
+    <div style="display:grid;grid-template-columns:3fr 2fr;gap:1.25rem;align-items:start">
       <div>${htmlLeft}</div>
-      <div style="position:sticky;top:0">${htmlRight}</div>
+      <div>
+        <div style="position:sticky;top:8px;max-height:calc(90vh - 200px);overflow-y:auto;padding-right:4px">
+          ${htmlRight}
+        </div>
+      </div>
     </div>`;
 
   // Acciones según rol y estado
