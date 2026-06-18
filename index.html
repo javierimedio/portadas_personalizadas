@@ -301,6 +301,7 @@
           <option value="confirmada">Confirmada</option>
         </select>
         <button class="btn btn-sm" style="background:var(--c-green-l);color:var(--c-green);border:1px solid var(--c-green);font-weight:600" onclick="exportExcel()">↓ Exportar Excel</button>
+        <button class="btn btn-sm btn-amber" onclick="autoAdjudicar()" title="Asigna automáticamente la portada final a cada cliente según provincia y prioridad">⚡ Auto-adjudicar portadas</button>
         
       </div>
       <div class="card" style="padding:0">
@@ -2229,8 +2230,14 @@ async function cambiarEstado(solId, nuevoEstado) {
   await cambiarEstadoDirecto(solId, nuevoEstado);
 }
 
+let _cambiarEstadoInProgress = false;
 async function cambiarEstadoDirecto(solId, nuevoEstado) {
+  if (_cambiarEstadoInProgress) return;
+  _cambiarEstadoInProgress = true;
+  try {
   const estadoAnterior = allSolicitudes.find(s => s.id === solId)?.estado;
+  // Check it hasn't already changed (prevent double-click)
+  if (estadoAnterior === nuevoEstado) { _cambiarEstadoInProgress = false; return; }
   await db.from('solicitudes').update({ estado: nuevoEstado }).eq('id', solId);
   await db.from('logs').insert({
     solicitud_id: solId,
@@ -2250,6 +2257,7 @@ async function cambiarEstadoDirecto(solId, nuevoEstado) {
   await loadData();
   loadNotifications();
   showToast(`Estado: ${ESTADO_LABEL[nuevoEstado] || nuevoEstado}`);
+  } finally { _cambiarEstadoInProgress = false; }
 }
 
 async function eliminarSolicitud(solId) {
@@ -3063,6 +3071,79 @@ document.addEventListener('click', (e) => {
     if (!dd.contains(e.target)) dd.style.display = 'none';
   });
 });
+
+// ── AUTO-ADJUDICACIÓN DE PORTADAS ─────────────────────────
+async function autoAdjudicar() {
+  if (!['marketing','admin'].includes(currentPerfil?.rol)) { showToast('Sin permisos.'); return; }
+  const solsEnRevision = allSolicitudes.filter(s => s.estado === 'en_revision_marketing');
+  if (!solsEnRevision.length) {
+    showToast('No hay solicitudes en estado "En revisión" para adjudicar.');
+    return;
+  }
+
+  const campNombre = activeCampana?.nombre || 'campaña activa';
+  if (!confirm(`¿Auto-adjudicar portadas para ${solsEnRevision.length} solicitudes en revisión de ${campNombre}?\n\nEl sistema asignará la portada disponible de mayor prioridad para cada cliente, evitando repeticiones por provincia.`)) return;
+
+  showToast('Procesando auto-adjudicación...');
+
+  // Sort by created_at — earliest gets priority
+  const sorted = [...solsEnRevision].sort((a, b) =>
+    new Date(a.created_at) - new Date(b.created_at)
+  );
+
+  // Track assigned portadas per province+catalog
+  // usedPortadas[provincia][catalogo] = Set of portadas already assigned
+  const usedPortadas = {};
+
+  let adjudicadas = 0;
+  let sinOpciones = 0;
+
+  for (const sol of sorted) {
+    const provincia = sol.provincia || 'SIN_PROVINCIA';
+    if (!usedPortadas[provincia]) usedPortadas[provincia] = {};
+
+    const cats = ['roly', 'roly_wrk', 'stamina'];
+    for (const catKey of cats) {
+      const cat = sol.solicitud_catalogos?.find(c => c.catalogo === catKey);
+      if (!cat || !cat.portada_personalizada || cat.portada_diseno_propio) continue;
+      if (cat.portada_elegida) continue; // already assigned, skip
+
+      if (!usedPortadas[provincia][catKey]) usedPortadas[provincia][catKey] = new Set();
+      const used = usedPortadas[provincia][catKey];
+
+      // Try options in priority order
+      const opciones = [cat.portada_opcion_1, cat.portada_opcion_2, cat.portada_opcion_3].filter(Boolean);
+      let elegida = null;
+      for (const opcion of opciones) {
+        if (!used.has(opcion)) {
+          elegida = opcion;
+          break;
+        }
+      }
+
+      if (elegida) {
+        used.add(elegida);
+        await db.from('solicitud_catalogos')
+          .update({ portada_elegida: elegida })
+          .eq('solicitud_id', sol.id)
+          .eq('catalogo', catKey);
+        adjudicadas++;
+      } else {
+        sinOpciones++;
+      }
+    }
+  }
+
+  await loadData();
+  const msg = `Auto-adjudicación completada: ${adjudicadas} portadas asignadas${sinOpciones > 0 ? `, ${sinOpciones} sin opción disponible (revisar manualmente)` : ''}.`;
+  showToast(msg);
+
+  if (sinOpciones > 0) {
+    setTimeout(() => {
+      alert(msg + '\n\nLas solicitudes sin opción disponible necesitan revisión manual — todas sus opciones ya estaban asignadas a otros clientes de la misma provincia.');
+    }, 500);
+  }
+}
 
 // ── CAMPAÑAS ──────────────────────────────────────────────
 let allCampanas = [];
