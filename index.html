@@ -1772,7 +1772,7 @@ async function openDetalle(solId) {
     const tipoLabel = { logo_general: 'Logo cliente', stamina_diseno: 'Diseño Stamina', roly: 'Roly', roly_wrk: 'Roly WRK', stamina: 'Stamina' };
     htmlLeft += `<div class="card" style="margin-bottom:1rem"><div class="card-title">Archivos adjuntos (${adjuntos.length})</div>`;
     adjuntos.forEach(a => {
-      html += `<div style="font-size:12px;padding:8px 0;display:flex;gap:10px;align-items:center;border-bottom:0.5px solid var(--c-line)">
+      htmlLeft += `<div style="font-size:12px;padding:8px 0;display:flex;gap:10px;align-items:center;border-bottom:0.5px solid var(--c-line)">
         <span style="font-size:18px">📎</span>
         <div style="flex:1;min-width:0">
           <div style="font-weight:500;color:var(--c-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.nombre}</div>
@@ -1783,7 +1783,7 @@ async function openDetalle(solId) {
         </button>
       </div>`;
     });
-    html += '</div>';
+    htmlLeft += '</div>';
   }
 
   // Add comment section and log to RIGHT column
