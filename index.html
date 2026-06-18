@@ -1606,7 +1606,7 @@ async function onIdiomaChange() {
   }
 }
 
-function checkCampanaAndOpen() {
+async function checkCampanaAndOpen() {
   if (activeCampana?.fecha_cierre) {
     const cierre = new Date(activeCampana.fecha_cierre);
     cierre.setHours(23, 59, 59);
