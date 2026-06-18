@@ -1845,27 +1845,32 @@ async function openDetalle(solId) {
           <span>Unds: <strong>${c.unidades||'—'}</strong></span>
         </div>
       </div>
-      ${(()=>{
-        if (!c.portada_personalizada || c.portada_diseno_propio) return '';
-        const canChoose = ['marketing','admin'].includes(rol) && ['en_revision_marketing','en_diseno'].includes(est);
-        const opciones = [c.portada_opcion_1,c.portada_opcion_2,c.portada_opcion_3].filter(Boolean);
-        if (canChoose && opciones.length) return \`<div style="padding:.5rem 1rem .75rem">
-          <div style="background:var(--c-amber-l);border:1px solid var(--c-amber);border-radius:6px;padding:10px 12px">
-            <label style="font-size:11px;font-weight:700;color:var(--c-amber);display:block;margin-bottom:6px">✓ SELECCIONAR PORTADA FINAL</label>
-            <select onchange="guardarPortadaElegida('\${sol.id}','\${cat.key}',this.value)"
-              style="width:100%;font-size:13px;border:1px solid var(--c-amber);border-radius:4px;padding:5px 8px;background:white">
-              <option value="">— selecciona la portada final —</option>
-              \${opciones.map((o,i)=>\`<option value="\${o}" \${c.portada_elegida===o?'selected':''}>\${['1ª','2ª','3ª'][i]} opción: \${o}</option>\`).join('')}
-            </select>
-            \${c.portada_elegida ? \`<div style="font-size:11px;color:var(--c-amber);margin-top:6px;font-weight:600">✓ Elegida: \${c.portada_elegida}</div>\` : ''}
-          </div></div>\`;
-        if (c.portada_elegida) return \`<div style="padding:.25rem 1rem .5rem">
-          <div style="background:var(--c-green-l);border-radius:4px;padding:5px 10px;font-size:12px;font-weight:600;color:var(--c-green)">
-            ✓ Portada elegida: \${c.portada_elegida}
-          </div></div>\`;
-        return '';
-      })()}
-    </div>\`;
+    </div>`;
+
+    // Portada elegida block — built separately to avoid nested template literal issues
+    if (c.portada_personalizada && !c.portada_diseno_propio) {
+      const canChoose = ['marketing','admin'].includes(rol) && ['en_revision_marketing','en_diseno'].includes(est);
+      const opciones = [c.portada_opcion_1, c.portada_opcion_2, c.portada_opcion_3].filter(Boolean);
+      if (canChoose && opciones.length) {
+        let optsHtml = '<option value="">— selecciona la portada final —</option>';
+        opciones.forEach((o, i) => {
+          const sel = c.portada_elegida === o ? ' selected' : '';
+          optsHtml += '<option value="' + o + '"' + sel + '>' + ['1ª','2ª','3ª'][i] + ' opción: ' + o + '</option>';
+        });
+        const elegidaNote = c.portada_elegida
+          ? '<div style="font-size:11px;color:var(--c-amber);margin-top:6px;font-weight:600">✓ Elegida: ' + c.portada_elegida + '</div>'
+          : '';
+        htmlLeft += '<div style="padding:.5rem 1rem .75rem">'
+          + '<div style="background:var(--c-amber-l);border:1px solid var(--c-amber);border-radius:6px;padding:10px 12px">'
+          + '<label style="font-size:11px;font-weight:700;color:var(--c-amber);display:block;margin-bottom:6px">✓ SELECCIONAR PORTADA FINAL</label>'
+          + '<select onchange="guardarPortadaElegida(&#39;' + sol.id + '&#39;,&#39;' + cat.key + '&#39;,this.value)" style="width:100%;font-size:13px;border:1px solid var(--c-amber);border-radius:4px;padding:5px 8px;background:white">'
+          + optsHtml + '</select>' + elegidaNote + '</div></div>';
+      } else if (c.portada_elegida) {
+        htmlLeft += '<div style="padding:.25rem 1rem .5rem">'
+          + '<div style="background:var(--c-green-l);border-radius:4px;padding:5px 10px;font-size:12px;font-weight:600;color:var(--c-green)">'
+          + '✓ Portada elegida: ' + c.portada_elegida + '</div></div>';
+      }
+    }
   });
 
   if (sol.comentarios) htmlLeft += `<div class="card" style="margin-bottom:1rem"><div class="card-title">Comentarios generales</div><p style="font-size:13px">${sol.comentarios}</p></div>`;
