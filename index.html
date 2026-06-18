@@ -1492,9 +1492,9 @@ function renderStats() {
   document.getElementById('stats-row').innerHTML = `
     <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">Total</div></div>
     <div class="stat-card amber"><div class="stat-num">${porEstado('enviada')}</div><div class="stat-lbl">Enviadas</div></div>
-    <div class="stat-card blue"><div class="stat-num">${porEstado('en_revision_marketing')}</div><div class="stat-lbl">En revisión Mkt.</div></div>
+    <div class="stat-card blue"><div class="stat-num">${porEstado('en_revision_marketing')}</div><div class="stat-lbl">En revisión Marketing</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--c-purple)">${porEstado('en_diseno') + porEstado('modificar_diseno')}</div><div class="stat-lbl">En diseño</div></div>
-    <div class="stat-card"><div class="stat-num" style="color:var(--c-amber)">${porEstado('diseno_en_revision_comercial')}</div><div class="stat-lbl">Revisión cliente</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--c-amber)">${porEstado('diseno_en_revision_comercial')}</div><div class="stat-lbl">En revisión del cliente</div></div>
     <div class="stat-card green"><div class="stat-num">${porEstado('confirmada')}</div><div class="stat-lbl">Confirmadas</div></div>
     <div class="stat-card red"><div class="stat-num">${total - completas}</div><div class="stat-lbl">Incompletas</div></div>
   `;
