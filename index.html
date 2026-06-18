@@ -2807,32 +2807,42 @@ function renderDashboard() {
   const unWrk     = sols.reduce((a,s) => a + (s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.unidades||0), 0);
   const unStamina = sols.reduce((a,s) => a + (s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0), 0);
 
-  document.getElementById('dash-kpis').innerHTML = [
-    { num: total,                                          lbl: 'Total solicitudes',  cls: '' },
-    { num: sols.filter(s=>s.estado==='enviada').length,    lbl: 'Enviadas',            cls: 'amber' },
-    { num: confirmadas,                                    lbl: 'Completadas ✓',       cls: 'green' },
-    { num: enDiseno,                                       lbl: 'En diseño',           cls: 'blue' },
-    { num: pendientes,                                     lbl: 'En revisión',         cls: '' },
-    { num: (unRoly+unWrk+unStamina).toLocaleString(),     lbl: 'Total unidades',      cls: '' },
-    { num: (() => {
-        const nacional = sols.filter(s => (s.idioma||'').toUpperCase() === 'ESPAÑOL');
-        return nacional.reduce((a,s) => a +
-          (s.solicitud_catalogos?.find(c=>c.catalogo==='roly')?.unidades||0) +
-          (s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.unidades||0) +
-          (s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0), 0);
-      })().toLocaleString(),                                 lbl: 'Uds. Nacional (ES)',  cls: '' },
-    { num: (() => {
-        const export_ = sols.filter(s => (s.idioma||'').toUpperCase() !== 'ESPAÑOL' && s.idioma);
-        return export_.reduce((a,s) => a +
-          (s.solicitud_catalogos?.find(c=>c.catalogo==='roly')?.unidades||0) +
-          (s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.unidades||0) +
-          (s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0), 0);
-      })().toLocaleString(),                                 lbl: 'Uds. Export',         cls: '' },
-  ].map(k => `
-    <div class="stat-card ${k.cls}">
-      <div class="stat-num">${k.num}</div>
-      <div class="stat-lbl">${k.lbl}</div>
-    </div>`).join('');
+  const unNacional = sols.filter(s => (s.idioma||'').toUpperCase() === 'ESPAÑOL')
+    .reduce((a,s) => a +
+      (s.solicitud_catalogos?.find(c=>c.catalogo==='roly')?.unidades||0) +
+      (s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.unidades||0) +
+      (s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0), 0);
+  const unExport = sols.filter(s => (s.idioma||'').toUpperCase() !== 'ESPAÑOL' && s.idioma)
+    .reduce((a,s) => a +
+      (s.solicitud_catalogos?.find(c=>c.catalogo==='roly')?.unidades||0) +
+      (s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.unidades||0) +
+      (s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0), 0);
+
+  const solicitudesKpis = [
+    { num: total,                                           lbl: 'Total solicitudes', cls: '' },
+    { num: sols.filter(s=>s.estado==='enviada').length,     lbl: 'Enviadas',          cls: 'amber' },
+    { num: pendientes,                                      lbl: 'En revisión',       cls: '' },
+    { num: enDiseno,                                        lbl: 'En diseño',         cls: 'blue' },
+    { num: confirmadas,                                     lbl: 'Completadas ✓',     cls: 'green' },
+  ];
+  const unidadesKpis = [
+    { num: (unRoly+unWrk+unStamina).toLocaleString(),      lbl: 'Total unidades',    cls: '' },
+    { num: unNacional.toLocaleString(),                     lbl: 'Nacional (ES)',     cls: '' },
+    { num: unExport.toLocaleString(),                       lbl: 'Export',            cls: '' },
+  ];
+
+  document.getElementById('dash-kpis').innerHTML =
+    solicitudesKpis.map(k => `
+      <div class="stat-card ${k.cls}">
+        <div class="stat-num">${k.num}</div>
+        <div class="stat-lbl">${k.lbl}</div>
+      </div>`).join('') +
+    `<div style="width:1px;background:var(--c-line);margin:0 4px;align-self:stretch"></div>` +
+    unidadesKpis.map(k => `
+      <div class="stat-card ${k.cls}">
+        <div class="stat-num">${k.num}</div>
+        <div class="stat-lbl">${k.lbl}</div>
+      </div>`).join('');
 
   // ── CHART 1: Estados (Doughnut) ──
   const estadoOrder = ['borrador','enviada','en_revision_marketing','en_diseno','diseno_en_revision_comercial','modificar_diseno','confirmada'];
