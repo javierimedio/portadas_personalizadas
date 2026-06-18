@@ -1771,18 +1771,45 @@ async function openDetalle(solId) {
   if (adjuntos?.length) { // adjuntos go left
     const tipoLabel = { logo_general: 'Logo cliente', stamina_diseno: 'Diseño Stamina', roly: 'Roly', roly_wrk: 'Roly WRK', stamina: 'Stamina' };
     htmlLeft += `<div class="card" style="margin-bottom:1rem"><div class="card-title">Archivos adjuntos (${adjuntos.length})</div>`;
-    adjuntos.forEach(a => {
-      htmlLeft += `<div style="font-size:12px;padding:8px 0;display:flex;gap:10px;align-items:center;border-bottom:0.5px solid var(--c-line)">
-        <span style="font-size:18px">📎</span>
+    // Group adjuntos by type
+    const logos = adjuntos.filter(a => a.tipo === 'logo_general');
+    const disenos = adjuntos.filter(a => ['diseno_portada','stamina_diseno'].includes(a.tipo));
+    const otros = adjuntos.filter(a => !['logo_general','diseno_portada','stamina_diseno'].includes(a.tipo));
+
+    function adjuntoRow(a, accent) {
+      return `<div style="display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:6px;background:${accent}20;margin-bottom:4px">
         <div style="flex:1;min-width:0">
-          <div style="font-weight:500;color:var(--c-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.nombre}</div>
-          <div style="font-size:10px;color:var(--c-mid);margin-top:2px">${tipoLabel[a.tipo]||a.tipo} · ${fmtDate(a.created_at)} · ${a.subido_por_nombre||''}</div>
+          <div style="font-weight:500;font-size:12px;color:var(--c-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.nombre}</div>
+          <div style="font-size:10px;color:var(--c-mid);margin-top:1px">${fmtDate(a.created_at)} · ${a.subido_por_nombre||''}</div>
         </div>
-        <button onclick="window.open('${a.url}','_blank')" class="btn btn-sm btn-outline" style="flex-shrink:0">
-          Ver / Descargar
-        </button>
+        <button onclick="window.open('${a.url}','_blank')" class="btn btn-sm btn-outline" style="flex-shrink:0;font-size:11px">↗ Ver</button>
       </div>`;
-    });
+    }
+
+    if (logos.length) {
+      htmlLeft += `<div style="margin-bottom:.75rem">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--c-amber);margin-bottom:4px;display:flex;align-items:center;gap:6px">
+          <span>🏷</span> Logo del cliente
+        </div>
+        ${logos.map(a => adjuntoRow(a, 'var(--c-amber)')).join('')}
+      </div>`;
+    }
+    if (disenos.length) {
+      htmlLeft += `<div style="margin-bottom:.75rem">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--c-purple);margin-bottom:4px;display:flex;align-items:center;gap:6px">
+          <span>🎨</span> Diseños de portada
+        </div>
+        ${disenos.map(a => adjuntoRow(a, 'var(--c-purple)')).join('')}
+      </div>`;
+    }
+    if (otros.length) {
+      htmlLeft += `<div style="margin-bottom:.75rem">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--c-mid);margin-bottom:4px;display:flex;align-items:center;gap:6px">
+          <span>📎</span> Otros archivos
+        </div>
+        ${otros.map(a => adjuntoRow(a, 'var(--c-mid)')).join('')}
+      </div>`;
+    }
     htmlLeft += '</div>';
   }
 
@@ -1863,18 +1890,22 @@ async function openDetalle(solId) {
   // Diseñador/Marketing/Admin: en diseño o modificar → subir diseño y marcar listo
   if ((rol === 'disenador' || rol === 'admin' || rol === 'marketing') && (est === 'en_diseno' || est === 'modificar_diseno')) {
     btns += `
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div style="width:100%">
         <div id="diseno-upload-zone"
-          style="border:1.5px dashed var(--c-line);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--c-mid);display:flex;align-items:center;gap:6px"
-          ondragover="event.preventDefault();this.style.borderColor='var(--c-amber)'"
-          ondragleave="this.style.borderColor='var(--c-line)'"
-          ondrop="event.preventDefault();this.style.borderColor='var(--c-line)';handleDisenoUpload(event,'${solId}')"
+          style="border:2px dashed var(--c-line);border-radius:8px;padding:1rem;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:8px;background:var(--c-white)"
+          ondragover="event.preventDefault();event.stopPropagation();document.getElementById('diseno-upload-zone').style.borderColor='var(--c-amber)';document.getElementById('diseno-upload-zone').style.background='var(--c-amber-l)'"
+          ondragleave="document.getElementById('diseno-upload-zone').style.borderColor='var(--c-line)';document.getElementById('diseno-upload-zone').style.background='var(--c-white)'"
+          ondrop="event.preventDefault();event.stopPropagation();document.getElementById('diseno-upload-zone').style.borderColor='var(--c-line)';document.getElementById('diseno-upload-zone').style.background='var(--c-white)';handleDisenoUpload(event,'${solId}')"
           onclick="document.getElementById('file-diseno-det').click()">
-          🎨 Subir diseño de portada
+          <div style="font-size:24px;margin-bottom:4px">🎨</div>
+          <div id="diseno-upload-label" style="font-size:13px;font-weight:500;color:var(--c-dark)">Arrastra el diseño aquí o haz clic</div>
+          <div style="font-size:11px;color:var(--c-mid);margin-top:2px">PDF · JPG · PNG · AI · EPS</div>
         </div>
         <input type="file" id="file-diseno-det" accept=".pdf,.jpg,.jpeg,.png,.ai,.eps" style="display:none"
           onchange="handleDisenoFileInput(event,'${solId}')">
-        <button class="btn btn-amber" onclick="marcarDisenoListo('${solId}')">Diseño listo → Revisión cliente</button>
+        <button class="btn btn-amber" style="width:100%" onclick="marcarDisenoListo('${solId}')">
+          Diseño listo → Revisión cliente
+        </button>
       </div>`;
   }
 
@@ -2833,10 +2864,14 @@ function handleDisenoFileInput(event, solId) {
 
 function updateDisenoZone(nombre) {
   const zone = document.getElementById('diseno-upload-zone');
+  const label = document.getElementById('diseno-upload-label');
   if (zone) {
     zone.style.borderColor = 'var(--c-green)';
-    zone.style.color = 'var(--c-green)';
-    zone.innerHTML = `✓ ${nombre}`;
+    zone.style.background = 'var(--c-green-l)';
+  }
+  if (label) {
+    label.style.color = 'var(--c-green)';
+    label.textContent = '✓ ' + nombre;
   }
 }
 
