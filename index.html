@@ -1828,6 +1828,8 @@ async function openDetalle(solId) {
 
   let htmlLeft = '';
   let htmlRight = '';
+  const rol = currentPerfil?.rol;
+  const est = sol.estado;
   // Catalogos
   CATS.forEach(cat => {
     const c = sol.solicitud_catalogos?.find(x => x.catalogo === cat.key);
