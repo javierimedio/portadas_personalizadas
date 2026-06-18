@@ -434,9 +434,9 @@
           </div>
         </div>
         <div class="card">
-          <div class="card-title">Unidades por catálogo</div>
+          <div class="card-title">Unidades por catálogo / idioma</div>
           <div style="position:relative;height:200px;overflow:hidden">
-            <canvas id="chart-unidades-dash"></canvas>
+            <canvas id="chart-unidades-idioma"></canvas>
           </div>
         </div>
       </div>
@@ -2809,7 +2809,7 @@ function renderDashboard() {
   }
 
   // ── CHART 3: Unidades por catálogo (Bar) ──
-  const ctx3 = document.getElementById('chart-unidades') || document.getElementById('chart-unidades-dash');
+  const ctx3 = document.getElementById('chart-unidades');
   if (ctx3) {
     dashCharts.unidades = new Chart(ctx3, {
       type: 'bar',
@@ -2913,6 +2913,37 @@ function renderDashboard() {
         scales: {
           x: { grid: { color: '#F1EFE8' }, ticks: { font: { family: 'Inter', size: 10 } } },
           y: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 10 } } }
+        }
+      }
+    });
+  }
+
+  // ── CHART: Unidades por catálogo / idioma (stacked) ──
+  const idiomaKeys = idiomaEntries.map(e => e[0]);
+  const undsRolyByIdioma    = idiomaKeys.map(id => sols.filter(s => (s.idioma||'Sin especificar')===id).reduce((a,s) => a+(s.solicitud_catalogos?.find(c=>c.catalogo==='roly')?.unidades||0),0));
+  const undsWrkByIdioma     = idiomaKeys.map(id => sols.filter(s => (s.idioma||'Sin especificar')===id).reduce((a,s) => a+(s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.unidades||0),0));
+  const undsStaminaByIdioma = idiomaKeys.map(id => sols.filter(s => (s.idioma||'Sin especificar')===id).reduce((a,s) => a+(s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0),0));
+
+  const ctxUI = document.getElementById('chart-unidades-idioma');
+  if (ctxUI) {
+    if (dashCharts.unidadesIdioma) dashCharts.unidadesIdioma.destroy();
+    dashCharts.unidadesIdioma = new Chart(ctxUI, {
+      type: 'bar',
+      data: {
+        labels: idiomaKeys,
+        datasets: [
+          { label: 'Roly',     data: undsRolyByIdioma,    backgroundColor: '#003087', borderRadius: 3 },
+          { label: 'Roly WRK', data: undsWrkByIdioma,     backgroundColor: '#FAB518', borderRadius: 3 },
+          { label: 'Stamina',  data: undsStaminaByIdioma, backgroundColor: '#E30613', borderRadius: 3 },
+        ]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        animation: { duration: 400 },
+        plugins: { legend: { labels: { font: { family: 'Inter', size: 10 }, boxWidth: 10 } } },
+        scales: {
+          x: { stacked: true, grid: { color: '#F1EFE8' }, ticks: { font: { family: 'Inter', size: 10 } } },
+          y: { stacked: true, grid: { display: false }, ticks: { font: { family: 'Inter', size: 10 } } }
         }
       }
     });
