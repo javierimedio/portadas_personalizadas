@@ -1163,7 +1163,7 @@ async function loadSolicitudes(campanaId = null) {
     .select(`*, solicitud_catalogos(*), adjuntos(*), perfiles!solicitudes_comercial_id_fkey(nombre, codigo)`)
     .order('updated_at', { ascending: false });
   if (['comercial'].includes(currentPerfil?.rol)) q = q.eq('comercial_id', currentUser.id);
-  if (['disenador'].includes(currentPerfil?.rol)) q = q.eq('asignado_id', currentUser.id);
+  // disenador: filtered in renderDisenoTable by estado, not here
   // responsable sees all — no filter needed
   // Default: filter by active campaign. If campanaId passed explicitly use that. '' = all.
   const campFiltro = campanaId !== null ? campanaId : activeCampana?.id;
@@ -1337,16 +1337,8 @@ function renderMktTable() {
 function renderDisenoTable() {
   const rol = currentPerfil?.rol;
   let rows = allSolicitudes;
-  // Disenador only sees en_diseno and modificar_diseno, and only their assigned ones
-  if (rol === 'disenador') {
-    rows = rows.filter(s =>
-      ['en_diseno','modificar_diseno'].includes(s.estado) &&
-      s.asignado_id === currentUser.id
-    );
-  } else {
-    // Marketing/admin see all design states
-    rows = rows.filter(s => ['en_diseno','modificar_diseno','diseno_en_revision_comercial'].includes(s.estado));
-  }
+  // All roles in Diseño tab see en_diseno and modificar_diseno
+  rows = rows.filter(s => ['en_diseno','modificar_diseno'].includes(s.estado));
   const tbody = document.getElementById('tbl-diseno');
   if (!rows.length) { tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">🎨</div><p>No hay solicitudes asignadas.</p></div></td></tr>`; return; }
   tbody.innerHTML = rows.map(s => `
