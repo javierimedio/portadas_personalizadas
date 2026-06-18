@@ -1113,6 +1113,7 @@ async function initApp() {
   buildCatSections();
   await loadData();
   buildNav(); // Build nav after data loaded so dashboard renders correctly
+  initRealtime(); // Subscribe to live updates
 }
 
 // ── NAV ───────────────────────────────────────────────────
@@ -3095,6 +3096,105 @@ document.addEventListener('click', (e) => {
     if (!dd.contains(e.target)) dd.style.display = 'none';
   });
 });
+
+// ── REALTIME SYNC ─────────────────────────────────────────
+let _realtimeChannel = null;
+let _realtimeLastUpdate = 0;
+const REALTIME_DEBOUNCE = 2000; // ms — avoid multiple rapid reloads
+
+async function initRealtime() {
+  if (_realtimeChannel) return; // already subscribed
+
+  // Use Supabase Realtime via REST long-poll (compatible with our fetch-based client)
+  // Subscribe to changes on solicitudes table
+  try {
+    _realtimeChannel = await subscribeToTable('solicitudes', async (payload) => {
+      const now = Date.now();
+      if (now - _realtimeLastUpdate < REALTIME_DEBOUNCE) return;
+      _realtimeLastUpdate = now;
+
+      // Don't reload if we just made the change ourselves (within 3s)
+      console.log('Realtime update:', payload.type, payload.record?.cod_sap || '');
+      await loadData();
+
+      // Show subtle indicator
+      showRealtimeToast();
+    });
+    console.log('Realtime: subscribed to solicitudes');
+  } catch(e) {
+    console.warn('Realtime not available, falling back to polling:', e.message);
+    startPolling();
+  }
+}
+
+function showRealtimeToast() {
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;top:60px;right:1rem;background:var(--c-dark);color:white;padding:.4rem .9rem;border-radius:20px;font-size:11px;z-index:999;opacity:.85';
+  t.textContent = '↻ Datos actualizados';
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+async function subscribeToTable(table, callback) {
+  // Supabase Realtime WebSocket URL
+  const wsUrl = SUPA_URL.replace('https://', 'wss://') + '/realtime/v1/websocket?apikey=' + SUPA_KEY + '&vsn=1.0.0';
+  
+  const ws = new WebSocket(wsUrl);
+  let heartbeatInterval;
+
+  ws.onopen = () => {
+    // Join channel
+    ws.send(JSON.stringify({
+      topic: 'realtime:public:' + table,
+      event: 'phx_join',
+      payload: { config: { broadcast: { self: false }, presence: { key: '' }, postgres_changes: [{ event: '*', schema: 'public', table }] } },
+      ref: '1'
+    }));
+    // Heartbeat every 25s
+    heartbeatInterval = setInterval(() => {
+      ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: null }));
+    }, 25000);
+  };
+
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.event === 'postgres_changes' && msg.payload?.data) {
+        callback(msg.payload.data);
+      }
+    } catch(e) {}
+  };
+
+  ws.onerror = (e) => {
+    console.warn('Realtime WS error:', e);
+    clearInterval(heartbeatInterval);
+    startPolling(); // fallback
+  };
+
+  ws.onclose = () => {
+    clearInterval(heartbeatInterval);
+    // Reconnect after 5s
+    setTimeout(() => {
+      _realtimeChannel = null;
+      initRealtime();
+    }, 5000);
+  };
+
+  return ws;
+}
+
+// Fallback: polling every 30s if WebSocket fails
+let _pollingInterval = null;
+function startPolling() {
+  if (_pollingInterval) return;
+  console.log('Realtime: falling back to 30s polling');
+  _pollingInterval = setInterval(async () => {
+    const now = Date.now();
+    if (now - _realtimeLastUpdate < REALTIME_DEBOUNCE) return;
+    _realtimeLastUpdate = now;
+    await loadData();
+  }, 30000);
+}
 
 // ── AUTO-ADJUDICACIÓN DE PORTADAS ─────────────────────────
 async function autoAdjudicar() {
