@@ -1425,31 +1425,50 @@ async function populateCampanaFilter() {
   const campanas = await loadAllCampanas();
   allCampanas = campanas;
 
-  // Panel global selector
+  // Find default campaign: active with latest fecha_cierre
+  const activas = campanas.filter(c => c.activa);
+  const defaultCamp = activas.sort((a,b) => {
+    const da = a.fecha_cierre ? new Date(a.fecha_cierre) : new Date(0);
+    const db = b.fecha_cierre ? new Date(b.fecha_cierre) : new Date(0);
+    return db - da; // descending — latest cierre first
+  })[0] || activas[0] || null;
+
+  const defaultId = defaultCamp?.id || '';
+
+  // Panel global selector (filter-campana)
   const sel = document.getElementById('filter-campana');
   if (sel) {
     while (sel.options.length > 1) sel.remove(1);
-    campanas.forEach(c => {
+    activas.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.id;
-      opt.textContent = c.nombre + (c.activa ? ' ★' : '');
+      opt.textContent = c.nombre + (c.id === defaultCamp?.id ? ' ★' : '');
+      if (c.id === defaultId) opt.selected = true;
       sel.appendChild(opt);
     });
+    sel.value = defaultId;
   }
 
-  // Dashboard selector
+  // Dashboard selector (dash-filter-campana)
   const dashSel = document.getElementById('dash-filter-campana');
   if (dashSel) {
     while (dashSel.options.length > 1) dashSel.remove(1);
-    campanas.forEach(c => {
+    activas.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.id;
-      opt.textContent = c.nombre + (c.activa ? ' ★' : '');
+      opt.textContent = c.nombre + (c.id === defaultCamp?.id ? ' ★' : '');
+      if (c.id === defaultId) opt.selected = true;
       dashSel.appendChild(opt);
     });
+    dashSel.value = defaultId;
+  }
+
+  // Update activeCampana to default
+  if (defaultCamp) {
+    activeCampana = defaultCamp;
+    updateCatsForCampana(defaultCamp);
   }
 }
-
 function renderMktTable() {
   const q          = document.getElementById('search-mkt')?.value.toLowerCase() || '';
   const est        = document.getElementById('filter-estado')?.value || '';
@@ -2639,30 +2658,41 @@ async function toggleUser(id, activo) {
 
 // ── EXPORT EXCEL ──────────────────────────────────────────
 async function exportExcel() {
-  const campNombre = activeCampana?.nombre || 'Portadas';
+  // Determine campaign and catalogs from panel global selector
+  const campId = document.getElementById('filter-campana')?.value || '';
+  const exportCamp = campId ? allCampanas.find(c => c.id === campId) : activeCampana;
+  const campNombre = exportCamp?.nombre || 'Portadas';
   const fecha = new Date().toISOString().slice(0,10);
 
-  const dataRows = allSolicitudes.map(sol => {
+  // Get catalogs for this campaign
+  const exportCatKeys = exportCamp?.catalogos || ALL_CATS.map(c => c.key);
+  const exportCats = ALL_CATS.filter(c => exportCatKeys.includes(c.key));
+
+  // Filter solicitudes by selected campaign
+  const exportSols = campId
+    ? allSolicitudes.filter(s => s.campana_id === campId)
+    : allSolicitudes;
+
+  const dataRows = exportSols.map(sol => {
     const get = (key) => sol.solicitud_catalogos?.find(c => c.catalogo === key);
-    const r = get('roly'), w = get('roly_wrk'), s = get('stamina');
+    const r = get('roly'), w = get('roly_wrk'), s = get('stamina'), x = get('xmas');
     const missing = missingFields(sol);
     const bool = (v) => v === true ? 'SI' : v === false ? 'NO' : '';
+    const catCols = exportCats.flatMap(cat => {
+      const c = get(cat.key);
+      return [
+        bool(c?.catalogo_digital), bool(c?.catalogo_impreso),
+        bool(c?.portada_personalizada),
+        c?.portada_diseno_propio ? 'DISEÑO PROPIO' : (c?.portada_opcion_1 || ''),
+        c?.portada_opcion_2 || '', c?.portada_opcion_3 || '',
+        c?.portada_elegida || '', c?.posicion_logo || '', c?.unidades || 0,
+      ];
+    });
     return [
       sol.cod_sap || '', sol.nombre_empresa || '',
       sol.perfiles?.nombre || sol.perfiles?.codigo || '',
       sol.idioma || '', sol.provincia || '',
-      bool(r?.catalogo_digital), bool(r?.catalogo_impreso),
-      bool(r?.portada_personalizada),
-      r?.portada_diseno_propio ? 'DISEÑO PROPIO' : (r?.portada_opcion_1 || ''),
-      r?.portada_opcion_2 || '', r?.portada_opcion_3 || '', r?.portada_elegida || '', r?.posicion_logo || '', r?.unidades || 0,
-      bool(w?.catalogo_digital), bool(w?.catalogo_impreso),
-      bool(w?.portada_personalizada),
-      w?.portada_diseno_propio ? 'DISEÑO PROPIO' : (w?.portada_opcion_1 || ''),
-      w?.portada_opcion_2 || '', w?.portada_opcion_3 || '', w?.portada_elegida || '', w?.posicion_logo || '', w?.unidades || 0,
-      bool(s?.catalogo_digital), bool(s?.catalogo_impreso),
-      bool(s?.portada_personalizada),
-      s?.portada_diseno_propio ? 'DISEÑO PROPIO' : (s?.portada_opcion_1 || ''),
-      s?.portada_opcion_2 || '', s?.portada_opcion_3 || '', s?.portada_elegida || '', s?.posicion_logo || '', s?.unidades || 0,
+      ...catCols,
       sol.comentarios || '',
       ESTADO_LABEL[sol.estado] || sol.estado,
       missing.length ? missing.join(', ') : '✓ Completa',
@@ -2675,13 +2705,13 @@ async function exportExcel() {
   // Column widths
   ws.columns = [
     {width:12},{width:30},{width:18},{width:14},{width:16},
-    {width:9},{width:9},{width:22},{width:13},{width:13},{width:13},{width:14},{width:14},{width:9},
-    {width:9},{width:9},{width:22},{width:13},{width:13},{width:13},{width:14},{width:14},{width:9},
-    {width:9},{width:9},{width:22},{width:13},{width:13},{width:13},{width:14},{width:14},{width:9},
+    ...exportCats.flatMap(() => [
+      {width:9},{width:9},{width:22},{width:13},{width:13},{width:13},{width:14},{width:14},{width:9}
+    ]),
     {width:30},{width:16},{width:32},
   ];
 
-  const totalCols = 35;
+  const totalCols = 5 + (exportCats.length * 9) + 3;
 
   // Color palette
   const BLACK  = 'FF000000';
@@ -2728,12 +2758,19 @@ async function exportExcel() {
   ws.getRow(1).height = 26;
 
   // ROW 2: Group headers
+  const CAT_GROUP_BG = { roly: BLUE, roly_wrk: YELLW, stamina: RED, xmas: {argb:'FFE30613'} };
+  const CAT_GROUP_FG = { roly: WHITE, roly_wrk: BLACK, stamina: WHITE, xmas: WHITE };
+  let gStart = 6;
+  const catGroups = exportCats.map(cat => {
+    const g = { label: cat.label, s: gStart, e: gStart+8, bg: CAT_GROUP_BG[cat.key]||DARK, fg: CAT_GROUP_FG[cat.key]||WHITE };
+    gStart += 9;
+    return g;
+  });
+  const stateStart = gStart;
   const groups = [
-    { label:'DATOS GENERALES',  s:1,  e:5,  bg:BLACK,  fg:WHITE },
-    { label:'ROLY',              s:6,  e:14, bg:BLUE,   fg:WHITE },
-    { label:'ROLY WRK',         s:15, e:23, bg:YELLW,  fg:BLACK },
-    { label:'STAMINA',           s:24, e:32, bg:RED,    fg:WHITE },
-    { label:'CAMPAÑA / ESTADO',  s:33, e:35, bg:DARK,   fg:WHITE },
+    { label:'DATOS GENERALES', s:1, e:5, bg:BLACK, fg:WHITE },
+    ...catGroups,
+    { label:'CAMPAÑA / ESTADO', s:stateStart, e:stateStart+2, bg:DARK, fg:WHITE },
   ];
   groups.forEach(g => {
     ws.mergeCells(2, g.s, 2, g.e);
@@ -2743,21 +2780,24 @@ async function exportExcel() {
   });
   ws.getRow(2).height = 22;
 
-  // ROW 3: Column headers
+  // ROW 3: Column headers — dynamic based on exportCats
+  const CAT_PALETTE = {
+    roly:     { main: BLUE,  light: BLUE_LL, accent: WHITE, accentBg: BLUE },
+    roly_wrk: { main: AMBER, light: YELLLL,  accent: BLACK, accentBg: YELLW },
+    stamina:  { main: RED,   light: RED_LL,  accent: WHITE, accentBg: RED },
+    xmas:     { main: RED,   light: RED_LL,  accent: WHITE, accentBg: RED },
+  };
   const headers = [
     ['CÓD. SAP',BLACK,LIGHT],['NOMBRE EMPRESA',BLACK,LIGHT],['COMERCIAL',BLACK,LIGHT],['IDIOMA',BLACK,LIGHT],['PROVINCIA',BLACK,LIGHT],
-    ['DIGITAL',BLUE,BLUE_LL],['IMPRESO',BLUE,BLUE_LL],['PORTADA PERSONALIZADA',BLUE,BLUE_LL],
-    ['SELECCIÓN 1',BLUE,BLUE_LL],['SELECCIÓN 2',BLUE,BLUE_LL],['SELECCIÓN 3',BLUE,BLUE_LL],
-    ['PORTADA ELEGIDA',WHITE,BLUE],
-    ['POSICIÓN LOGO',BLUE,BLUE_LL],['UNDS.',BLUE,BLUE_LL],
-    ['DIGITAL',AMBER,YELLLL],['IMPRESO',AMBER,YELLLL],['PORTADA PERSONALIZADA',AMBER,YELLLL],
-    ['SELECCIÓN 1',AMBER,YELLLL],['SELECCIÓN 2',AMBER,YELLLL],['SELECCIÓN 3',AMBER,YELLLL],
-    ['PORTADA ELEGIDA',BLACK,YELLW],
-    ['POSICIÓN LOGO',AMBER,YELLLL],['UNDS.',AMBER,YELLLL],
-    ['DIGITAL',RED,RED_LL],['IMPRESO',RED,RED_LL],['PORTADA PERSONALIZADA',RED,RED_LL],
-    ['SELECCIÓN 1',RED,RED_LL],['SELECCIÓN 2',RED,RED_LL],['SELECCIÓN 3',RED,RED_LL],
-    ['PORTADA ELEGIDA',WHITE,RED],
-    ['POSICIÓN LOGO',RED,RED_LL],['UNDS.',RED,RED_LL],
+    ...exportCats.flatMap(cat => {
+      const p = CAT_PALETTE[cat.key] || { main: MID, light: LIGHT, accent: WHITE, accentBg: DARK };
+      return [
+        ['DIGITAL',p.main,p.light],['IMPRESO',p.main,p.light],['PORTADA PERSONALIZADA',p.main,p.light],
+        ['SELECCIÓN 1',p.main,p.light],['SELECCIÓN 2',p.main,p.light],['SELECCIÓN 3',p.main,p.light],
+        ['PORTADA ELEGIDA',p.accent,p.accentBg],
+        ['POSICIÓN LOGO',p.main,p.light],['UNDS.',p.main,p.light],
+      ];
+    }),
     ['COMENTARIOS',MID,LIGHT],['ESTADO',MID,LIGHT],['CAMPOS INCOMPLETOS',MID,LIGHT],
   ];
   headers.forEach(([label, fg, bg], i) => {
@@ -2779,16 +2819,24 @@ async function exportExcel() {
       cell.border = border;
 
       let bg, fg, align;
+      // Dynamic color ranges based on exportCats
+      let catBg = null, catFg = null;
+      let colStart = 5;
+      for (const cat of exportCats) {
+        if (ci >= colStart && ci < colStart + 9) {
+          const p = CAT_PALETTE[cat.key] || { light: LIGHT, accentBg: DARK };
+          catBg = ri%2===0 ? p.light : (p.light === BLUE_LL ? BLUE_L : p.light === YELLLL ? YELLL : p.light === RED_LL ? RED_L : p.light);
+          catFg = p.main || DARK;
+          break;
+        }
+        colStart += 9;
+      }
 
       if (isIncomplete) {
         bg = RED_LL; fg = RED;
-      } else if (ci >= 4 && ci <= 11) {
-        bg = ri%2===0 ? BLUE_LL : BLUE_L; fg = BLUE;
-      } else if (ci >= 12 && ci <= 19) {
-        bg = ri%2===0 ? YELLLL : YELLL; fg = AMBER;
-      } else if (ci >= 20 && ci <= 27) {
-        bg = ri%2===0 ? RED_LL : RED_L; fg = RED;
-      } else if (ci === 29) {
+      } else if (catBg) {
+        bg = catBg; fg = catFg;
+      } else if (ci === colStart + 1) {
         const isOk = val === 'Confirmada';
         bg = isOk ? GREEN_L : (ri%2===0 ? WHITE : LIGHT);
         fg = isOk ? GREEN : DARK;
@@ -2796,7 +2844,7 @@ async function exportExcel() {
         bg = ri%2===0 ? WHITE : LIGHT; fg = DARK;
       }
 
-      align = (ci<=1 || ci===28 || ci===30) ? 'left' : 'center';
+      align = (ci<=1) ? 'left' : 'center';
       styleCell(cell, fg, bg, false, 9, align);
     });
   });
