@@ -1269,8 +1269,6 @@ function showPage(id, btn) {
 
 // ── DATA ──────────────────────────────────────────────────
 async function loadData() {
-  // Always load campaigns first so allCampanas is available everywhere
-  await loadCampana();
   await loadSolicitudes();
   if (['admin', 'marketing', 'disenador'].includes(currentPerfil?.rol)) {
     await loadPerfiles();
