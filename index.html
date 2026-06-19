@@ -2894,10 +2894,28 @@ function renderDashboard() {
     { num: solRevCliente,                                   lbl: 'En revisión del cliente',   cls: '' },
     { num: confirmadas,                                     lbl: 'Completadas ✓',      cls: 'green' },
   ];
+  // Precios breakdown — only Stamina and XMAS for Español solicitudes
+  const solEspanol = sols.filter(s => (s.idioma||'').toUpperCase() === 'ESPAÑOL');
+  const catConPrecios = ['stamina','xmas'];
+  let unConPrecios = 0, unSinPrecios = 0;
+  solEspanol.forEach(s => {
+    catConPrecios.forEach(catKey => {
+      const cat = s.solicitud_catalogos?.find(c => c.catalogo === catKey);
+      if (!cat || cat.catalogo_impreso === null) return;
+      const unds = cat.unidades || 0;
+      if (cat.con_precios === true) unConPrecios += unds;
+      else if (cat.con_precios === false) unSinPrecios += unds;
+    });
+  });
+
   const unidadesKpis = [
-    { num: (unRoly+unWrk+unStamina).toLocaleString(),      lbl: 'Total unidades',    cls: '' },
-    { num: unNacional.toLocaleString(),                     lbl: 'Total Nacional (ES)', cls: '' },
-    { num: unExport.toLocaleString(),                       lbl: 'Total Export',      cls: '' },
+    { num: (unRoly+unWrk+unStamina).toLocaleString('es-ES'), lbl: 'Total unidades',      cls: '' },
+    { num: unNacional.toLocaleString('es-ES'),               lbl: 'Total Nacional (ES)',  cls: '' },
+    { num: unExport.toLocaleString('es-ES'),                 lbl: 'Total Export',         cls: '' },
+  ];
+  const preciosKpis = [
+    { num: unConPrecios.toLocaleString('es-ES'),             lbl: 'Stm/XMAS Con precios', cls: '' },
+    { num: unSinPrecios.toLocaleString('es-ES'),             lbl: 'Stm/XMAS Sin precios', cls: '' },
   ];
 
   document.getElementById('dash-kpis').innerHTML = `
@@ -2915,6 +2933,12 @@ function renderDashboard() {
       <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--c-mid);text-transform:uppercase;margin-bottom:8px">Unidades de catálogo</div>
       <div style="display:flex;gap:.75rem;flex-wrap:wrap">
         ${unidadesKpis.map(k => `
+          <div class="stat-card ${k.cls}" style="flex:1;min-width:140px">
+            <div class="stat-num">${k.num}</div>
+            <div class="stat-lbl">${k.lbl}</div>
+          </div>`).join('')}
+        <div style="width:1px;background:var(--c-line);align-self:stretch;margin:0 4px"></div>
+        ${preciosKpis.map(k => `
           <div class="stat-card ${k.cls}" style="flex:1;min-width:140px">
             <div class="stat-num">${k.num}</div>
             <div class="stat-lbl">${k.lbl}</div>
