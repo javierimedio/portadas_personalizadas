@@ -2934,6 +2934,8 @@ function renderDashboard() {
       opt.textContent = c.nombre + (c.activa ? ' ★' : '');
       dashSel.appendChild(opt);
     });
+    // Pre-select the active campaign by default
+    if (activeCampana?.id) dashSel.value = activeCampana.id;
   }
   const dashCampanaId = dashSel?.value || '';
   const sols = (dashCampanaId && dashCampanaId !== '')
