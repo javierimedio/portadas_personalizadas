@@ -2909,13 +2909,13 @@ function renderDashboard() {
   });
 
   const unidadesKpis = [
-    { num: (unRoly+unWrk+unStamina).toLocaleString('es-ES'), lbl: 'Total unidades',      cls: '' },
-    { num: unNacional.toLocaleString('es-ES'),               lbl: 'Total Nacional (ES)',  cls: '' },
-    { num: unExport.toLocaleString('es-ES'),                 lbl: 'Total Export',         cls: '' },
+    { num: new Intl.NumberFormat('es-ES').format(unRoly+unWrk+unStamina), lbl: 'Total unidades', cls: '' },
+    { num: new Intl.NumberFormat('es-ES').format(unNacional), lbl: 'Total Nacional (ES)',  cls: '' },
+    { num: new Intl.NumberFormat('es-ES').format(unExport),   lbl: 'Total Export',         cls: '' },
   ];
   const preciosKpis = [
-    { num: unConPrecios.toLocaleString('es-ES'),             lbl: 'Stm/XMAS Con precios', cls: '' },
-    { num: unSinPrecios.toLocaleString('es-ES'),             lbl: 'Stm/XMAS Sin precios', cls: '' },
+    { num: new Intl.NumberFormat('es-ES').format(unConPrecios), lbl: 'Con precios', cls: '' },
+    { num: new Intl.NumberFormat('es-ES').format(unSinPrecios), lbl: 'Sin precios', cls: '' },
   ];
 
   document.getElementById('dash-kpis').innerHTML = `
