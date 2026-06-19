@@ -320,7 +320,7 @@
           <table>
             <thead><tr>
               <th>Cód. SAP</th><th>Empresa</th><th>Provincia</th>
-              ${ALL_CATS.map(c=>`<th>${c.label}</th>`).join('')}
+              <th>Roly</th><th>Roly WRK</th><th>Stamina</th><th>XMAS</th>
               <th>Estado</th><th>Actualizado</th><th></th>
             </tr></thead>
             <tbody id="tbl-comercial"></tbody>
@@ -364,7 +364,7 @@
               <th onclick="sortMkt('nombre_empresa')" style="cursor:pointer;user-select:none">Empresa <span id="sort-nombre_empresa">↕</span></th>
               <th onclick="sortMkt('comercial')" style="cursor:pointer;user-select:none">Comercial <span id="sort-comercial">↕</span></th>
               <th onclick="sortMkt('provincia')" style="cursor:pointer;user-select:none">Provincia <span id="sort-provincia">↕</span></th>
-              ${ALL_CATS.map(c=>`<th>${c.label}</th>`).join('')}
+              <th>Roly</th><th>Roly WRK</th><th>Stamina</th><th>XMAS</th>
               <th onclick="sortMkt('estado')" style="cursor:pointer;user-select:none">Estado <span id="sort-estado">↕</span></th>
               <th onclick="sortMkt('updated_at')" style="cursor:pointer;user-select:none">Actualizado <span id="sort-updated_at">↕</span></th>
               <th>Campos incompletos</th><th></th>
@@ -384,7 +384,7 @@
           <table>
             <thead><tr>
               <th>Cód. SAP</th><th>Empresa</th><th>Provincia</th>
-              ${ALL_CATS.map(c=>`<th>${c.label}</th>`).join('')}
+              <th>Roly</th><th>Roly WRK</th><th>Stamina</th><th>XMAS</th>
               <th>Estado</th><th></th>
             </tr></thead>
             <tbody id="tbl-diseno"></tbody>
@@ -1351,7 +1351,7 @@ function renderComercialTable() {
       <td>${s.provincia||'<span class="text-mid">—</span>'}</td>
       <td>${catSummary(s,'roly')}</td>
       <td>${catSummary(s,'roly_wrk')}</td>
-      <td>${catSummary(s,'stamina')}</td>
+      <td>${catSummary(s,'stamina')}</td><td>${catSummary(s,'xmas')}</td>
       <td><span class="status s-${s.estado}">${ESTADO_LABEL[s.estado]||s.estado}</span></td>
       <td class="text-mid text-sm">${fmtDate(s.updated_at)}</td>
       <td>
@@ -1458,7 +1458,7 @@ function renderMktTable() {
       <td>${s.provincia||'<span class="text-mid">—</span>'}</td>
       <td>${catSummary(s,'roly')}</td>
       <td>${catSummary(s,'roly_wrk')}</td>
-      <td>${catSummary(s,'stamina')}</td>
+      <td>${catSummary(s,'stamina')}</td><td>${catSummary(s,'xmas')}</td>
       <td><span class="status s-${s.estado}">${ESTADO_LABEL[s.estado]||s.estado}</span></td>
       <td class="text-mid text-sm">${fmtDate(s.updated_at)}</td>
       <td style="max-width:180px;font-size:11px;color:var(--c-red)">${missing.length ? missing.join(', ') : '<span style="color:var(--c-green)">✓ Completa</span>'}</td>
@@ -1481,7 +1481,7 @@ function renderDisenoTable() {
       <td>${s.provincia||'—'}</td>
       <td>${catSummary(s,'roly')}</td>
       <td>${catSummary(s,'roly_wrk')}</td>
-      <td>${catSummary(s,'stamina')}</td>
+      <td>${catSummary(s,'stamina')}</td><td>${catSummary(s,'xmas')}</td>
       <td><span class="status s-${s.estado}">${ESTADO_LABEL[s.estado]||s.estado}</span></td>
       <td><button class="btn btn-sm btn-outline" onclick="openDetalle('${s.id}')">Ver</button></td>
     </tr>`).join('');
