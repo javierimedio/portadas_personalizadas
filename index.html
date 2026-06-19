@@ -452,7 +452,7 @@
           <div class="section-sub" id="dash-campana-label">Cargando...</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-          <select id="dash-filter-campana" onchange="this.dataset.userChanged='1';renderDashboard()" style="font-size:13px">
+          <select id="dash-filter-campana" onchange="renderDashboard()" style="font-size:13px">
             <option value="">Todas las campañas</option>
           </select>
           <button class="btn btn-outline btn-sm" onclick="renderDashboard()">↻ Actualizar</button>
@@ -2925,27 +2925,31 @@ function destroyCharts() {
   dashCharts = {};
 }
 
+let _dashCampanaId = null; // persists across renderDashboard calls
+
 function renderDashboard() {
   destroyCharts();
 
-  // Populate selector if empty
   const dashSel = document.getElementById('dash-filter-campana');
   if (dashSel && allCampanas?.length) {
-    // Rebuild selector every time to ensure correct options
-    while (dashSel.options.length > 1) dashSel.remove(1);
-    allCampanas.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = c.nombre + (c.activa ? ' ★' : '');
-      dashSel.appendChild(opt);
-    });
-    // Set value AFTER all options are appended
-    if (activeCampana?.id && !dashSel.dataset.userChanged) {
-      dashSel.value = activeCampana.id;
+    // Only rebuild options if not yet populated
+    if (dashSel.options.length <= 1) {
+      allCampanas.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.nombre + (c.activa ? ' ★' : '');
+        dashSel.appendChild(opt);
+      });
+      // First load: default to active campaign
+      _dashCampanaId = activeCampana?.id || '';
+    } else {
+      // User changed selector — read current value
+      _dashCampanaId = dashSel.value;
     }
+    dashSel.value = _dashCampanaId;
   }
-  const dashCampanaId = dashSel?.value || '';
-  const sols = (dashCampanaId && dashCampanaId !== '')
+  const dashCampanaId = _dashCampanaId || '';
+  const sols = dashCampanaId
     ? allSolicitudes.filter(s => s.campana_id === dashCampanaId)
     : allSolicitudes;
   const campNombre = dashCampanaId
