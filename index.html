@@ -833,18 +833,42 @@
       <div class="card-title" style="font-size:12px">PDFs de portadas y instrucciones (opcionales)</div>
       <div style="font-size:11px;color:var(--c-mid);margin-bottom:.75rem">Los comerciales podrán verlos y descargarlos al crear una solicitud.</div>
       <div id="c-covers-list" style="display:flex;flex-direction:column;gap:.75rem">
-        ${['roly','roly_wrk','stamina','xmas'].map(key => {
-          const labels = {roly:'Roly', roly_wrk:'Roly WRK', stamina:'Stamina', xmas:'XMAS'};
-          return `<div style="display:flex;gap:8px;align-items:center">
-            <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">${labels[key]}</span>
-            <div id="cover-zone-${key}" style="flex:1;border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 12px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
-                 onclick="document.getElementById('cover-file-${key}').click()"
-                 ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'${key}')">
-              📄 Arrastra el PDF o haz clic
-            </div>
-            <input type="file" id="cover-file-${key}" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'${key}')">
-          </div>`;
-        }).join('')}
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">Roly</span>
+          <div id="cover-zone-roly" style="flex:1;border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 12px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
+               onclick="document.getElementById('cover-file-roly').click()"
+               ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'roly')">
+            📄 Arrastra el PDF o haz clic
+          </div>
+          <input type="file" id="cover-file-roly" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'roly')">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">Roly WRK</span>
+          <div id="cover-zone-roly_wrk" style="flex:1;border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 12px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
+               onclick="document.getElementById('cover-file-roly_wrk').click()"
+               ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'roly_wrk')">
+            📄 Arrastra el PDF o haz clic
+          </div>
+          <input type="file" id="cover-file-roly_wrk" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'roly_wrk')">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">Stamina</span>
+          <div id="cover-zone-stamina" style="flex:1;border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 12px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
+               onclick="document.getElementById('cover-file-stamina').click()"
+               ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'stamina')">
+            📄 Arrastra el PDF o haz clic
+          </div>
+          <input type="file" id="cover-file-stamina" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'stamina')">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">XMAS</span>
+          <div id="cover-zone-xmas" style="flex:1;border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 12px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
+               onclick="document.getElementById('cover-file-xmas').click()"
+               ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'xmas')">
+            📄 Arrastra el PDF o haz clic
+          </div>
+          <input type="file" id="cover-file-xmas" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'xmas')">
+        </div>
       </div>
     </div>
     <div class="modal-footer">
