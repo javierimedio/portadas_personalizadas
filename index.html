@@ -2927,15 +2927,16 @@ function renderDashboard() {
 
   // Populate selector if empty
   const dashSel = document.getElementById('dash-filter-campana');
-  if (dashSel && dashSel.options.length <= 1 && allCampanas?.length) {
+  if (dashSel && allCampanas?.length) {
+    // Rebuild selector every time to ensure correct options
+    while (dashSel.options.length > 1) dashSel.remove(1);
     allCampanas.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.id;
       opt.textContent = c.nombre + (c.activa ? ' ★' : '');
+      if (c.id === activeCampana?.id) opt.selected = true;
       dashSel.appendChild(opt);
     });
-    // Pre-select the active campaign by default
-    if (activeCampana?.id) dashSel.value = activeCampana.id;
   }
   const dashCampanaId = dashSel?.value || '';
   const sols = (dashCampanaId && dashCampanaId !== '')
