@@ -2954,6 +2954,7 @@ function renderDashboard() {
   const unRoly    = sols.reduce((a,s) => a + (s.solicitud_catalogos?.find(c=>c.catalogo==='roly')?.unidades||0), 0);
   const unWrk     = sols.reduce((a,s) => a + (s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.unidades||0), 0);
   const unStamina = sols.reduce((a,s) => a + (s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0), 0);
+  const unXmas    = sols.reduce((a,s) => a + (s.solicitud_catalogos?.find(c=>c.catalogo==='xmas')?.unidades||0), 0);
 
   const catKeys = ['roly','roly_wrk','stamina','xmas'];
   const sumUnds = (solList) => solList.reduce((a,s) => a +
