@@ -1287,9 +1287,9 @@ async function loadSolicitudes(campanaId = null) {
   if (['comercial'].includes(currentPerfil?.rol)) q = q.eq('comercial_id', currentUser.id);
   // disenador: filtered in renderDisenoTable by estado, not here
   // responsable sees all — no filter needed
-  // Default: filter by active campaign. If campanaId passed explicitly use that. '' = all.
-  const campFiltro = campanaId !== null ? campanaId : activeCampana?.id;
-  if (campFiltro) q = q.eq('campana_id', campFiltro);
+  // Only filter by campaign if explicitly passed — never auto-filter by activeCampana
+  // (panel global and dashboard have their own campaign selectors)
+  if (campanaId) q = q.eq('campana_id', campanaId);
   const { data } = await q;
   allSolicitudes = data || [];
 }
