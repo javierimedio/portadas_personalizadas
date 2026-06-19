@@ -121,8 +121,10 @@
   .cat-roly     .cat-header h3 { color: var(--c-blue); }
   .cat-roly_wrk .cat-header { background: var(--c-teal-l); }
   .cat-roly_wrk .cat-header h3 { color: var(--c-teal); }
-  .cat-stamina  .cat-header { background: var(--c-purple-l); }
-  .cat-stamina  .cat-header h3 { color: var(--c-purple); }
+  .cat-stamina  .cat-header { background: #F3F4F6; }
+  .cat-stamina  .cat-header h3 { color: #6B7280; }
+  .cat-xmas     .cat-header { background: #FFE8E8; }
+  .cat-xmas     .cat-header h3 { color: #E30613; }
 
   .toggle-row { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
   .toggle-label { font-size: 12px; font-weight: 600; color: var(--c-mid); text-transform: uppercase; letter-spacing: .05em; margin-right: 4px; }
@@ -1580,7 +1582,9 @@ function buildCatSections() {
   document.getElementById('cat-sections').innerHTML = CATS.map(cat => `
     <div class="cat-section cat-${cat.key}" id="cat-sec-${cat.key}">
       <div class="cat-header" onclick="toggleCat('${cat.key}')">
-        <img src="${cat.logo}" alt="${cat.label}" style="height:20px;max-width:80px;object-fit:contain" onerror="this.style.display='none'">
+        ${cat.logo
+          ? `<img src="${cat.logo}" alt="${cat.label}" style="height:20px;max-width:80px;object-fit:contain">`
+          : `<span style="font-weight:800;font-size:14px;letter-spacing:.08em;color:${cat.color}">${cat.label}</span>`}
         <span class="toggle" id="cat-toggle-${cat.key}">▼ Expandir</span>
       </div>
       <div class="cat-body" id="cat-body-${cat.key}">
