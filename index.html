@@ -828,6 +828,28 @@
           <span class="radio-opt" id="c-activa-no" onclick="selectCampanaActiva(false)">Inactiva</span>
         </div>
       </div>
+
+      <hr class="divider">
+      <div class="card-title" style="font-size:12px">PDFs de portadas y instrucciones (opcionales)</div>
+      <div style="font-size:11px;color:var(--c-mid);margin-bottom:.75rem">Los comerciales podrán verlos y descargarlos al crear una solicitud.</div>
+      <div id="c-covers-list" style="display:flex;flex-direction:column;gap:.5rem">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">Roly</span>
+          <input type="text" id="c-cover-roly" placeholder="URL del PDF (ej: https://...)" style="flex:1;font-size:12px">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">Roly WRK</span>
+          <input type="text" id="c-cover-roly_wrk" placeholder="URL del PDF" style="flex:1;font-size:12px">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">Stamina</span>
+          <input type="text" id="c-cover-stamina" placeholder="URL del PDF" style="flex:1;font-size:12px">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">XMAS</span>
+          <input type="text" id="c-cover-xmas" placeholder="URL del PDF" style="flex:1;font-size:12px">
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-campana')">Cancelar</button>
@@ -1538,6 +1560,15 @@ function buildCatSections() {
         <span class="toggle" id="cat-toggle-${cat.key}">▼ Expandir</span>
       </div>
       <div class="cat-body" id="cat-body-${cat.key}">
+
+        <!-- Ver portadas PDF -->
+        ${activeCampana?.covers?.[cat.key] ? `
+        <div style="margin-bottom:.5rem">
+          <a href="${activeCampana.covers[cat.key]}" target="_blank"
+             style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--c-blue);font-weight:600;text-decoration:none;padding:5px 10px;border:1px solid var(--c-blue);border-radius:6px;background:var(--c-blue-l)">
+            📄 Ver portadas disponibles
+          </a>
+        </div>` : ''}
 
         <!-- Catálogo digital -->
         <div class="toggle-row">
@@ -2914,8 +2945,8 @@ function renderDashboard() {
     { num: new Intl.NumberFormat('es-ES').format(unExport),   lbl: 'Total Export',         cls: '' },
   ];
   const preciosKpis = [
-    { num: new Intl.NumberFormat('es-ES').format(unConPrecios), lbl: 'Con precios', cls: '' },
-    { num: new Intl.NumberFormat('es-ES').format(unSinPrecios), lbl: 'Sin precios', cls: '' },
+    { num: new Intl.NumberFormat('es-ES').format(unConPrecios), lbl: 'Con precios (ES)', cls: '' },
+    { num: new Intl.NumberFormat('es-ES').format(unSinPrecios), lbl: 'Sin precios (ES)', cls: '' },
   ];
 
   document.getElementById('dash-kpis').innerHTML = `
@@ -3519,6 +3550,11 @@ function openCampanaModal(editId = null) {
       document.querySelectorAll('#c-catalogos input[type=checkbox]').forEach(cb => {
         cb.checked = keys.includes(cb.value);
       });
+      // Restore covers
+      ['roly','roly_wrk','stamina','xmas'].forEach(k => {
+        const el = document.getElementById('c-cover-' + k);
+        if (el) el.value = c.covers?.[k] || '';
+      });
     }
     document.getElementById('modal-campana-title').textContent = 'Editar campaña';
     document.getElementById('btn-save-campana').textContent = 'Guardar cambios';
@@ -3540,10 +3576,17 @@ async function saveCampana() {
   const catalogosSelected = [...document.querySelectorAll('#c-catalogos input[type=checkbox]:checked')].map(cb => cb.value);
   if (!catalogosSelected.length) { showAlert('campana-alert', 'Selecciona al menos un catálogo.', 'error'); return; }
 
+  const covers = {
+    roly:     document.getElementById('c-cover-roly')?.value.trim() || null,
+    roly_wrk: document.getElementById('c-cover-roly_wrk')?.value.trim() || null,
+    stamina:  document.getElementById('c-cover-stamina')?.value.trim() || null,
+    xmas:     document.getElementById('c-cover-xmas')?.value.trim() || null,
+  };
+
   if (editId) {
-    await db.from('campanas').update({ nombre, descripcion, fecha_cierre, activa: campanaActiva, catalogos: catalogosSelected }).eq('id', editId);
+    await db.from('campanas').update({ nombre, descripcion, fecha_cierre, activa: campanaActiva, catalogos: catalogosSelected, covers }).eq('id', editId);
   } else {
-    await db.from('campanas').insert({ nombre, descripcion, fecha_cierre, activa: campanaActiva, catalogos: catalogosSelected });
+    await db.from('campanas').insert({ nombre, descripcion, fecha_cierre, activa: campanaActiva, catalogos: catalogosSelected, covers });
   }
 
   closeModal('modal-campana');
