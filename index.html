@@ -673,7 +673,7 @@
         </div>
         <div class="form-group">
           <label>Campaña <span class="req">*</span></label>
-          <select id="f-campana">
+          <select id="f-campana" onchange="onFormCampanaChange()">
             <option value="">— selecciona —</option>
           </select>
           <span class="field-error" id="err-campana"></span>
@@ -1220,6 +1220,26 @@ function updateCatsForCampana(campana) {
   CATS = ALL_CATS.filter(c => keys.includes(c.key));
 }
 
+// Returns the correct ALL_CATS subset for any given campaign id
+function getCatsForCampana(campanaId) {
+  const campana = allCampanas?.find(c => c.id === campanaId);
+  const keys = campana?.catalogos || ['roly','roly_wrk','stamina'];
+  return ALL_CATS.filter(c => keys.includes(c.key));
+}
+
+// Called when user changes the campaign selector inside the solicitud form
+async function onFormCampanaChange() {
+  const campSel = document.getElementById('f-campana');
+  if (!campSel?.value) return;
+  const campanas = await loadAllCampanas();
+  const selected = campanas.find(c => c.id === campSel.value);
+  if (!selected) return;
+  // Update CATS to match the selected campaign's catalog list
+  updateCatsForCampana(selected);
+  // Rebuild the catalog sections in the form
+  buildCatSections();
+}
+
 async function loadAllCampanas() {
   try {
     const { data } = await db.from('campanas').select('*').order('created_at', { ascending: false });
@@ -1320,7 +1340,9 @@ function catSummary(sol, catKey) {
 function missingFields(sol) {
   const missing = [];
   if (!sol.provincia) missing.push('Provincia');
-  CATS.forEach(cat => {
+  // Use the catalogs of THIS solicitud's campaign, not the global CATS
+  const solCats = getCatsForCampana(sol.campana_id);
+  solCats.forEach(cat => {
     const c = sol.solicitud_catalogos?.find(x => x.catalogo === cat.key);
     // If no catalog record or both digital and impreso are null → client didn't want it → skip
     if (!c) return;
@@ -1841,11 +1863,11 @@ async function openFormModal(solId = null) {
   document.querySelectorAll('.cat-toggle-roly,.cat-toggle-roly_wrk,.cat-toggle-stamina').forEach(el => el.textContent = '▼ Expandir');
   document.querySelectorAll('.cat-fields').forEach(el => el.classList.remove('visible'));
   document.querySelectorAll('.cat-precios-row').forEach(el => el.style.display = 'none');
-  CATS.forEach(cat => {
+  ALL_CATS.forEach(cat => {
     const opc = document.getElementById('opciones-fields-' + cat.key);
     if (opc) opc.classList.add('visible');
   });
-  CATS.forEach(cat => ['p1','p2','p3','pos','und'].forEach(f => { const el = document.getElementById(cat.key+'-'+f); if(el) el.value = ''; }));
+  ALL_CATS.forEach(cat => ['p1','p2','p3','pos','und'].forEach(f => { const el = document.getElementById(cat.key+'-'+f); if(el) el.value = ''; }));
 
   if (solId) {
     const sol = allSolicitudes.find(s => s.id === solId);
@@ -1878,6 +1900,10 @@ async function openFormModal(solId = null) {
           if (c.id === sol.campana_id) opt.selected = true;
           campSel2.appendChild(opt);
         });
+        // Rebuild cat-sections using THIS solicitud's campaign catalogs
+        const solCampana = (await loadAllCampanas()).find(c => c.id === sol.campana_id);
+        updateCatsForCampana(solCampana);
+        buildCatSections();
       }
       sol.solicitud_catalogos?.forEach(cat => {
         if (cat.catalogo_digital   !== null) setRadio(cat.catalogo, 'catalogo_digital',   cat.catalogo_digital);
@@ -1946,9 +1972,12 @@ async function saveSolicitud(estadoTarget) {
   }
 
   // Validate activated catalogs — all fields required
+  // Derive catalog list from the campaign selected in the form
+  const validCampanaId = document.getElementById('f-campana')?.value || activeCampana?.id;
+  const validCats = validCampanaId ? getCatsForCampana(validCampanaId) : CATS;
   if (estadoTarget === 'enviada') {
     let atLeastOneCat = false;
-    CATS.forEach(cat => {
+    validCats.forEach(cat => {
       const digital  = document.querySelector(`.radio-opt[data-cat="${cat.key}"][data-field="catalogo_digital"].selected-si, .radio-opt[data-cat="${cat.key}"][data-field="catalogo_digital"].selected-no`);
       const impreso  = document.querySelector(`.radio-opt[data-cat="${cat.key}"][data-field="catalogo_impreso"].selected-si`);
       const portada  = document.querySelector(`.radio-opt[data-cat="${cat.key}"][data-field="portada_personalizada"].selected-si`);
@@ -2035,8 +2064,11 @@ async function saveSolicitud(estadoTarget) {
     solId = data?.id;
   }
 
-  // Catalogos
-  for (const cat of CATS) {
+  // Catalogos — use the selected campaign's catalog list, not the global CATS
+  const saveCampana = allCamps.find(c => c.id === campanaId);
+  const saveCatKeys = saveCampana?.catalogos || ['roly','roly_wrk','stamina'];
+  const saveCats = ALL_CATS.filter(c => saveCatKeys.includes(c.key));
+  for (const cat of saveCats) {
     const catData = {
       solicitud_id:         solId,
       catalogo:             cat.key,
@@ -2162,8 +2194,9 @@ async function openDetalle(solId) {
   let htmlRight = '';
   const rol = currentPerfil?.rol;
   const est = sol.estado;
-  // Catalogos
-  CATS.forEach(cat => {
+  // Catalogos — use the catalogs of THIS solicitud's campaign, not the global CATS
+  const detCats = getCatsForCampana(sol.campana_id);
+  detCats.forEach(cat => {
     const c = sol.solicitud_catalogos?.find(x => x.catalogo === cat.key);
     if (!c) return;
     htmlLeft += `<div class="cat-section cat-${cat.key}" style="margin-bottom:.75rem">
@@ -2911,7 +2944,7 @@ function renderFileList(cat) {
 
 function resetFiles() {
   Object.keys(catFiles).forEach(k => catFiles[k] = []);
-  [...CATS.map(c => c.key), 'stamina_diseno', 'logo_general'].forEach(key => {
+  [...ALL_CATS.map(c => c.key), 'stamina_diseno', 'logo_general'].forEach(key => {
     const el = document.getElementById('files-list-' + key);
     if (el) el.innerHTML = '';
   });
@@ -2949,6 +2982,11 @@ function renderDashboard() {
     : 'Todas las campañas';
   const el = document.getElementById('dash-campana-label');
   if (el) el.textContent = `${campNombre} · ${sols.length} solicitudes`;
+
+  // Determine which catalogs are relevant for the selected campaign
+  const dashCampana = dashCampanaId ? allCampanas.find(c => c.id === dashCampanaId) : null;
+  const dashCatKeys = dashCampana?.catalogos || ALL_CATS.map(c => c.key);
+  const DASH_CATS = ALL_CATS.filter(c => dashCatKeys.includes(c.key));
 
   // ── KPIs ──
   const total     = sols.length;
@@ -3084,14 +3122,14 @@ function renderDashboard() {
   }
 
   // ── CHART 3: Unidades por catálogo (Bar) ──
-  const catColors = ALL_CATS.map(c => ({'roly':'#003087','roly_wrk':'#FAB518','stamina':'#6B7280','xmas':'#E30613'}[c.key]||'#888'));
+  const catColors = DASH_CATS.map(c => ({'roly':'#003087','roly_wrk':'#FAB518','stamina':'#6B7280','xmas':'#E30613'}[c.key]||'#888'));
   const ctx3 = document.getElementById('chart-unidades');
   if (ctx3) {
     dashCharts.unidades = new Chart(ctx3, {
       type: 'bar',
       data: {
-        labels: ALL_CATS.map(c=>c.label),
-        datasets: [{ data: ALL_CATS.map(c=>sols.reduce((a,s)=>a+(s.solicitud_catalogos?.find(x=>x.catalogo===c.key)?.unidades||0),0)),
+        labels: DASH_CATS.map(c=>c.label),
+        datasets: [{ data: DASH_CATS.map(c=>sols.reduce((a,s)=>a+(s.solicitud_catalogos?.find(x=>x.catalogo===c.key)?.unidades||0),0)),
           backgroundColor: catColors, borderRadius: 6 }]
       },
       options: {
@@ -3108,17 +3146,26 @@ function renderDashboard() {
   }
 
   // ── CHART 4: Portada personalizada por catálogo (Doughnut) ──
-  const portData = ALL_CATS.map(c => sols.filter(s => s.solicitud_catalogos?.find(x=>x.catalogo===c.key)?.portada_personalizada).length);
+  // "Con portada": solicitudes that have portada_personalizada=true for that catalog
+  // "Sin portada": solicitudes that have that catalog (catalogo_digital or catalogo_impreso not null) but portada_personalizada is NOT true
+  const portData = DASH_CATS.map(c => sols.filter(s => s.solicitud_catalogos?.find(x=>x.catalogo===c.key)?.portada_personalizada === true).length);
   const ctx4 = document.getElementById('chart-portadas');
   if (ctx4) {
     dashCharts.portadas = new Chart(ctx4, {
       type: 'bar',
       data: {
-        labels: ALL_CATS.map(c=>c.label),
+        labels: DASH_CATS.map(c=>c.label),
         datasets: [
           { label: 'Con portada', data: portData,
             backgroundColor: catColors, borderRadius: 4 },
-          { label: 'Sin portada', data: ALL_CATS.map((_,i) => sols.filter(s=>s.solicitud_catalogos?.find(x=>x.catalogo===ALL_CATS[i].key)?.catalogo_digital!==null || s.solicitud_catalogos?.find(x=>x.catalogo===ALL_CATS[i].key)?.catalogo_impreso!==null).length - portData[i]),
+          { label: 'Sin portada', data: DASH_CATS.map((c,i) => {
+              // Only count as "sin portada" if the solicitud actually has this catalog selected (not null)
+              const withCat = sols.filter(s => {
+                const cat = s.solicitud_catalogos?.find(x => x.catalogo === c.key);
+                return cat && (cat.catalogo_digital !== null || cat.catalogo_impreso !== null);
+              }).length;
+              return Math.max(0, withCat - portData[i]);
+            }),
             backgroundColor: '#E5EAF3', borderRadius: 4 },
         ]
       },
@@ -3134,15 +3181,15 @@ function renderDashboard() {
   }
 
   // ── CHART 5: Digital vs Impreso ──
-  const digCounts = ALL_CATS.map(c => sols.filter(s => s.solicitud_catalogos?.find(x=>x.catalogo===c.key)?.catalogo_digital).length);
-  const impCounts = ALL_CATS.map(c => sols.filter(s => s.solicitud_catalogos?.find(x=>x.catalogo===c.key)?.catalogo_impreso).length);
+  const digCounts = DASH_CATS.map(c => sols.filter(s => s.solicitud_catalogos?.find(x=>x.catalogo===c.key)?.catalogo_digital).length);
+  const impCounts = DASH_CATS.map(c => sols.filter(s => s.solicitud_catalogos?.find(x=>x.catalogo===c.key)?.catalogo_impreso).length);
 
   const ctx5 = document.getElementById('chart-tipo');
   if (ctx5) {
     dashCharts.tipo = new Chart(ctx5, {
       type: 'bar',
       data: {
-        labels: ALL_CATS.map(c=>c.label),
+        labels: DASH_CATS.map(c=>c.label),
         datasets: [
           { label: 'Digital',  data: digCounts, backgroundColor: '#534AB7', borderRadius: 4 },
           { label: 'Impreso',  data: impCounts, backgroundColor: '#BA7517', borderRadius: 4 },
@@ -3191,10 +3238,7 @@ function renderDashboard() {
 
   // ── CHART: Unidades por catálogo / idioma (stacked) ──
   const idiomaKeys = idiomaEntries.map(e => e[0]);
-  const undsRolyByIdioma    = idiomaKeys.map(id => sols.filter(s => (s.idioma||'Sin especificar')===id).reduce((a,s) => a+(s.solicitud_catalogos?.find(c=>c.catalogo==='roly')?.unidades||0),0));
-  const undsWrkByIdioma     = idiomaKeys.map(id => sols.filter(s => (s.idioma||'Sin especificar')===id).reduce((a,s) => a+(s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.unidades||0),0));
-  const undsStaminaByIdioma = idiomaKeys.map(id => sols.filter(s => (s.idioma||'Sin especificar')===id).reduce((a,s) => a+(s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0),0));
-  const undsXmasByIdioma    = idiomaKeys.map(id => sols.filter(s => (s.idioma||'Sin especificar')===id).reduce((a,s) => a+(s.solicitud_catalogos?.find(c=>c.catalogo==='xmas')?.unidades||0),0));
+  const catColorsMap = {'roly':'#003087','roly_wrk':'#FAB518','stamina':'#E30613','xmas':'#C0392B'};
 
   const ctxUI = document.getElementById('chart-unidades-idioma');
   if (ctxUI) {
@@ -3203,11 +3247,12 @@ function renderDashboard() {
       type: 'bar',
       data: {
         labels: idiomaKeys,
-        datasets: [
-          { label: 'Roly',     data: undsRolyByIdioma,    backgroundColor: '#003087', borderRadius: 3 },
-          { label: 'Roly WRK', data: undsWrkByIdioma,     backgroundColor: '#FAB518', borderRadius: 3 },
-          { label: 'Stamina',  data: undsStaminaByIdioma, backgroundColor: '#E30613', borderRadius: 3 },
-        ]
+        datasets: DASH_CATS.map(cat => ({
+          label: cat.label,
+          data: idiomaKeys.map(id => sols.filter(s => (s.idioma||'Sin especificar')===id).reduce((a,s) => a+(s.solicitud_catalogos?.find(c=>c.catalogo===cat.key)?.unidades||0),0)),
+          backgroundColor: catColorsMap[cat.key] || '#888',
+          borderRadius: 3,
+        }))
       },
       options: {
         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
