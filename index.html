@@ -832,23 +832,19 @@
       <hr class="divider">
       <div class="card-title" style="font-size:12px">PDFs de portadas y instrucciones (opcionales)</div>
       <div style="font-size:11px;color:var(--c-mid);margin-bottom:.75rem">Los comerciales podrán verlos y descargarlos al crear una solicitud.</div>
-      <div id="c-covers-list" style="display:flex;flex-direction:column;gap:.5rem">
-        <div style="display:flex;gap:8px;align-items:center">
-          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">Roly</span>
-          <input type="text" id="c-cover-roly" placeholder="URL del PDF (ej: https://...)" style="flex:1;font-size:12px">
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">Roly WRK</span>
-          <input type="text" id="c-cover-roly_wrk" placeholder="URL del PDF" style="flex:1;font-size:12px">
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">Stamina</span>
-          <input type="text" id="c-cover-stamina" placeholder="URL del PDF" style="flex:1;font-size:12px">
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">XMAS</span>
-          <input type="text" id="c-cover-xmas" placeholder="URL del PDF" style="flex:1;font-size:12px">
-        </div>
+      <div id="c-covers-list" style="display:flex;flex-direction:column;gap:.75rem">
+        ${['roly','roly_wrk','stamina','xmas'].map(key => {
+          const labels = {roly:'Roly', roly_wrk:'Roly WRK', stamina:'Stamina', xmas:'XMAS'};
+          return `<div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">${labels[key]}</span>
+            <div id="cover-zone-${key}" style="flex:1;border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 12px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
+                 onclick="document.getElementById('cover-file-${key}').click()"
+                 ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'${key}')">
+              📄 Arrastra el PDF o haz clic
+            </div>
+            <input type="file" id="cover-file-${key}" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'${key}')">
+          </div>`;
+        }).join('')}
       </div>
     </div>
     <div class="modal-footer">
@@ -1043,6 +1039,10 @@ let allSolicitudes = [];
 let allPerfiles = [];
 let editingId = null;
 let activeCampana = null;
+
+function fmtNum(n) {
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
 
 const ALL_CATS = [
   { key: 'roly',     label: 'ROLY',     logo: 'https://static.gorfactory.es/images/header/logo_Roly_2025.svg',   color: 'var(--c-blue)',   hasDisenoProp: false },
@@ -2803,6 +2803,24 @@ function showToast(msg) {
 // ── FILE HANDLING ─────────────────────────────────────────
 const catFiles = { roly: [], roly_wrk: [], stamina: [], xmas: [], stamina_diseno: [], xmas_diseno: [], logo_general: [] };
 
+function showFilePreviews(containerId, files) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const existingPreview = container.querySelector('.file-preview-list');
+  if (existingPreview) existingPreview.remove();
+  if (!files.length) return;
+  const preview = document.createElement('div');
+  preview.className = 'file-preview-list';
+  preview.style.cssText = 'margin-top:8px;display:flex;flex-wrap:wrap;gap:6px';
+  files.forEach(f => {
+    const tag = document.createElement('div');
+    tag.style.cssText = 'background:var(--c-amber-l);border:1px solid var(--c-amber);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--c-dark);display:flex;align-items:center;gap:4px';
+    tag.innerHTML = `📎 ${f.name} <span style="color:var(--c-mid)">(${(f.size/1024).toFixed(0)}KB)</span>`;
+    preview.appendChild(tag);
+  });
+  container.appendChild(preview);
+}
+
 function handleDropGeneral(event) {
   const files = Array.from(event.dataTransfer.files);
   if (files.length === 0) return;
@@ -2940,13 +2958,13 @@ function renderDashboard() {
   });
 
   const unidadesKpis = [
-    { num: new Intl.NumberFormat('es-ES').format(unRoly+unWrk+unStamina), lbl: 'Total unidades', cls: '' },
-    { num: new Intl.NumberFormat('es-ES').format(unNacional), lbl: 'Total Nacional (ES)',  cls: '' },
-    { num: new Intl.NumberFormat('es-ES').format(unExport),   lbl: 'Total Export',         cls: '' },
+    { num: fmtNum(unRoly+unWrk+unStamina), lbl: 'Total unidades', cls: '' },
+    { num: fmtNum(unNacional), lbl: 'Total Nacional (ES)', cls: '' },
+    { num: fmtNum(unExport), lbl: 'Total Export', cls: '' },
   ];
   const preciosKpis = [
-    { num: new Intl.NumberFormat('es-ES').format(unConPrecios), lbl: 'Con precios (ES)', cls: '' },
-    { num: new Intl.NumberFormat('es-ES').format(unSinPrecios), lbl: 'Sin precios (ES)', cls: '' },
+    { num: fmtNum(unConPrecios), lbl: 'Con precios (ES)', cls: '' },
+    { num: fmtNum(unSinPrecios), lbl: 'Sin precios (ES)', cls: '' },
   ];
 
   document.getElementById('dash-kpis').innerHTML = `
@@ -3405,6 +3423,52 @@ function startPolling() {
   }, 30000);
 }
 
+// ── COVER PDF UPLOAD ─────────────────────────────────────
+let coverFiles = {};
+
+function handleCoverDrop(event, key) {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0];
+  if (file) setCoverFile(key, file);
+}
+
+function handleCoverFile(event, key) {
+  const file = event.target.files[0];
+  if (file) setCoverFile(key, file);
+  event.target.value = '';
+}
+
+function setCoverFile(key, file) {
+  if (!file.name.endsWith('.pdf')) { showToast('Solo se aceptan archivos PDF'); return; }
+  coverFiles[key] = file;
+  const zone = document.getElementById('cover-zone-' + key);
+  if (zone) {
+    zone.style.background = 'var(--c-amber-l)';
+    zone.style.borderColor = 'var(--c-amber)';
+    zone.innerHTML = `✅ ${file.name} <span style="font-size:10px;color:var(--c-mid)">(${(file.size/1024).toFixed(0)}KB)</span>`;
+  }
+}
+
+async function uploadCoverFiles(campanaId) {
+  const covers = {};
+  const session = loadSession();
+  const token = session?.access_token || SUPA_KEY;
+  for (const [key, file] of Object.entries(coverFiles)) {
+    try {
+      const fileName = `covers/${campanaId}/${key}_${Date.now()}.pdf`;
+      const res = await fetch(`${SUPA_URL}/storage/v1/object/portadas-adjuntos/${fileName}`, {
+        method: 'POST',
+        headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/pdf', 'x-upsert': 'true' },
+        body: file
+      });
+      if (res.ok) {
+        covers[key] = `${SUPA_URL}/storage/v1/object/public/portadas-adjuntos/${fileName}`;
+      }
+    } catch(e) { console.warn('Cover upload error:', key, e); }
+  }
+  return covers;
+}
+
 // ── AUTO-ADJUDICACIÓN DE PORTADAS ─────────────────────────
 async function autoAdjudicar() {
   if (!['marketing','admin'].includes(currentPerfil?.rol)) { showToast('Sin permisos.'); return; }
@@ -3550,10 +3614,16 @@ function openCampanaModal(editId = null) {
       document.querySelectorAll('#c-catalogos input[type=checkbox]').forEach(cb => {
         cb.checked = keys.includes(cb.value);
       });
-      // Restore covers
+      // Restore existing covers — show in zones
       ['roly','roly_wrk','stamina','xmas'].forEach(k => {
-        const el = document.getElementById('c-cover-' + k);
-        if (el) el.value = c.covers?.[k] || '';
+        if (c.covers?.[k]) {
+          const zone = document.getElementById('cover-zone-' + k);
+          if (zone) {
+            zone.style.background = '#E8F5E9';
+            zone.style.borderColor = 'var(--c-green)';
+            zone.innerHTML = `✅ PDF cargado <a href="${c.covers[k]}" target="_blank" style="margin-left:8px;font-size:10px;color:var(--c-blue)">Ver</a> · <span style="font-size:10px;color:var(--c-mid)">Sube otro para reemplazar</span>`;
+          }
+        }
       });
     }
     document.getElementById('modal-campana-title').textContent = 'Editar campaña';
@@ -3576,12 +3646,13 @@ async function saveCampana() {
   const catalogosSelected = [...document.querySelectorAll('#c-catalogos input[type=checkbox]:checked')].map(cb => cb.value);
   if (!catalogosSelected.length) { showAlert('campana-alert', 'Selecciona al menos un catálogo.', 'error'); return; }
 
-  const covers = {
-    roly:     document.getElementById('c-cover-roly')?.value.trim() || null,
-    roly_wrk: document.getElementById('c-cover-roly_wrk')?.value.trim() || null,
-    stamina:  document.getElementById('c-cover-stamina')?.value.trim() || null,
-    xmas:     document.getElementById('c-cover-xmas')?.value.trim() || null,
-  };
+  // Upload any new cover PDFs
+  showToast('Guardando campaña...');
+  const existingCampana = allCampanas.find(c => c.id === editId);
+  const existingCovers = existingCampana?.covers || {};
+  const newCovers = await uploadCoverFiles(editId || 'new_' + Date.now());
+  const covers = { ...existingCovers, ...newCovers };
+  coverFiles = {}; // reset
 
   if (editId) {
     await db.from('campanas').update({ nombre, descripcion, fecha_cierre, activa: campanaActiva, catalogos: catalogosSelected, covers }).eq('id', editId);
