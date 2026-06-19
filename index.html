@@ -1203,9 +1203,11 @@ async function loadPerfil() {
 
 async function loadCampana() {
   try {
-    const { data } = await db.from('campanas').select('*').eq('activa', 'true').order('created_at', { ascending: false }).limit(1).maybeSingle();
-    activeCampana = data;
-    updateCatsForCampana(data);
+    const { data } = await db.from('campanas').select('*').order('activa', { ascending: false }).order('created_at', { ascending: false });
+    allCampanas = data || [];
+    // Use the most recently created active campaign as the primary one
+    activeCampana = allCampanas.find(c => c.activa) || allCampanas[0] || null;
+    updateCatsForCampana(activeCampana);
     console.log('loadCampana:', activeCampana?.nombre, 'catalogos:', CATS.map(c=>c.key));
   } catch(e) {
     console.warn('loadCampana error:', e);
@@ -2950,16 +2952,11 @@ function renderDashboard() {
   const unWrk     = sols.reduce((a,s) => a + (s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.unidades||0), 0);
   const unStamina = sols.reduce((a,s) => a + (s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0), 0);
 
-  const unNacional = sols.filter(s => (s.idioma||'').toUpperCase() === 'ESPAÑOL')
-    .reduce((a,s) => a +
-      (s.solicitud_catalogos?.find(c=>c.catalogo==='roly')?.unidades||0) +
-      (s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.unidades||0) +
-      (s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0), 0);
-  const unExport = sols.filter(s => (s.idioma||'').toUpperCase() !== 'ESPAÑOL' && s.idioma)
-    .reduce((a,s) => a +
-      (s.solicitud_catalogos?.find(c=>c.catalogo==='roly')?.unidades||0) +
-      (s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.unidades||0) +
-      (s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0), 0);
+  const catKeys = ['roly','roly_wrk','stamina','xmas'];
+  const sumUnds = (solList) => solList.reduce((a,s) => a +
+    catKeys.reduce((b,k) => b+(s.solicitud_catalogos?.find(c=>c.catalogo===k)?.unidades||0), 0), 0);
+  const unNacional = sumUnds(sols.filter(s => (s.idioma||'').toUpperCase() === 'ESPAÑOL'));
+  const unExport   = sumUnds(sols.filter(s => (s.idioma||'').toUpperCase() !== 'ESPAÑOL' && s.idioma));
 
   const solEnRevision = sols.filter(s=>s.estado==='en_revision_marketing').length;
   const solRevCliente = sols.filter(s=>s.estado==='diseno_en_revision_comercial').length;
@@ -2986,7 +2983,7 @@ function renderDashboard() {
   });
 
   const unidadesKpis = [
-    { num: fmtNum(unRoly+unWrk+unStamina), lbl: 'Total unidades', cls: '' },
+    { num: fmtNum(unRoly+unWrk+unStamina+unXmas), lbl: 'Total unidades', cls: '' },
     { num: fmtNum(unNacional), lbl: 'Total Nacional (ES)', cls: '' },
     { num: fmtNum(unExport), lbl: 'Total Export', cls: '' },
   ];
@@ -3192,6 +3189,7 @@ function renderDashboard() {
   const undsRolyByIdioma    = idiomaKeys.map(id => sols.filter(s => (s.idioma||'Sin especificar')===id).reduce((a,s) => a+(s.solicitud_catalogos?.find(c=>c.catalogo==='roly')?.unidades||0),0));
   const undsWrkByIdioma     = idiomaKeys.map(id => sols.filter(s => (s.idioma||'Sin especificar')===id).reduce((a,s) => a+(s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.unidades||0),0));
   const undsStaminaByIdioma = idiomaKeys.map(id => sols.filter(s => (s.idioma||'Sin especificar')===id).reduce((a,s) => a+(s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0),0));
+  const undsXmasByIdioma    = idiomaKeys.map(id => sols.filter(s => (s.idioma||'Sin especificar')===id).reduce((a,s) => a+(s.solicitud_catalogos?.find(c=>c.catalogo==='xmas')?.unidades||0),0));
 
   const ctxUI = document.getElementById('chart-unidades-idioma');
   if (ctxUI) {
