@@ -1567,6 +1567,16 @@ function buildCatSections() {
           </div>
         </div>
 
+        <!-- Precios — solo Stamina y XMAS cuando idioma es Español -->
+        ${cat.hasDisenoProp ? `
+        <div class="toggle-row cat-precios-row" id="precios-row-${cat.key}" style="display:none">
+          <span class="toggle-label">Catálogo con precios</span>
+          <div class="radio-group">
+            <span class="radio-opt" data-cat="${cat.key}" data-field="con_precios" data-val="true" onclick="selectOpt(this)">CON PRECIOS</span>
+            <span class="radio-opt" data-cat="${cat.key}" data-field="con_precios" data-val="false" onclick="selectOpt(this)">SIN PRECIOS</span>
+          </div>
+        </div>` : ''}
+
         <!-- Portada personalizada → muestra opciones de portada -->
         <div class="toggle-row">
           <span class="toggle-label">Portada personalizada</span>
@@ -1710,6 +1720,10 @@ async function onIdiomaChange() {
     sel.style.display = 'none';
     inp.style.display = 'block';
   }
+  // Show/hide precios rows for Stamina and XMAS
+  document.querySelectorAll('.cat-precios-row').forEach(row => {
+    row.style.display = idioma === 'Español' ? 'flex' : 'none';
+  });
 }
 
 async function checkCampanaAndOpen() {
@@ -1758,6 +1772,7 @@ async function openFormModal(solId = null) {
   document.querySelectorAll('.cat-body').forEach(el => el.classList.remove('open'));
   document.querySelectorAll('.cat-toggle-roly,.cat-toggle-roly_wrk,.cat-toggle-stamina').forEach(el => el.textContent = '▼ Expandir');
   document.querySelectorAll('.cat-fields').forEach(el => el.classList.remove('visible'));
+  document.querySelectorAll('.cat-precios-row').forEach(el => el.style.display = 'none');
   CATS.forEach(cat => {
     const opc = document.getElementById('opciones-fields-' + cat.key);
     if (opc) opc.classList.add('visible');
@@ -1774,7 +1789,8 @@ async function openFormModal(solId = null) {
       // Restore idioma
       const idiomaEl = document.getElementById('f-idioma');
       if (idiomaEl && sol.idioma) {
-        idiomaEl.value = sol.idioma.charAt(0).toUpperCase() + sol.idioma.slice(1).toLowerCase();
+        const idiomaCapitalized = sol.idioma.charAt(0).toUpperCase() + sol.idioma.slice(1).toLowerCase();
+        idiomaEl.value = idiomaCapitalized;
         onIdiomaChange();
         if (sol.idioma === 'ESPAÑOL') {
           document.getElementById('f-provincia-select').value = sol.provincia || '';
