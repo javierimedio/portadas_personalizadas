@@ -452,7 +452,7 @@
           <div class="section-sub" id="dash-campana-label">Cargando...</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-          <select id="dash-filter-campana" onchange="renderDashboard()" style="font-size:13px">
+          <select id="dash-filter-campana" onchange="this.dataset.userChanged='1';renderDashboard()" style="font-size:13px">
             <option value="">Todas las campañas</option>
           </select>
           <button class="btn btn-outline btn-sm" onclick="renderDashboard()">↻ Actualizar</button>
@@ -1309,8 +1309,11 @@ async function loadPerfiles() {
 function catSummary(sol, catKey) {
   const cat = sol.solicitud_catalogos?.find(c => c.catalogo === catKey);
   if (!cat) return '<span class="text-mid">—</span>';
+  if (cat.catalogo_impreso === null && cat.catalogo_digital === null) return '<span class="text-mid">—</span>';
   if (!cat.catalogo_impreso && !cat.catalogo_digital) return '<span class="text-mid">No</span>';
-  const port = cat.portada_personalizada ? `<span class="chip chip-${catKey==='roly'?'blue':catKey==='roly_wrk'?'teal':'purple'}">${cat.portada_diseno_propio ? 'Propio' : (cat.portada_opcion_1 || '?')}</span>` : '';
+  const catDef = ALL_CATS.find(c => c.key === catKey);
+  const chipColor = catDef ? catDef.color : '#888';
+  const port = cat.portada_personalizada ? `<span class="chip" style="background:${chipColor}20;color:${chipColor};border:1px solid ${chipColor}40">${cat.portada_diseno_propio ? 'Propio' : (cat.portada_opcion_1 || '?')}</span>` : '';
   return `<span style="font-size:11px">${cat.unidades||'—'} uds ${port}</span>`;
 }
 
@@ -2934,9 +2937,12 @@ function renderDashboard() {
       const opt = document.createElement('option');
       opt.value = c.id;
       opt.textContent = c.nombre + (c.activa ? ' ★' : '');
-      if (c.id === activeCampana?.id) opt.selected = true;
       dashSel.appendChild(opt);
     });
+    // Set value AFTER all options are appended
+    if (activeCampana?.id && !dashSel.dataset.userChanged) {
+      dashSel.value = activeCampana.id;
+    }
   }
   const dashCampanaId = dashSel?.value || '';
   const sols = (dashCampanaId && dashCampanaId !== '')
