@@ -1418,7 +1418,7 @@ function renderComercialTable() {
     respFilter.style.display = ['responsable','responsable_nacional','responsable_exportacion','admin','marketing'].includes(rol) ? 'inline-block' : 'none';
     // Populate if needed
     if (respFilter.options.length <= 1 && allPerfiles?.length) {
-      allPerfiles.filter(p => p.['comercial','comercial_nacional','comercial_exportacion'].includes(rol) && p.activo)
+      allPerfiles.filter(p => ['comercial','comercial_nacional','comercial_exportacion'].includes(p.rol) && p.activo)
         .sort((a,b) => a.nombre.localeCompare(b.nombre))
         .forEach(p => {
           const opt = document.createElement('option');
