@@ -416,7 +416,7 @@
           <div class="section-title">Gestión de usuarios</div>
           <div class="section-sub">Edita roles, activa y desactiva accesos a la herramienta.</div>
         </div>
-        ${currentPerfil?.rol === 'admin' ? '<button class="btn btn-amber" onclick="openUserModal()">+ Nuevo usuario</button>' : ''}
+        <button class="btn btn-amber" onclick="openUserModal()" id="btn-nuevo-usuario" style="display:none">+ Nuevo usuario</button>
       </div>
 
             <!-- Stats por rol -->
@@ -1360,7 +1360,7 @@ async function loadData() {
 
   renderComercialTable();
   if (['disenador', 'admin', 'marketing'].includes(currentPerfil?.rol)) renderDisenoTable();
-  if (currentPerfil?.rol === 'admin') renderUsuariosTable();
+  if (['admin', 'marketing'].includes(currentPerfil?.rol)) renderUsuariosTable();
   if (['admin', 'marketing', 'responsable', 'responsable_nacional', 'responsable_exportacion', 'disenador'].includes(currentPerfil?.rol)) {
     renderDashboard();
   }
@@ -1660,6 +1660,10 @@ const ROL_COLORS = { admin: 'var(--c-amber)', marketing: 'var(--c-blue)', respon
 const ROL_LABELS = { admin: 'Administrador', marketing: 'Marketing', responsable: 'Resp. Comercial', responsable_nacional: 'Resp. Nacional', responsable_exportacion: 'Resp. Exportación', comercial: 'Comercial', comercial_nacional: 'Comercial Nacional', comercial_exportacion: 'Comercial Exportación', disenador: 'Diseñador' };
 
 function renderUsuariosTable() {
+  // Show/hide new user button — admin only
+  const btnNew = document.getElementById('btn-nuevo-usuario');
+  if (btnNew) btnNew.style.display = currentPerfil?.rol === 'admin' ? 'inline-block' : 'none';
+
   const q = document.getElementById('search-users')?.value.toLowerCase() || '';
   const rolFilter = document.getElementById('filter-rol-users')?.value || '';
   const activoFilter = document.getElementById('filter-activo-users')?.value || '';
