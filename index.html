@@ -316,8 +316,13 @@
     <div class="page" id="page-mis-solicitudes">
       <div class="section-title">Mis solicitudes</div>
       <div class="section-sub">Crea y gestiona las solicitudes de portada para tus clientes.</div>
+
+      <!-- Mini stats row -->
+      <div id="com-stats-row" style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1.25rem"></div>
+
       <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
         <select id="filter-campana-comercial" onchange="renderComercialTable()" style="font-size:13px;min-width:160px"><option value="">Todas las campañas</option></select>
+        <select id="filter-comercial-resp" onchange="renderComercialTable()" style="font-size:13px;min-width:160px;display:none"><option value="">Todos los comerciales</option></select>
         <button class="btn btn-amber" onclick="checkCampanaAndOpen()" id="btn-nueva-sol">+ Nueva solicitud</button>
         <input type="text" id="search-comercial" placeholder="Buscar por código SAP..." style="flex:1;min-width:200px" oninput="renderComercialTable()">
       </div>
@@ -1399,12 +1404,55 @@ function renderComercialTable() {
   const q = document.getElementById('search-comercial')?.value.toLowerCase() || '';
   const _comSel = document.getElementById('filter-campana-comercial');
   const comCampId = (_comSel && _comSel.options.length > 1) ? _comSel.value : getDefaultCampanaId();
+  const rol = currentPerfil?.rol;
+
+  // Show/hide responsable filter
+  const respFilter = document.getElementById('filter-comercial-resp');
+  if (respFilter) {
+    respFilter.style.display = ['responsable','admin','marketing'].includes(rol) ? 'block' : 'none';
+    // Populate if needed
+    if (respFilter.options.length <= 1 && allPerfiles?.length) {
+      allPerfiles.filter(p => p.rol === 'comercial' && p.activo)
+        .sort((a,b) => a.nombre.localeCompare(b.nombre))
+        .forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = p.nombre;
+          respFilter.appendChild(opt);
+        });
+    }
+  }
+  const filterComercialId = respFilter?.style.display !== 'none' ? (respFilter?.value || '') : '';
+
   const rows = allSolicitudes.filter(s => {
-    if (currentPerfil?.rol === 'comercial' && s.comercial_id !== currentUser.id) return false;
+    if (rol === 'comercial' && s.comercial_id !== currentUser.id) return false;
     if (comCampId && s.campana_id !== comCampId) return false;
+    if (filterComercialId && s.comercial_id !== filterComercialId) return false;
     if (q && !s.cod_sap?.toLowerCase().includes(q) && !s.nombre_empresa?.toLowerCase().includes(q)) return false;
     return true;
   });
+
+  // Update mini stats
+  const statsRow = document.getElementById('com-stats-row');
+  if (statsRow) {
+    const total = rows.length;
+    const pe = (e) => rows.filter(s => s.estado === e).length;
+    const stats = [
+      { num: total,                                    lbl: 'Total',            cls: '' },
+      { num: pe('enviada'),                            lbl: 'Enviadas',         cls: 'amber' },
+      { num: pe('en_revision_marketing'),              lbl: 'En revisión Mkt.', cls: '' },
+      { num: pe('en_diseno')+pe('modificar_diseno'),  lbl: 'En diseño',        cls: 'blue' },
+      { num: pe('diseno_en_revision_comercial'),       lbl: 'Revisión cliente', cls: '' },
+      { num: pe('confirmada'),                         lbl: 'Completadas ✓',    cls: 'green' },
+    ];
+    statsRow.innerHTML = stats.map(k => `
+      <div class="stat-card ${k.cls}" style="flex:1;min-width:90px;padding:.75rem 1rem">
+        <div class="stat-num" style="font-size:1.5rem">${k.num}</div>
+        <div class="stat-lbl">${k.lbl}</div>
+      </div>`).join('');
+  }
+
+
   const tbody = document.getElementById('tbl-comercial');
   if (!rows.length) { tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon">📋</div><p>Aún no has creado ninguna solicitud.</p></div></td></tr>`; return; }
   tbody.innerHTML = rows.map(s => `
