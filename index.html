@@ -769,10 +769,20 @@
         <div class="form-group">
           <label>Rol <span class="req">*</span></label>
           <select id="u-rol">
-            <option value="comercial">Comercial</option>
-            <option value="marketing">Marketing</option>
-            <option value="disenador">Diseñador</option>
-            <option value="admin">Admin</option>
+            <optgroup label="Comercial">
+              <option value="comercial_nacional">Comercial Nacional</option>
+              <option value="comercial_exportacion">Comercial Exportación</option>
+            </optgroup>
+            <optgroup label="Responsable Comercial">
+              <option value="responsable_nacional">Resp. Comercial Nacional</option>
+              <option value="responsable_exportacion">Resp. Comercial Exportación</option>
+              <option value="responsable">Resp. Comercial (todos)</option>
+            </optgroup>
+            <optgroup label="Interno">
+              <option value="marketing">Marketing</option>
+              <option value="disenador">Diseñador</option>
+              <option value="admin">Administrador</option>
+            </optgroup>
           </select>
         </div>
         <div class="form-group">
@@ -1307,7 +1317,7 @@ function buildNav() {
   // DASHBOARD | SOLICITUDES | PANEL GLOBAL | DISEÑO | CAMPAÑAS | USUARIOS
   if (['admin', 'marketing', 'responsable', 'responsable_nacional', 'responsable_exportacion', 'disenador'].includes(rol)) items.push({ id: 'dashboard', label: 'Dashboard' });
   if (rol !== 'disenador') items.push({ id: 'mis-solicitudes', label: 'Solicitudes' });
-  if (['admin', 'marketing', 'responsable', 'responsable_nacional', 'responsable_exportacion'].includes(rol)) items.push({ id: 'panel', label: 'Panel global' });
+  if (['admin', 'marketing'].includes(rol)) items.push({ id: 'panel', label: 'Panel global' });
   if (['admin', 'marketing', 'disenador'].includes(rol))                 items.push({ id: 'diseno',        label: 'Diseño' });
   if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'campanas',      label: 'Campañas' });
   if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'usuarios',      label: 'Usuarios' });
@@ -1341,10 +1351,7 @@ async function loadData() {
     renderStats();
     populateComercialFilter();
   }
-  if (['responsable','responsable_nacional','responsable_exportacion'].includes(currentPerfil?.rol)) {
-    renderMktTable();
-    renderStats();
-  }
+
   renderComercialTable();
   if (['disenador', 'admin', 'marketing'].includes(currentPerfil?.rol)) renderDisenoTable();
   if (currentPerfil?.rol === 'admin') renderUsuariosTable();
@@ -1650,7 +1657,7 @@ function renderUsuariosTable() {
   if (activoFilter) perfiles = perfiles.filter(p => String(p.activo) === activoFilter);
 
   // Stats
-  const USER_STAT_LABELS = { comercial: 'Comercial', marketing: 'Marketing', disenador: 'Diseñador', admin: 'Administrador' };
+  const USER_STAT_LABELS = { comercial: 'Comercial', comercial_nacional: 'Com. Nacional', comercial_exportacion: 'Com. Export.', marketing: 'Marketing', disenador: 'Diseñador', responsable_nacional: 'Resp. Nacional', responsable_exportacion: 'Resp. Export.', admin: 'Administrador' };
   const stats = ['comercial_nacional','comercial_exportacion','marketing','disenador','responsable_nacional','responsable_exportacion','admin'].map(rol => {
     const count = allPerfiles.filter(p => p.rol === rol && p.activo).length;
     return `<div class="stat-card"><div class="stat-num" style="color:${ROL_COLORS[rol]}">${count}</div><div class="stat-lbl">${USER_STAT_LABELS[rol]}</div></div>`;
