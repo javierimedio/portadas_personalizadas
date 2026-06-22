@@ -1474,6 +1474,7 @@ function renderComercialTable() {
     const pe = (e) => rows.filter(s => s.estado === e).length;
     const stats = [
       { num: total,                                    lbl: 'Total',            cls: '' },
+      { num: pe('borrador'),                           lbl: 'Borrador',         cls: '' },
       { num: pe('enviada'),                            lbl: 'Enviadas',         cls: 'amber' },
       { num: pe('en_revision_marketing'),              lbl: 'En revisión Mkt.', cls: '' },
       { num: pe('en_diseno')+pe('modificar_diseno'),  lbl: 'En diseño',        cls: 'blue' },
@@ -1754,6 +1755,7 @@ function renderStats() {
   const completas = statSols.filter(s => missingFields(s).length === 0).length;
   document.getElementById('stats-row').innerHTML = `
     <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">Total</div></div>
+    <div class="stat-card"><div class="stat-num">${porEstado('borrador')}</div><div class="stat-lbl">Borrador</div></div>
     <div class="stat-card amber"><div class="stat-num">${porEstado('enviada')}</div><div class="stat-lbl">Enviadas</div></div>
     <div class="stat-card blue"><div class="stat-num">${porEstado('en_revision_marketing')}</div><div class="stat-lbl">En revisión de Marketing</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--c-purple)">${porEstado('en_diseno') + porEstado('modificar_diseno')}</div><div class="stat-lbl">En diseño</div></div>
@@ -3242,6 +3244,7 @@ function renderDashboard() {
   const solRevCliente = sols.filter(s=>s.estado==='diseno_en_revision_comercial').length;
   const solicitudesKpis = [
     { num: total,                                           lbl: 'Total solicitudes',  cls: '' },
+    { num: sols.filter(s=>s.estado==='borrador').length,    lbl: 'Borrador',           cls: '' },
     { num: sols.filter(s=>s.estado==='enviada').length,     lbl: 'Enviadas',           cls: 'amber' },
     { num: solEnRevision,                                   lbl: 'En revisión de marketing',   cls: '' },
     { num: enDiseno,                                        lbl: 'En diseño',          cls: 'blue' },
