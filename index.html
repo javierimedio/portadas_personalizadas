@@ -299,6 +299,17 @@
            style="height:14px;filter:brightness(0) invert(1);opacity:.5;vertical-align:middle;margin-left:10px">
     </div>
     <div class="topbar-right">
+      <select id="impersonate-rol" onchange="impersonateRol(this.value)"
+        style="font-size:11px;padding:3px 8px;border:1px solid rgba(255,255,255,.4);border-radius:6px;background:#3a3a38;color:white;cursor:pointer;display:none"
+        title="Simular rol (solo admin)">
+        <option value="">👁 Ver como rol...</option>
+        <option value="marketing">Marketing</option>
+        <option value="disenador">Diseñador</option>
+        <option value="comercial_nacional">Comercial Nacional</option>
+        <option value="comercial_exportacion">Comercial Exportación</option>
+        <option value="responsable_nacional">Resp. Nacional</option>
+        <option value="responsable_exportacion">Resp. Exportación</option>
+      </select>
       <button id="notif-btn" onclick="toggleNotifPanel()" style="position:relative;background:none;border:none;cursor:pointer;color:white;font-size:18px;padding:4px 8px;line-height:1">
         🔔
         <span id="notif-badge" style="display:none;position:absolute;top:0;right:0;background:#E30613;color:white;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px;min-width:14px;text-align:center"></span>
@@ -1157,6 +1168,7 @@ async function doLogin() {
 }
 
 async function doLogout() {
+  if (_realPerfil) { currentPerfil = _realPerfil; _realPerfil = null; }
   await db.auth.signOut();
   location.reload();
 }
@@ -1310,6 +1322,7 @@ async function initApp() {
   buildCatSections();
   await loadData();
   buildNav(); // Build nav after data loaded so dashboard renders correctly
+  initImpersonateSelector();
   initRealtime(); // Subscribe to live updates
 }
 
@@ -3988,6 +4001,35 @@ async function setActiveCampana(id) {
   closeModal('modal-detalle');
   await loadAndRenderCampanas();
   showToast(`Campaña "${c.nombre}" establecida como activa.`);
+}
+
+// ── ROL IMPERSONATION (admin only) ───────────────────────
+let _realPerfil = null; // stores real admin perfil
+
+function impersonateRol(rol) {
+  if (!rol) {
+    // Restore real admin role
+    if (_realPerfil) {
+      currentPerfil = _realPerfil;
+      _realPerfil = null;
+    }
+  } else {
+    // Save real perfil on first impersonation
+    if (!_realPerfil) _realPerfil = { ...currentPerfil };
+    currentPerfil = { ..._realPerfil, rol };
+  }
+  // Update role tag
+  document.getElementById('role-tag').textContent = ROL_LABELS[currentPerfil.rol] || currentPerfil.rol;
+  // Rebuild nav and reload data
+  buildNav();
+  loadData();
+}
+
+function initImpersonateSelector() {
+  const sel = document.getElementById('impersonate-rol');
+  if (sel && currentPerfil?.rol === 'admin') {
+    sel.style.display = 'inline-block';
+  }
 }
 
 // ── PANEL DE NOTIFICACIONES ───────────────────────────────
