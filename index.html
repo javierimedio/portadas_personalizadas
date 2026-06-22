@@ -3193,9 +3193,19 @@ function renderDashboard() {
   const dashSel = document.getElementById('dash-filter-campana');
   const dashCampanaId = (dashSel && dashSel.options.length > 1) ? dashSel.value : getDefaultCampanaId();
   const dashId = (dashSel && dashSel.options.length > 1) ? dashCampanaId : getDefaultCampanaId();
-  const sols = dashId
+  let sols = dashId
     ? allSolicitudes.filter(s => s.campana_id === dashId)
     : allSolicitudes;
+
+  // Responsable: filter to only their type of comercial
+  const dashRol = currentPerfil?.rol;
+  if (dashRol === 'responsable_nacional') {
+    const ids = new Set((allPerfiles||[]).filter(p => p.rol === 'comercial_nacional').map(p => p.id));
+    sols = sols.filter(s => ids.has(s.comercial_id));
+  } else if (dashRol === 'responsable_exportacion') {
+    const ids = new Set((allPerfiles||[]).filter(p => p.rol === 'comercial_exportacion').map(p => p.id));
+    sols = sols.filter(s => ids.has(s.comercial_id));
+  }
   const campNombre = dashCampanaId
     ? (allCampanas.find(c => c.id === dashCampanaId)?.nombre || '—')
     : 'Todas las campañas';
