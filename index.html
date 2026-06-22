@@ -1333,11 +1333,12 @@ function showPage(id, btn) {
 // ── DATA ──────────────────────────────────────────────────
 async function loadData() {
   await loadSolicitudes();
+  // Populate campaign filters for ALL roles
+  await populateCampanaFilter();
   if (['admin', 'marketing', 'disenador'].includes(currentPerfil?.rol)) {
     await loadPerfiles();
     renderMktTable();
     renderStats();
-    populateCampanaFilter();
     populateComercialFilter();
   }
   renderComercialTable();
