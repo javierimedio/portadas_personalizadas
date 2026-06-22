@@ -1658,9 +1658,13 @@ function renderCampanaBanner() {
 
 function renderStats() {
   renderCampanaBanner();
-  const total = allSolicitudes.length;
-  const porEstado = (e) => allSolicitudes.filter(s => s.estado === e).length;
-  const completas = allSolicitudes.filter(s => missingFields(s).length === 0).length;
+  // Filter by selected campaign (same logic as renderMktTable)
+  const _statSel = document.getElementById('filter-campana');
+  const statCampId = (_statSel && _statSel.options.length > 1) ? _statSel.value : getDefaultCampanaId();
+  const statSols = statCampId ? allSolicitudes.filter(s => s.campana_id === statCampId) : allSolicitudes;
+  const total = statSols.length;
+  const porEstado = (e) => statSols.filter(s => s.estado === e).length;
+  const completas = statSols.filter(s => missingFields(s).length === 0).length;
   document.getElementById('stats-row').innerHTML = `
     <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">Total</div></div>
     <div class="stat-card amber"><div class="stat-num">${porEstado('enviada')}</div><div class="stat-lbl">Enviadas</div></div>
