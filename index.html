@@ -1292,7 +1292,7 @@ async function initApp() {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('user-name').textContent = currentPerfil?.nombre || currentUser.email;
-  document.getElementById('role-tag').textContent = currentPerfil?.rol || '—';
+  document.getElementById('role-tag').textContent = ROL_LABELS[currentPerfil?.rol] || currentPerfil?.rol || '—';
   buildCatSections();
   await loadData();
   buildNav(); // Build nav after data loaded so dashboard renders correctly
@@ -1333,7 +1333,7 @@ async function loadData() {
   await loadSolicitudes();
   // Populate campaign filters for ALL roles
   await populateCampanaFilter();
-  if (['admin', 'marketing', 'disenador', 'responsable'].includes(currentPerfil?.rol)) {
+  if (['admin', 'marketing', 'disenador', 'responsable', 'responsable_nacional', 'responsable_exportacion'].includes(currentPerfil?.rol)) {
     await loadPerfiles();
   }
   if (['admin', 'marketing', 'disenador'].includes(currentPerfil?.rol)) {
@@ -1513,7 +1513,7 @@ function populateComercialFilter() {
   if (!sel || !allPerfiles.length) return;
   const current = sel.value;
   while (sel.options.length > 1) sel.remove(1);
-  const comerciales = allPerfiles.filter(p => ['comercial','responsable'].includes(p.rol) && p.activo);
+  const comerciales = allPerfiles.filter(p => ['comercial','comercial_nacional','comercial_exportacion','responsable','responsable_nacional','responsable_exportacion'].includes(p.rol) && p.activo);
   comerciales.sort((a,b) => a.nombre.localeCompare(b.nombre));
   comerciales.forEach(p => {
     const opt = document.createElement('option');
@@ -1636,7 +1636,7 @@ function renderDisenoTable() {
     </tr>`).join('');
 }
 
-const ROL_COLORS = { admin: 'var(--c-amber)', marketing: 'var(--c-blue)', responsable: '#0F6E56', comercial: 'var(--c-teal)', disenador: 'var(--c-purple)' };
+const ROL_COLORS = { admin: 'var(--c-amber)', marketing: 'var(--c-blue)', responsable: '#0F6E56', responsable_nacional: '#0F6E56', responsable_exportacion: '#0F6E56', comercial: 'var(--c-teal)', comercial_nacional: 'var(--c-teal)', comercial_exportacion: 'var(--c-teal)', disenador: 'var(--c-purple)' };
 const ROL_LABELS = { admin: 'Administrador', marketing: 'Marketing', responsable: 'Resp. Comercial', responsable_nacional: 'Resp. Nacional', responsable_exportacion: 'Resp. Exportación', comercial: 'Comercial', comercial_nacional: 'Comercial Nacional', comercial_exportacion: 'Comercial Exportación', disenador: 'Diseñador' };
 
 function renderUsuariosTable() {
