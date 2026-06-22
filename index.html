@@ -287,11 +287,16 @@
     <div class="topbar-brand">
       <img src="https://dev.gorfactory.com/wp-content/uploads/2026/05/Logo_GOR.png" 
            alt="GOR Factory" 
-           style="height:20px;filter:brightness(0) invert(1);opacity:.9;vertical-align:middle"
+           style="height:20px;filter:brightness(0) invert(1);opacity:1;vertical-align:middle"
            onerror="this.style.display='none'">
       <span style="margin-left:8px">PORTADAS PERSONALIZADAS</span>
       <span style="color:rgba(255,255,255,.35);margin:0 8px;font-weight:300">|</span>
-      <span style="color:rgba(255,255,255,.65);font-weight:400">Roly · Roly WRK · Stamina</span>
+      <img src="https://static.gorfactory.es/images/header/logo_Roly_2025.svg" alt="Roly"
+           style="height:14px;filter:brightness(0) invert(1);opacity:.5;vertical-align:middle">
+      <img src="https://static.gorfactory.es/images/home/Logo_WRK_color.svg" alt="Roly WRK"
+           style="height:14px;filter:brightness(0) invert(1);opacity:.5;vertical-align:middle;margin-left:10px">
+      <img src="https://static.gorfactory.es/images/header/logo-stm-small.svg" alt="Stamina"
+           style="height:14px;filter:brightness(0) invert(1);opacity:.5;vertical-align:middle;margin-left:10px">
     </div>
     <div class="topbar-right">
       <button id="notif-btn" onclick="toggleNotifPanel()" style="position:relative;background:none;border:none;cursor:pointer;color:white;font-size:18px;padding:4px 8px;line-height:1">
@@ -1906,13 +1911,28 @@ async function openFormModal(solId = null) {
   if (campSel) {
     campSel.innerHTML = '<option value="">— selecciona —</option>';
     const campanas = await loadAllCampanas();
+    // Default: campaign with latest fecha_cierre
+    const defaultId = getDefaultCampanaId();
     campanas.filter(c => c.activa).forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.id;
       opt.textContent = c.nombre;
-      if (c.id === activeCampana?.id) opt.selected = true;
+      if (c.id === defaultId) opt.selected = true;
       campSel.appendChild(opt);
     });
+    campSel.value = defaultId;
+    // Apply catalogs for the default campaign
+    const defCamp = campanas.find(c => c.id === defaultId);
+    if (defCamp) {
+      updateCatsForCampana(defCamp);
+      buildCatSections();
+    }
+    // Update cats when user changes campaign
+    campSel.onchange = () => {
+      const sel = campanas.find(c => c.id === campSel.value) || activeCampana;
+      updateCatsForCampana(sel);
+      buildCatSections();
+    };
   }
   document.querySelectorAll('.radio-opt').forEach(el => el.classList.remove('selected-si','selected-no'));
   document.querySelectorAll('.cat-body').forEach(el => el.classList.remove('open'));
