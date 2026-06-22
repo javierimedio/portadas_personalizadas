@@ -1305,9 +1305,9 @@ function buildNav() {
   const nav = document.getElementById('main-nav');
   const items = [];
   // DASHBOARD | SOLICITUDES | PANEL GLOBAL | DISEÑO | CAMPAÑAS | USUARIOS
-  if (['admin', 'marketing', 'responsable', 'disenador'].includes(rol)) items.push({ id: 'dashboard',     label: 'Dashboard' });
+  if (['admin', 'marketing', 'responsable', 'responsable_nacional', 'responsable_exportacion', 'disenador'].includes(rol)) items.push({ id: 'dashboard', label: 'Dashboard' });
   if (rol !== 'disenador') items.push({ id: 'mis-solicitudes', label: 'Solicitudes' });
-  if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'panel',         label: 'Panel global' });
+  if (['admin', 'marketing', 'responsable', 'responsable_nacional', 'responsable_exportacion'].includes(rol)) items.push({ id: 'panel', label: 'Panel global' });
   if (['admin', 'marketing', 'disenador'].includes(rol))                 items.push({ id: 'diseno',        label: 'Diseño' });
   if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'campanas',      label: 'Campañas' });
   if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'usuarios',      label: 'Usuarios' });
@@ -1341,10 +1341,14 @@ async function loadData() {
     renderStats();
     populateComercialFilter();
   }
+  if (['responsable','responsable_nacional','responsable_exportacion'].includes(currentPerfil?.rol)) {
+    renderMktTable();
+    renderStats();
+  }
   renderComercialTable();
   if (['disenador', 'admin', 'marketing'].includes(currentPerfil?.rol)) renderDisenoTable();
   if (currentPerfil?.rol === 'admin') renderUsuariosTable();
-  if (['admin', 'marketing', 'responsable', 'disenador'].includes(currentPerfil?.rol)) {
+  if (['admin', 'marketing', 'responsable', 'responsable_nacional', 'responsable_exportacion', 'disenador'].includes(currentPerfil?.rol)) {
     renderDashboard();
   }
   loadNotifications();
@@ -1354,7 +1358,7 @@ async function loadSolicitudes(campanaId = null) {
   let q = db.from('solicitudes')
     .select(`*, solicitud_catalogos(*), adjuntos(*), perfiles!solicitudes_comercial_id_fkey(nombre, codigo)`)
     .order('updated_at', { ascending: false });
-  if (['comercial'].includes(currentPerfil?.rol)) q = q.eq('comercial_id', currentUser.id);
+  if (['comercial','comercial_nacional','comercial_exportacion'].includes(currentPerfil?.rol)) q = q.eq('comercial_id', currentUser.id);
   // disenador: filtered in renderDisenoTable by estado, not here
   // responsable sees all — no filter needed
   // Only filter by campaign if explicitly passed — never auto-filter by activeCampana
@@ -1411,10 +1415,10 @@ function renderComercialTable() {
   // Show/hide responsable filter
   const respFilter = document.getElementById('filter-comercial-resp');
   if (respFilter) {
-    respFilter.style.display = ['responsable','admin','marketing'].includes(rol) ? 'block' : 'none';
+    respFilter.style.display = ['responsable','responsable_nacional','responsable_exportacion','admin','marketing'].includes(rol) ? 'inline-block' : 'none';
     // Populate if needed
     if (respFilter.options.length <= 1 && allPerfiles?.length) {
-      allPerfiles.filter(p => p.rol === 'comercial' && p.activo)
+      allPerfiles.filter(p => p.['comercial','comercial_nacional','comercial_exportacion'].includes(rol) && p.activo)
         .sort((a,b) => a.nombre.localeCompare(b.nombre))
         .forEach(p => {
           const opt = document.createElement('option');
@@ -1426,8 +1430,17 @@ function renderComercialTable() {
   }
   const filterComercialId = respFilter?.style.display !== 'none' ? (respFilter?.value || '') : '';
 
+  // Responsable nacional/exportacion: restrict to their comercials
+  let allowedComercialIds = null;
+  if (rol === 'responsable_nacional') {
+    allowedComercialIds = new Set(allPerfiles.filter(p => p.rol === 'comercial_nacional').map(p => p.id));
+  } else if (rol === 'responsable_exportacion') {
+    allowedComercialIds = new Set(allPerfiles.filter(p => p.rol === 'comercial_exportacion').map(p => p.id));
+  }
+
   const rows = allSolicitudes.filter(s => {
-    if (rol === 'comercial' && s.comercial_id !== currentUser.id) return false;
+    if (['comercial','comercial_nacional','comercial_exportacion'].includes(rol) && s.comercial_id !== currentUser.id) return false;
+    if (allowedComercialIds && !allowedComercialIds.has(s.comercial_id)) return false;
     if (comCampId && s.campana_id !== comCampId) return false;
     if (filterComercialId && s.comercial_id !== filterComercialId) return false;
     if (q && !s.cod_sap?.toLowerCase().includes(q) && !s.nombre_empresa?.toLowerCase().includes(q)) return false;
@@ -1557,6 +1570,15 @@ function renderMktTable() {
   const mktCampId = (_mktSel && _mktSel.options.length > 1) ? _mktSel.value : getDefaultCampanaId();
   let rows = allSolicitudes;
   if (mktCampId) rows = rows.filter(s => s.campana_id === mktCampId);
+  // Responsable nacional/exportacion: restrict to their comercials
+  const mktRol = currentPerfil?.rol;
+  if (mktRol === 'responsable_nacional') {
+    const ids = new Set(allPerfiles.filter(p => p.rol === 'comercial_nacional').map(p => p.id));
+    rows = rows.filter(s => ids.has(s.comercial_id));
+  } else if (mktRol === 'responsable_exportacion') {
+    const ids = new Set(allPerfiles.filter(p => p.rol === 'comercial_exportacion').map(p => p.id));
+    rows = rows.filter(s => ids.has(s.comercial_id));
+  }
   if (q)          rows = rows.filter(s => s.cod_sap?.toLowerCase().includes(q) || s.nombre_empresa?.toLowerCase().includes(q) || s.perfiles?.codigo?.toLowerCase().includes(q) || s.perfiles?.nombre?.toLowerCase().includes(q));
   if (est)        rows = rows.filter(s => s.estado === est);
   if (fComercial) rows = rows.filter(s => s.comercial_id === fComercial);
@@ -1615,7 +1637,7 @@ function renderDisenoTable() {
 }
 
 const ROL_COLORS = { admin: 'var(--c-amber)', marketing: 'var(--c-blue)', responsable: '#0F6E56', comercial: 'var(--c-teal)', disenador: 'var(--c-purple)' };
-const ROL_LABELS = { admin: 'Administrador', marketing: 'Marketing', responsable: 'Resp. Comercial', comercial: 'Comercial', disenador: 'Diseñador' };
+const ROL_LABELS = { admin: 'Administrador', marketing: 'Marketing', responsable: 'Resp. Comercial', responsable_nacional: 'Resp. Nacional', responsable_exportacion: 'Resp. Exportación', comercial: 'Comercial', comercial_nacional: 'Comercial Nacional', comercial_exportacion: 'Comercial Exportación', disenador: 'Diseñador' };
 
 function renderUsuariosTable() {
   const q = document.getElementById('search-users')?.value.toLowerCase() || '';
@@ -1629,7 +1651,7 @@ function renderUsuariosTable() {
 
   // Stats
   const USER_STAT_LABELS = { comercial: 'Comercial', marketing: 'Marketing', disenador: 'Diseñador', admin: 'Administrador' };
-  const stats = ['comercial','marketing','disenador','admin'].map(rol => {
+  const stats = ['comercial_nacional','comercial_exportacion','marketing','disenador','responsable_nacional','responsable_exportacion','admin'].map(rol => {
     const count = allPerfiles.filter(p => p.rol === rol && p.activo).length;
     return `<div class="stat-card"><div class="stat-num" style="color:${ROL_COLORS[rol]}">${count}</div><div class="stat-lbl">${USER_STAT_LABELS[rol]}</div></div>`;
   });
@@ -4118,7 +4140,7 @@ async function enviarNotificacion(solId, estado, { codSap, nombre, comercialNomb
   // Recipients
   const comercialEmail   = sol?.perfiles?.email || perfs.find(p => p.id === sol?.comercial_id)?.email;
   const disenadorEmail   = sol?.asignado_id ? perfs.find(p => p.id === sol.asignado_id)?.email : null;
-  const mktAdminResp     = perfs.filter(p => ['marketing','admin','responsable'].includes(p.rol) && p.activo).map(p => p.email);
+  const mktAdminResp     = perfs.filter(p => ['marketing','admin','responsable','responsable_nacional','responsable_exportacion'].includes(p.rol) && p.activo).map(p => p.email);
 
   const base = `[Portadas GOR] ${codSap || sol?.cod_sap || ''}`;
 
