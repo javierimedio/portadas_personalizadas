@@ -774,11 +774,11 @@
               <option value="comercial_exportacion">Comercial Exportación</option>
             </optgroup>
             <optgroup label="Responsable Comercial">
-              <option value="responsable_nacional">Resp. Nacional</option>
-              <option value="responsable_exportacion">Resp. Exportación</option>
-              <option value="responsable">Resp. General (todos)</option>
+              <option value="responsable_nacional">Resp. Comercial Nacional</option>
+              <option value="responsable_exportacion">Resp. Comercial Exportación</option>
+              <option value="responsable">Resp. Comercial (todos)</option>
             </optgroup>
-            <optgroup label="Interno GOR Factory">
+            <optgroup label="Interno">
               <option value="marketing">Marketing</option>
               <option value="disenador">Diseñador</option>
               <option value="admin">Administrador</option>
@@ -1305,17 +1305,8 @@ async function initApp() {
   document.getElementById('role-tag').textContent = ROL_LABELS[currentPerfil?.rol] || currentPerfil?.rol || '—';
   buildCatSections();
   await loadData();
-  buildNav();
-  // Show first available page
-  const rol = currentPerfil?.rol;
-  const isComercial = ['comercial_nacional','comercial_exportacion'].includes(rol);
-  const isResp = ['responsable_nacional','responsable_exportacion'].includes(rol);
-  const isDis = rol === 'disenador';
-  if (isComercial) showPage('mis-solicitudes');
-  else if (isDis) showPage('diseno');
-  else if (isResp) showPage('dashboard');
-  else showPage('dashboard');
-  initRealtime();
+  buildNav(); // Build nav after data loaded so dashboard renders correctly
+  initRealtime(); // Subscribe to live updates
 }
 
 // ── NAV ───────────────────────────────────────────────────
@@ -1323,64 +1314,56 @@ function buildNav() {
   const rol = currentPerfil?.rol;
   const nav = document.getElementById('main-nav');
   const items = [];
-
-  const isAdmin      = rol === 'admin';
-  const isMarketing  = rol === 'marketing';
-  const isDiseño     = rol === 'disenador';
-  const isComercial  = ['comercial_nacional','comercial_exportacion'].includes(rol);
-  const isResp       = ['responsable_nacional','responsable_exportacion'].includes(rol);
-
-  if (isAdmin || isMarketing || isDiseño || isResp) items.push({ id: 'dashboard',      label: 'Dashboard' });
-  if (isAdmin || isMarketing || isComercial || isResp) items.push({ id: 'mis-solicitudes', label: 'Solicitudes' });
-  if (isAdmin || isMarketing)                        items.push({ id: 'panel',          label: 'Panel global' });
-  if (isAdmin || isMarketing || isDiseño)            items.push({ id: 'diseno',         label: 'Diseño' });
-  if (isAdmin || isMarketing)                        items.push({ id: 'page-campanas',  label: 'Campañas' });
-  if (isAdmin || isMarketing)                        items.push({ id: 'page-usuarios',  label: 'Usuarios' });
-
-  nav.innerHTML = items.map(i => `<button class="nav-btn" id="nav-${i.id}" onclick="showPage('${i.id}')">${i.label}</button>`).join('');
-}
-
-function showPage(id, btn) {
-  console.log('showPage:', id, '→ page-'+id);
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  const page = document.getElementById('page-' + id);
-  console.log('page found:', !!page);
-  if (page) page.classList.add('active');
-  if (btn) btn.classList.add('active');
-  else { const b = document.querySelector(`.nav-btn[onclick*="'${id}'"]`); if(b) b.classList.add('active'); }
-  if (id === 'campanas') loadAndRenderCampanas();
-  if (id === 'usuarios') { if (!allPerfiles?.length) loadPerfiles().then(renderUsuariosTable); else renderUsuariosTable(); }
-  if (id === 'dashboard') renderDashboard();
-  if (id === 'panel') { renderMktTable(); renderStats(); }
-}
-
-// ── DATA ──────────────────────────────────────────────────
-async function loadData() {
-  const rol = currentPerfil?.rol;
+  // DASHBOARD | SOLICITUDES | PANEL GLOBAL | DISEÑO | CAMPAÑAS | USUARIOS
   const isAdmin     = rol === 'admin';
   const isMarketing = rol === 'marketing';
   const isDiseño    = rol === 'disenador';
   const isComercial = ['comercial_nacional','comercial_exportacion'].includes(rol);
   const isResp      = ['responsable_nacional','responsable_exportacion'].includes(rol);
 
-  await loadSolicitudes();
-  await populateCampanaFilter();
+  if (isAdmin || isMarketing || isDiseño || isResp) items.push({ id: 'dashboard',      label: 'Dashboard' });
+  if (isAdmin || isMarketing || isComercial || isResp) items.push({ id: 'mis-solicitudes', label: 'Solicitudes' });
+  if (isAdmin || isMarketing) items.push({ id: 'panel', label: 'Panel global' });
+  if (isAdmin || isMarketing || isDiseño) items.push({ id: 'diseno', label: 'Diseño' });
+  if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'campanas',      label: 'Campañas' });
+  if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'usuarios',      label: 'Usuarios' });
+  nav.innerHTML = items.map((it, i) =>
+    `<button class="nav-btn ${i===0?'active':''}" onclick="showPage('${it.id}', this)">${it.label}</button>`
+  ).join('');
+  if (items.length > 0) showPage(items[0].id);
+}
 
-  if (isAdmin || isMarketing) {
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  if (btn) btn.classList.add('active');
+  else { const b = document.querySelector(`.nav-btn[onclick*="'${id}'"]`); if(b) b.classList.add('active'); }
+  if (id === 'campanas') loadAndRenderCampanas();
+  if (id === 'dashboard') { if (allSolicitudes) renderDashboard(); }
+}
+
+// ── DATA ──────────────────────────────────────────────────
+async function loadData() {
+  await loadSolicitudes();
+  // Populate campaign filters for ALL roles
+  await populateCampanaFilter();
+  if (['admin', 'marketing', 'disenador', 'responsable', 'responsable_nacional', 'responsable_exportacion'].includes(currentPerfil?.rol)) {
     await loadPerfiles();
+  }
+  if (['admin', 'marketing', 'disenador'].includes(currentPerfil?.rol)) {
     renderMktTable();
     renderStats();
     populateComercialFilter();
-    renderUsuariosTable();
   }
-  if (isResp) {
-    await loadPerfiles();
+
+  renderComercialTable();
+  if (['disenador', 'admin', 'marketing'].includes(currentPerfil?.rol)) renderDisenoTable();
+  if (currentPerfil?.rol === 'admin') renderUsuariosTable();
+  if (['admin', 'marketing', 'responsable', 'responsable_nacional', 'responsable_exportacion', 'disenador'].includes(currentPerfil?.rol)) {
     renderDashboard();
   }
-  renderComercialTable();
-  if (isDiseño || isAdmin || isMarketing) renderDisenoTable();
-  if (isAdmin || isMarketing || isDiseño || isResp) renderDashboard();
   loadNotifications();
 }
 
@@ -1437,45 +1420,45 @@ function missingFields(sol) {
 }
 
 function renderComercialTable() {
-  const rol = currentPerfil?.rol;
   const q = document.getElementById('search-comercial')?.value.toLowerCase() || '';
   const _comSel = document.getElementById('filter-campana-comercial');
   const comCampId = (_comSel && _comSel.options.length > 1) ? _comSel.value : getDefaultCampanaId();
+  const rol = currentPerfil?.rol;
 
-  // Responsable filter
+  // Show/hide responsable filter
   const respFilter = document.getElementById('filter-comercial-resp');
-  const showRespFilter = ['responsable_nacional','responsable_exportacion'].includes(rol);
   if (respFilter) {
-    respFilter.style.display = showRespFilter ? 'inline-block' : 'none';
-    if (showRespFilter) {
-      // Populate with comercials of their type
-      while (respFilter.options.length > 1) respFilter.remove(1);
-      const tipoComercial = rol === 'responsable_nacional' ? 'comercial_nacional' : 'comercial_exportacion';
-      const creatorIds = [...new Set(allSolicitudes.map(s => s.comercial_id))];
-      const creators = creatorIds
-        .map(id => allPerfiles.find(p => p.id === id))
-        .filter(p => p && p.rol === tipoComercial)
-        .sort((a,b) => a.nombre.localeCompare(b.nombre));
-      creators.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = p.nombre;
-        respFilter.appendChild(opt);
-      });
+    respFilter.style.display = ['responsable','responsable_nacional','responsable_exportacion','admin','marketing'].includes(rol) ? 'inline-block' : 'none';
+    // Populate if needed
+    if (respFilter.options.length <= 1 && allPerfiles?.length) {
+      allPerfiles.filter(p => ['comercial','comercial_nacional','comercial_exportacion'].includes(p.rol) && p.activo)
+        .sort((a,b) => a.nombre.localeCompare(b.nombre))
+        .forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = p.nombre;
+          respFilter.appendChild(opt);
+        });
     }
   }
-  const filterComercialId = showRespFilter ? (respFilter?.value || '') : '';
+  const filterComercialId = respFilter?.style.display !== 'none' ? (respFilter?.value || '') : '';
+
+  // Responsable nacional/exportacion: restrict to their comercials
+  let allowedComercialIds = null;
+  if (rol === 'responsable_nacional') {
+    allowedComercialIds = new Set(allPerfiles.filter(p => p.rol === 'comercial_nacional').map(p => p.id));
+  } else if (rol === 'responsable_exportacion') {
+    allowedComercialIds = new Set(allPerfiles.filter(p => p.rol === 'comercial_exportacion').map(p => p.id));
+  }
 
   const rows = allSolicitudes.filter(s => {
-    // Comercial: only own solicitudes
     if (['comercial_nacional','comercial_exportacion'].includes(rol) && s.comercial_id !== currentUser.id) return false;
-    // Responsable: only their type of comercial
     if (rol === 'responsable_nacional') {
-      const creator = allPerfiles.find(p => p.id === s.comercial_id);
+      const creator = allPerfiles?.find(p => p.id === s.comercial_id);
       if (!creator || creator.rol !== 'comercial_nacional') return false;
     }
     if (rol === 'responsable_exportacion') {
-      const creator = allPerfiles.find(p => p.id === s.comercial_id);
+      const creator = allPerfiles?.find(p => p.id === s.comercial_id);
       if (!creator || creator.rol !== 'comercial_exportacion') return false;
     }
     if (comCampId && s.campana_id !== comCampId) return false;
@@ -1484,18 +1467,21 @@ function renderComercialTable() {
     return true;
   });
 
-  // Stats
+  // Update mini stats
   const statsRow = document.getElementById('com-stats-row');
   if (statsRow) {
+    const total = rows.length;
     const pe = (e) => rows.filter(s => s.estado === e).length;
-    statsRow.innerHTML = [
-      { num: rows.length,                                   lbl: 'Total',            cls: '' },
-      { num: pe('enviada'),                                 lbl: 'Enviadas',         cls: 'amber' },
-      { num: pe('en_revision_marketing'),                   lbl: 'En revisión Mkt.', cls: '' },
-      { num: pe('en_diseno')+pe('modificar_diseno'),        lbl: 'En diseño',        cls: 'blue' },
-      { num: pe('diseno_en_revision_comercial'),            lbl: 'Revisión cliente', cls: '' },
-      { num: pe('confirmada'),                              lbl: 'Completadas ✓',    cls: 'green' },
-    ].map(k => `<div class="stat-card ${k.cls}" style="flex:1;min-width:90px;padding:.75rem 1rem">
+    const stats = [
+      { num: total,                                    lbl: 'Total',            cls: '' },
+      { num: pe('enviada'),                            lbl: 'Enviadas',         cls: 'amber' },
+      { num: pe('en_revision_marketing'),              lbl: 'En revisión Mkt.', cls: '' },
+      { num: pe('en_diseno')+pe('modificar_diseno'),  lbl: 'En diseño',        cls: 'blue' },
+      { num: pe('diseno_en_revision_comercial'),       lbl: 'Revisión cliente', cls: '' },
+      { num: pe('confirmada'),                         lbl: 'Completadas ✓',    cls: 'green' },
+    ];
+    statsRow.innerHTML = stats.map(k => `
+      <div class="stat-card ${k.cls}" style="flex:1;min-width:90px;padding:.75rem 1rem">
         <div class="stat-num" style="font-size:1.5rem">${k.num}</div>
         <div class="stat-lbl">${k.lbl}</div>
       </div>`).join('');
@@ -3859,6 +3845,7 @@ async function loadAndRenderCampanas() {
   const { data } = await db.from('campanas').select('*').order('created_at', { ascending: false });
   allCampanas = data || [];
   renderCampanasTable();
+  populateCampanaFilter();
 }
 
 function renderCampanasTable() {
