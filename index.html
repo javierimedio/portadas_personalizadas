@@ -311,7 +311,8 @@
     <div class="page" id="page-mis-solicitudes">
       <div class="section-title">Mis solicitudes</div>
       <div class="section-sub">Crea y gestiona las solicitudes de portada para tus clientes.</div>
-      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+        <select id="filter-campana-comercial" onchange="renderComercialTable()" style="font-size:13px;min-width:160px"><option value="">Todas las campañas</option></select>
         <button class="btn btn-amber" onclick="checkCampanaAndOpen()" id="btn-nueva-sol">+ Nueva solicitud</button>
         <input type="text" id="search-comercial" placeholder="Buscar por código SAP..." style="flex:1;min-width:200px" oninput="renderComercialTable()">
       </div>
@@ -377,8 +378,13 @@
 
     <!-- DISEÑADOR: MIS ASIGNACIONES -->
     <div class="page" id="page-diseno">
-      <div class="section-title">Mis asignaciones</div>
-      <div class="section-sub">Solicitudes asignadas para diseño de portada.</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div>
+          <div class="section-title">Diseño</div>
+          <div class="section-sub">Solicitudes en proceso de diseño.</div>
+        </div>
+        <select id="filter-campana-diseno" onchange="renderDisenoTable()" style="font-size:13px;min-width:160px"><option value="">Todas las campañas</option></select>
+      </div>
       <div class="card" style="padding:0">
         <div class="tbl-wrap">
           <table>
@@ -1066,6 +1072,38 @@ let allPerfiles = [];
 let editingId = null;
 let activeCampana = null;
 
+// Single source of truth for selected campaign across all views
+let _defaultCampanaId = '';
+
+function getDefaultCampanaId() {
+  if (_defaultCampanaId) return _defaultCampanaId;
+  if (!allCampanas?.length) return '';
+  const activas = allCampanas.filter(c => c.activa);
+  if (!activas.length) return allCampanas[0]?.id || '';
+  // Latest fecha_cierre among active campaigns
+  const sorted = activas.sort((a, b) => {
+    const da = a.fecha_cierre ? new Date(a.fecha_cierre) : new Date(0);
+    const db = b.fecha_cierre ? new Date(b.fecha_cierre) : new Date(0);
+    return db - da;
+  });
+  _defaultCampanaId = sorted[0].id;
+  return _defaultCampanaId;
+}
+
+function buildCampanaSelector(selEl, onChange) {
+  if (!selEl || !allCampanas?.length) return;
+  while (selEl.options.length > 1) selEl.remove(1);
+  const defaultId = getDefaultCampanaId();
+  allCampanas.filter(c => c.activa).forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.nombre + (c.id === defaultId ? ' ★' : '');
+    selEl.appendChild(opt);
+  });
+  selEl.value = defaultId;
+  selEl.onchange = function() { onChange(this.value); };
+}
+
 function fmtNum(n) {
   return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
@@ -1360,7 +1398,14 @@ function missingFields(sol) {
 
 function renderComercialTable() {
   const q = document.getElementById('search-comercial')?.value.toLowerCase() || '';
-  const rows = allSolicitudes.filter(s => !q || s.cod_sap?.toLowerCase().includes(q) || s.nombre_empresa?.toLowerCase().includes(q));
+  const _comSel = document.getElementById('filter-campana-comercial');
+  const comCampId = (_comSel && _comSel.options.length > 1) ? _comSel.value : getDefaultCampanaId();
+  const rows = allSolicitudes.filter(s => {
+    if (currentPerfil?.rol === 'comercial' && s.comercial_id !== currentUser.id) return false;
+    if (comCampId && s.campana_id !== comCampId) return false;
+    if (q && !s.cod_sap?.toLowerCase().includes(q) && !s.nombre_empresa?.toLowerCase().includes(q)) return false;
+    return true;
+  });
   const tbody = document.getElementById('tbl-comercial');
   if (!rows.length) { tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon">📋</div><p>Aún no has creado ninguna solicitud.</p></div></td></tr>`; return; }
   tbody.innerHTML = rows.map(s => `
@@ -1397,12 +1442,8 @@ function sortMkt(col) {
 }
 
 async function filterCampana() {
-  const campanaId = document.getElementById('filter-campana')?.value;
-  // '' = all campaigns, specific id = filter, undefined = active campaign
-  await loadSolicitudes(campanaId === '' ? '' : (campanaId || activeCampana?.id));
   renderMktTable();
   renderStats();
-  renderComercialTable();
 }
 
 function populateComercialFilter() {
@@ -1424,49 +1465,38 @@ function populateComercialFilter() {
 async function populateCampanaFilter() {
   const campanas = await loadAllCampanas();
   allCampanas = campanas;
+  _defaultCampanaId = ''; // reset so getDefaultCampanaId recalculates
 
-  // Find default campaign: active with latest fecha_cierre
-  const activas = campanas.filter(c => c.activa);
-  const defaultCamp = activas.sort((a,b) => {
-    const da = a.fecha_cierre ? new Date(a.fecha_cierre) : new Date(0);
-    const db = b.fecha_cierre ? new Date(b.fecha_cierre) : new Date(0);
-    return db - da; // descending — latest cierre first
-  })[0] || activas[0] || null;
+  // Panel global
+  buildCampanaSelector(
+    document.getElementById('filter-campana'),
+    (val) => { renderMktTable(); renderStats(); }
+  );
 
-  const defaultId = defaultCamp?.id || '';
+  // Dashboard
+  buildCampanaSelector(
+    document.getElementById('dash-filter-campana'),
+    () => renderDashboard()
+  );
 
-  // Panel global selector (filter-campana)
-  const sel = document.getElementById('filter-campana');
-  if (sel) {
-    while (sel.options.length > 1) sel.remove(1);
-    activas.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = c.nombre + (c.id === defaultCamp?.id ? ' ★' : '');
-      if (c.id === defaultId) opt.selected = true;
-      sel.appendChild(opt);
-    });
-    sel.value = defaultId;
-  }
+  // Diseño selector
+  buildCampanaSelector(
+    document.getElementById('filter-campana-diseno'),
+    () => renderDisenoTable()
+  );
 
-  // Dashboard selector (dash-filter-campana)
-  const dashSel = document.getElementById('dash-filter-campana');
-  if (dashSel) {
-    while (dashSel.options.length > 1) dashSel.remove(1);
-    activas.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = c.nombre + (c.id === defaultCamp?.id ? ' ★' : '');
-      if (c.id === defaultId) opt.selected = true;
-      dashSel.appendChild(opt);
-    });
-    dashSel.value = defaultId;
-  }
+  // Comercial/Solicitudes selector
+  buildCampanaSelector(
+    document.getElementById('filter-campana-comercial'),
+    () => renderComercialTable()
+  );
 
-  // Update activeCampana to default
-  if (defaultCamp) {
-    activeCampana = defaultCamp;
-    updateCatsForCampana(defaultCamp);
+  // Update activeCampana
+  const defId = getDefaultCampanaId();
+  const defCamp = allCampanas.find(c => c.id === defId) || null;
+  if (defCamp) {
+    activeCampana = defCamp;
+    updateCatsForCampana(defCamp);
   }
 }
 function renderMktTable() {
@@ -1474,7 +1504,10 @@ function renderMktTable() {
   const est        = document.getElementById('filter-estado')?.value || '';
   const fComercial = document.getElementById('filter-comercial')?.value || '';
   const fProvincia = document.getElementById('filter-provincia')?.value.toLowerCase() || '';
+  const _mktSel = document.getElementById('filter-campana');
+  const mktCampId = (_mktSel && _mktSel.options.length > 1) ? _mktSel.value : getDefaultCampanaId();
   let rows = allSolicitudes;
+  if (mktCampId) rows = rows.filter(s => s.campana_id === mktCampId);
   if (q)          rows = rows.filter(s => s.cod_sap?.toLowerCase().includes(q) || s.nombre_empresa?.toLowerCase().includes(q) || s.perfiles?.codigo?.toLowerCase().includes(q) || s.perfiles?.nombre?.toLowerCase().includes(q));
   if (est)        rows = rows.filter(s => s.estado === est);
   if (fComercial) rows = rows.filter(s => s.comercial_id === fComercial);
@@ -1510,7 +1543,11 @@ function renderMktTable() {
 
 function renderDisenoTable() {
   const rol = currentPerfil?.rol;
-  let rows = allSolicitudes;
+  const _disSel = document.getElementById('filter-campana-diseno');
+  const disenoCampId = (_disSel && _disSel.options.length > 1) ? _disSel.value : getDefaultCampanaId();
+  let rows = disenoCampId
+    ? allSolicitudes.filter(s => s.campana_id === disenoCampId)
+    : allSolicitudes;
   // All roles in Diseño tab see en_diseno and modificar_diseno
   rows = rows.filter(s => ['en_diseno','modificar_diseno'].includes(s.estado));
   const tbody = document.getElementById('tbl-diseno');
@@ -2659,7 +2696,7 @@ async function toggleUser(id, activo) {
 // ── EXPORT EXCEL ──────────────────────────────────────────
 async function exportExcel() {
   // Determine campaign and catalogs from panel global selector
-  const campId = document.getElementById('filter-campana')?.value || '';
+  const campId = document.getElementById('filter-campana')?.value || getDefaultCampanaId();
   const exportCamp = campId ? allCampanas.find(c => c.id === campId) : activeCampana;
   const campNombre = exportCamp?.nombre || 'Portadas';
   const fecha = new Date().toISOString().slice(0,10);
@@ -3010,20 +3047,10 @@ function renderDashboard() {
   destroyCharts();
 
   const dashSel = document.getElementById('dash-filter-campana');
-  // Populate selector options once
-  if (dashSel && dashSel.options.length <= 1 && allCampanas?.length) {
-    allCampanas.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = c.nombre + (c.activa ? ' ★' : '');
-      dashSel.appendChild(opt);
-    });
-    // Default to active campaign on first load
-    if (activeCampana?.id) dashSel.value = activeCampana.id;
-  }
-  const dashCampanaId = dashSel ? dashSel.value : '';
-  const sols = dashCampanaId
-    ? allSolicitudes.filter(s => s.campana_id === dashCampanaId)
+  const dashCampanaId = (dashSel && dashSel.options.length > 1) ? dashSel.value : getDefaultCampanaId();
+  const dashId = (dashSel && dashSel.options.length > 1) ? dashCampanaId : getDefaultCampanaId();
+  const sols = dashId
+    ? allSolicitudes.filter(s => s.campana_id === dashId)
     : allSolicitudes;
   const campNombre = dashCampanaId
     ? (allCampanas.find(c => c.id === dashCampanaId)?.nombre || '—')
