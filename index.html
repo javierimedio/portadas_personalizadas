@@ -1333,8 +1333,10 @@ async function loadData() {
   await loadSolicitudes();
   // Populate campaign filters for ALL roles
   await populateCampanaFilter();
-  if (['admin', 'marketing', 'disenador'].includes(currentPerfil?.rol)) {
+  if (['admin', 'marketing', 'disenador', 'responsable'].includes(currentPerfil?.rol)) {
     await loadPerfiles();
+  }
+  if (['admin', 'marketing', 'disenador'].includes(currentPerfil?.rol)) {
     renderMktTable();
     renderStats();
     populateComercialFilter();
