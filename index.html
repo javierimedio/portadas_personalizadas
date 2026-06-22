@@ -411,19 +411,10 @@
           <div class="section-title">Gestión de usuarios</div>
           <div class="section-sub">Edita roles, activa y desactiva accesos a la herramienta.</div>
         </div>
-      </div>
-      <div class="alert alert-info" style="margin-bottom:1.5rem">
-        <strong>¿Cómo crear un usuario nuevo?</strong><br>
-        Los usuarios se crean desde <strong>Supabase → Authentication → Users → Add user</strong> (marca "Auto Confirm User"). 
-        Una vez creado, edita su perfil aquí para asignarle rol y código.
-        <div style="margin-top:8px">
-          <a href="https://supabase.com/dashboard/project/paqtohmxagfebeyyurlq/auth/users" target="_blank" class="btn btn-sm btn-outline" style="font-size:12px">
-            Ir a Supabase → Usuarios ↗
-          </a>
-        </div>
+        <button class="btn btn-amber" onclick="openUserModal()">+ Nuevo usuario</button>
       </div>
 
-      <!-- Stats por rol -->
+            <!-- Stats por rol -->
       <div class="stats-row" id="user-stats-row" style="margin-bottom:1.5rem"></div>
 
       <!-- Filtros -->
@@ -2677,38 +2668,25 @@ async function saveUser() {
     await loadData();
     showToast('Usuario actualizado.');
   } else {
-    // Create user via Supabase signup (email + password)
+    // Create user via Edge Function (uses Service Role Key securely)
     if (!pass || pass.length < 8) { showAlert('user-alert', 'La contraseña debe tener mínimo 8 caracteres.', 'error'); return; }
+    if (!codigo) { showAlert('user-alert', 'El código de usuario es obligatorio.', 'error'); return; }
     try {
-      // Use signUp — works without admin API
-      const signupRes = await db.auth.signUpUser(email, pass, { nombre, rol, codigo });
-
-      // Since we don't have admin API, use a workaround:
-      // 1. Register via /auth/v1/signup
-      const res = await fetch(`${SUPA_URL}/auth/v1/signup`, {
+      showAlert('user-alert', 'Creando usuario...', 'info');
+      const session = loadSession();
+      const res = await fetch('https://paqtohmxagfebeyyurlq.supabase.co/functions/v1/create-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': SUPA_KEY,
+          'Authorization': `Bearer ${session?.access_token || SUPA_KEY}`,
         },
-        body: JSON.stringify({
-          email,
-          password: pass,
-          data: { nombre, rol, codigo }
-        })
+        body: JSON.stringify({ nombre, email, password: pass, rol, codigo })
       });
       const data = await res.json();
-      if (!res.ok || !data.id) throw new Error(data.msg || data.error_description || data.message || 'Error al crear usuario');
-
-      // 2. Insert profile manually
-      const profileRes = await db.from('perfiles').insert({
-        id: data.id,
-        nombre, email, rol, codigo, activo: true
-      });
-
+      if (!res.ok) throw new Error(data.error || 'Error al crear usuario');
       closeModal('modal-usuario');
       await loadData();
-      showToast(`Usuario ${nombre} creado. Debe confirmar su email para acceder.`);
+      showToast(`✅ Usuario ${nombre} creado correctamente.`);
     } catch(e) {
       showAlert('user-alert', 'Error: ' + e.message, 'error');
     }
