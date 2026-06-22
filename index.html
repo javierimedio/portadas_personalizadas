@@ -442,11 +442,20 @@
         <input type="text" id="search-users" placeholder="Buscar por nombre, email o código..." style="flex:1;min-width:200px" oninput="renderUsuariosTable()">
         <select id="filter-rol-users" onchange="renderUsuariosTable()">
           <option value="">Todos los roles</option>
-          <option value="comercial">Comercial</option>
-          <option value="responsable">Responsable Comercial</option>
-          <option value="marketing">Marketing</option>
-          <option value="disenador">Diseñador</option>
-          <option value="admin">Admin</option>
+          <optgroup label="Comercial">
+            <option value="comercial_nacional">Comercial Nacional</option>
+            <option value="comercial_exportacion">Comercial Exportación</option>
+          </optgroup>
+          <optgroup label="Responsable">
+            <option value="responsable_nacional">Resp. Nacional</option>
+            <option value="responsable_exportacion">Resp. Exportación</option>
+            <option value="responsable">Resp. General</option>
+          </optgroup>
+          <optgroup label="Interno">
+            <option value="marketing">Marketing</option>
+            <option value="disenador">Diseñador</option>
+            <option value="admin">Admin</option>
+          </optgroup>
         </select>
         <select id="filter-activo-users" onchange="renderUsuariosTable()">
           <option value="">Todos</option>
