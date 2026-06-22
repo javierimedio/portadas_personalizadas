@@ -1338,7 +1338,7 @@ function buildNav() {
   const isComercial = ['comercial_nacional','comercial_exportacion'].includes(rol);
   const isResp      = ['responsable_nacional','responsable_exportacion'].includes(rol);
 
-  if (isAdmin || isMarketing || isDiseño || isResp) items.push({ id: 'dashboard',      label: 'Dashboard' });
+  if (isAdmin || isMarketing || isResp) items.push({ id: 'dashboard', label: 'Dashboard' });
   if (isAdmin || isMarketing || isComercial || isResp) items.push({ id: 'mis-solicitudes', label: 'Solicitudes' });
   if (isAdmin || isMarketing) items.push({ id: 'panel', label: 'Panel global' });
   if (isAdmin || isMarketing || isDiseño) items.push({ id: 'diseno', label: 'Diseño' });
@@ -1378,7 +1378,7 @@ async function loadData() {
   renderComercialTable();
   if (['disenador', 'admin', 'marketing'].includes(currentPerfil?.rol)) renderDisenoTable();
   if (['admin', 'marketing'].includes(currentPerfil?.rol)) renderUsuariosTable();
-  if (['admin', 'marketing', 'responsable', 'responsable_nacional', 'responsable_exportacion', 'disenador'].includes(currentPerfil?.rol)) {
+  if (['admin', 'marketing', 'responsable', 'responsable_nacional', 'responsable_exportacion'].includes(currentPerfil?.rol)) {
     renderDashboard();
   }
   loadNotifications();
