@@ -251,11 +251,11 @@
     <div id="auth-alert"></div>
     <div class="form-group" style="margin-bottom:.75rem">
       <label>Correo electrónico</label>
-      <input type="email" id="auth-email" placeholder="tu@gorfactory.com" autocomplete="email">
+      <input type="email" id="auth-email" onkeydown="if(event.key==='Enter')doLogin()" placeholder="tu@gorfactory.com" autocomplete="email">
     </div>
     <div class="form-group" style="margin-bottom:1.25rem">
       <label>Contraseña</label>
-      <input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password">
+      <input type="password" id="auth-pass" onkeydown="if(event.key==='Enter')doLogin()" placeholder="••••••••" autocomplete="current-password">
     </div>
     <button class="btn btn-primary" style="width:100%" onclick="doLogin()">
       <span id="login-label">Entrar</span>
@@ -701,11 +701,13 @@
           style="border:2px dashed var(--c-line);border-radius:var(--radius);padding:1.25rem;text-align:center;cursor:pointer;transition:all .15s;background:var(--c-white)"
           ondragover="event.preventDefault();event.stopPropagation();this.style.borderColor='var(--c-amber)';this.style.background='var(--c-amber-l)'"
           ondragleave="this.style.borderColor='var(--c-line)';this.style.background='var(--c-white)'"
-          ondrop="event.preventDefault();event.stopPropagation();this.style.borderColor='var(--c-line)';this.style.background='var(--c-white)';handleDropGeneral(event)"
+          ondrop="event.preventDefault();event.stopPropagation();handleDropGeneral(event)"
           onclick="document.getElementById('file-logo-general').click()">
-          <div style="font-size:28px;margin-bottom:6px">📎</div>
-          <div style="font-size:13px;font-weight:500;color:var(--c-dark)">Arrastra el logo aquí o haz clic</div>
-          <div style="font-size:11px;color:var(--c-mid);margin-top:4px">PDF o imagen · máxima calidad · 300 dpi</div>
+          <div id="drop-logo-general-inner">
+            <div style="font-size:28px;margin-bottom:6px">📎</div>
+            <div style="font-size:13px;font-weight:500;color:var(--c-dark)">Arrastra el logo aquí o haz clic</div>
+            <div style="font-size:11px;color:var(--c-mid);margin-top:4px">PDF o imagen · máxima calidad · 300 dpi</div>
+          </div>
         </div>
         <input type="file" id="file-logo-general" accept=".pdf,.png,.jpg,.jpeg,.ai,.eps" multiple style="display:none" onchange="handleFileInputGeneral(event)">
         <div id="files-list-logo-general" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
@@ -3002,12 +3004,14 @@ function handleDropGeneral(event) {
   if (files.length === 0) return;
   addFiles('logo_general', files);
   showToast(`${files.length} archivo(s) añadido(s).`);
+  updateDropZone('drop-logo-general', 'drop-logo-general-inner', catFiles.logo_general, 'logo');
 }
 function handleFileInputGeneral(event) {
   const files = Array.from(event.target.files);
   addFiles('logo_general', files);
   if (files.length) showToast(`${files.length} archivo(s) seleccionado(s).`);
   event.target.value = '';
+  updateDropZone('drop-logo-general', 'drop-logo-general-inner', catFiles.logo_general, 'logo');
 }
 
 function handleDrop(event, cat) {
@@ -3015,6 +3019,7 @@ function handleDrop(event, cat) {
   if (files.length === 0) return;
   addFiles(cat, files);
   showToast(`${files.length} archivo(s) añadido(s).`);
+  updateDropZone('drop-' + cat, 'drop-inner-' + cat, catFiles[cat], 'cat');
 }
 
 function handleFileInput(event, cat) {
@@ -3022,6 +3027,28 @@ function handleFileInput(event, cat) {
   addFiles(cat, files);
   if (files.length) showToast(`${files.length} archivo(s) seleccionado(s).`);
   event.target.value = '';
+  updateDropZone('drop-' + cat, 'drop-inner-' + cat, catFiles[cat], 'cat');
+}
+
+function updateDropZone(zoneId, innerId, files, type) {
+  const zone = document.getElementById(zoneId);
+  const inner = document.getElementById(innerId);
+  if (!zone || !inner) return;
+  if (files && files.length > 0) {
+    zone.style.borderColor = 'var(--c-amber)';
+    zone.style.background = 'var(--c-amber-l)';
+    const names = files.map(f => `<div style="font-size:12px;font-weight:600;color:var(--c-amber)">📄 ${f.name} <span style="color:var(--c-mid);font-weight:400">(${(f.size/1024).toFixed(0)}kb)</span></div>`).join('');
+    inner.innerHTML = `
+      <div style="font-size:20px;margin-bottom:4px">✅</div>
+      ${names}
+      <div style="font-size:11px;color:var(--c-mid);margin-top:6px">Haz clic para añadir más archivos</div>`;
+  } else {
+    zone.style.borderColor = 'var(--c-line)';
+    zone.style.background = 'var(--c-white)';
+    inner.innerHTML = type === 'logo'
+      ? `<div style="font-size:28px;margin-bottom:6px">📎</div><div style="font-size:13px;font-weight:500;color:var(--c-dark)">Arrastra el logo aquí o haz clic</div><div style="font-size:11px;color:var(--c-mid);margin-top:4px">PDF o imagen · máxima calidad · 300 dpi</div>`
+      : `<div style="font-size:22px;margin-bottom:4px">📎</div><div style="font-size:12px;font-weight:600">Arrastra los archivos aquí o haz clic</div><div style="font-size:11px;color:var(--c-mid)">PDF, JPG, PNG, AI, EPS</div>`;
+  }
 }
 
 function addFiles(cat, files) {
@@ -3046,6 +3073,28 @@ function renderFileList(cat) {
       📄 ${f.name} <span style="color:var(--c-mid)">(${(f.size/1024).toFixed(0)}kb)</span>
       <button onclick="removeFile('${cat}','${f.name}')" title="Eliminar">✕</button>
     </div>`).join('');
+
+  // Update drop zone visual
+  const dropId = cat === 'logo_general' ? 'drop-logo-general' : 'drop-' + cat;
+  const zone = document.getElementById(dropId);
+  if (!zone) return;
+  const files = catFiles[cat];
+  const inner = zone.querySelector('.drop-inner') || zone;
+  if (files.length > 0) {
+    zone.style.borderColor = 'var(--c-amber)';
+    zone.style.background = 'var(--c-amber-l)';
+    inner.innerHTML = `
+      <div style="font-size:22px;margin-bottom:4px">✅</div>
+      <div style="font-size:13px;font-weight:600;color:var(--c-amber)">${files.length === 1 ? files[0].name : files.length + ' archivos adjuntos'}</div>
+      <div style="font-size:11px;color:var(--c-mid);margin-top:2px">Arrastra más archivos o haz clic para añadir</div>`;
+  } else {
+    zone.style.borderColor = '';
+    zone.style.background = '';
+    inner.innerHTML = `
+      <div style="font-size:28px;margin-bottom:4px">📎</div>
+      <div style="font-weight:600">Arrastra el archivo aquí o haz clic</div>
+      <div style="font-size:11px;color:var(--c-mid);margin-top:2px">PDF · imagen · máxima calidad · 300 dpi</div>`;
+  }
 }
 
 function resetFiles() {
@@ -3966,7 +4015,7 @@ function handleDisenoUpload(event, solId) {
   const files = Array.from(event.dataTransfer.files);
   if (files.length) {
     disenoFilesToUpload = files;
-    updateDisenoZone(files.length === 1 ? files[0].name : `${files.length} archivos`);
+    updateDisenoZone(files.length === 1 ? files[0].name : `${files.length} archivos`, files);
   }
 }
 
@@ -3974,7 +4023,9 @@ function handleDisenoFileInput(event, solId) {
   const files = Array.from(event.target.files);
   if (files.length) {
     disenoFilesToUpload = files;
-    updateDisenoZone(files.length === 1 ? files[0].name : `${files.length} archivos seleccionados`);
+    // Update the drop zone visually
+    const zone = event.target.closest ? event.target.parentElement : null;
+    updateDisenoZone(files.length === 1 ? files[0].name : `${files.length} archivos seleccionados`, files);
   }
   event.target.value = '';
 }
