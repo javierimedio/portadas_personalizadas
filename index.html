@@ -2291,7 +2291,10 @@ async function saveSolicitud(estadoTarget) {
 
   const solData = {
     campana_id:    campanaId,
-    comercial_id:  currentUser.id,
+    comercial_id:  (['admin','marketing'].includes(currentPerfil?.rol) && document.getElementById('f-comercial-asignado')?.value)
+                    ? document.getElementById('f-comercial-asignado').value
+                    : currentUser.id,
+    canal:         document.getElementById('f-canal')?.value || null,
     idioma:        idioma.toUpperCase(),
     cod_sap:       codSap.toUpperCase(),
     nombre_empresa: nombre.toUpperCase(),
