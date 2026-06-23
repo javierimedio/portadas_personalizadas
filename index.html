@@ -1675,7 +1675,7 @@ function renderDisenoTable() {
   // All roles in Diseño tab see en_diseno and modificar_diseno
   rows = rows.filter(s => ['en_diseno','modificar_diseno'].includes(s.estado));
   // Diseñador: only own. responsable_diseno: all.
-  if (rol === 'disenador') rows = rows.filter(s => s.disenador_id === currentUser.id);
+  if (rol === 'disenador') rows = rows.filter(s => s.asignado_id === currentUser.id);
   const tbody = document.getElementById('tbl-diseno');
   if (!rows.length) { tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">🎨</div><p>No hay solicitudes asignadas.</p></div></td></tr>`; return; }
   tbody.innerHTML = rows.map(s => `
@@ -2397,14 +2397,14 @@ async function openDetalle(solId) {
   const campNombre = allCampanas?.find?.(c => c.id === sol.campana_id)?.nombre || activeCampana?.nombre || '';
   // Load designer name if assigned
   let disenadorNombre = null;
-  if (sol.disenador_id) {
+  if (sol.asignado_id) {
     // Try allPerfiles first (loaded for admin/marketing/responsable_diseno)
-    const perfDis = allPerfiles?.find(p => p.id === sol.disenador_id);
+    const perfDis = allPerfiles?.find(p => p.id === sol.asignado_id);
     if (perfDis) {
       disenadorNombre = perfDis.nombre;
     } else {
       // Fetch directly from DB for roles that don't have allPerfiles
-      const { data: dp } = await db.from('perfiles').select('nombre').eq('id', sol.disenador_id).maybeSingle();
+      const { data: dp } = await db.from('perfiles').select('nombre').eq('id', sol.asignado_id).maybeSingle();
       disenadorNombre = dp?.nombre || null;
     }
   }
@@ -2416,7 +2416,7 @@ async function openDetalle(solId) {
   let htmlLeft = '';
   let htmlRight = '';
   // Show assigned designer prominently if applicable
-  if (sol.disenador_id && ['en_diseno','modificar_diseno','diseno_en_revision_comercial','confirmada'].includes(sol.estado)) {
+  if (sol.asignado_id && ['en_diseno','modificar_diseno','diseno_en_revision_comercial','confirmada'].includes(sol.estado)) {
     const disNombre = disenadorNombre || '—';
     htmlRight += `<div style="background:var(--c-purple-l);border:1px solid #ddd6fe;border-radius:8px;padding:.75rem 1rem;margin-bottom:.75rem;display:flex;align-items:center;gap:10px">
       <span style="font-size:20px">🎨</span>
