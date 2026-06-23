@@ -2395,10 +2395,20 @@ async function openDetalle(solId) {
   document.getElementById('det-footer').innerHTML = '<button class="btn btn-outline" onclick="closeModal(&quot;modal-detalle&quot;)">Cerrar</button>';
   document.getElementById('modal-detalle').classList.add('open');
   const campNombre = allCampanas?.find?.(c => c.id === sol.campana_id)?.nombre || activeCampana?.nombre || '';
-  const disenadorAsignado = sol.disenador_id
-    ? (allPerfiles?.find(p => p.id === sol.disenador_id)?.nombre || '—')
-    : null;
-  document.getElementById('det-sub').textContent = `${sol.nombre_empresa||''} · ${sol.provincia||''} · ${ESTADO_LABEL[sol.estado]}${campNombre ? ' · ' + campNombre : ''}${disenadorAsignado ? ' · 🎨 ' + disenadorAsignado : ''}`;
+  // Load designer name if assigned
+  let disenadorNombre = null;
+  if (sol.disenador_id) {
+    // Try allPerfiles first (loaded for admin/marketing/responsable_diseno)
+    const perfDis = allPerfiles?.find(p => p.id === sol.disenador_id);
+    if (perfDis) {
+      disenadorNombre = perfDis.nombre;
+    } else {
+      // Fetch directly from DB for roles that don't have allPerfiles
+      const { data: dp } = await db.from('perfiles').select('nombre').eq('id', sol.disenador_id).maybeSingle();
+      disenadorNombre = dp?.nombre || null;
+    }
+  }
+  document.getElementById('det-sub').textContent = `${sol.nombre_empresa||''} · ${sol.provincia||''} · ${ESTADO_LABEL[sol.estado]}${campNombre ? ' · ' + campNombre : ''}${disenadorNombre ? ' · 🎨 ' + disenadorNombre : ''}`;
 
   // Load logs
   const { data: logs } = await db.from('logs').select('*').eq('solicitud_id', solId).order('created_at', { ascending: false });
@@ -2407,7 +2417,7 @@ async function openDetalle(solId) {
   let htmlRight = '';
   // Show assigned designer prominently if applicable
   if (sol.disenador_id && ['en_diseno','modificar_diseno','diseno_en_revision_comercial','confirmada'].includes(sol.estado)) {
-    const disNombre = allPerfiles?.find(p => p.id === sol.disenador_id)?.nombre || '—';
+    const disNombre = disenadorNombre || '—';
     htmlRight += `<div style="background:var(--c-purple-l);border:1px solid #ddd6fe;border-radius:8px;padding:.75rem 1rem;margin-bottom:.75rem;display:flex;align-items:center;gap:10px">
       <span style="font-size:20px">🎨</span>
       <div>
