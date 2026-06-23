@@ -2117,6 +2117,7 @@ async function openFormModal(solId = null) {
         if (cat.portada_opcion_3) document.getElementById(cat.catalogo+'-p3').value = cat.portada_opcion_3;
         if (cat.posicion_logo)    document.getElementById(cat.catalogo+'-pos').value = cat.posicion_logo;
         if (cat.unidades)         document.getElementById(cat.catalogo+'-und').value = cat.unidades;
+        if (cat.con_precios !== null && cat.con_precios !== undefined) setRadio(cat.catalogo, 'con_precios', cat.con_precios);
         toggleCat(cat.catalogo);
       });
     }
@@ -2272,6 +2273,7 @@ async function saveSolicitud(estadoTarget) {
       catalogo_impreso:     getRadioVal(cat.key, 'catalogo_impreso'),
       portada_personalizada:getRadioVal(cat.key, 'portada_personalizada'),
       portada_diseno_propio:getRadioVal(cat.key, 'portada_diseno_propio') || false,
+      con_precios:          getRadioVal(cat.key, 'con_precios'),
       portada_opcion_1:     document.getElementById(cat.key+'-p1')?.value || null,
       portada_opcion_2:     document.getElementById(cat.key+'-p2')?.value || null,
       portada_opcion_3:     document.getElementById(cat.key+'-p3')?.value || null,
