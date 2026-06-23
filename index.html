@@ -2444,7 +2444,7 @@ async function openDetalle(solId) {
       disenadorNombre = dp?.nombre || null;
     }
   }
-  document.getElementById('det-sub').textContent = `${sol.nombre_empresa||''} · ${sol.provincia||''} · ${ESTADO_LABEL[sol.estado]}${campNombre ? ' · ' + campNombre : ''}${disenadorNombre ? ' · 🎨 ' + disenadorNombre : ''}`;
+  document.getElementById('det-sub').textContent = `${sol.nombre_empresa||''} · ${sol.provincia||''} · ${ESTADO_LABEL[sol.estado]}${campNombre ? ' · ' + campNombre : ''} · 👤 ${sol.perfiles?.nombre || sol.perfiles?.codigo || '—'}`;
 
   // Load logs
   const { data: logs } = await db.from('logs').select('*').eq('solicitud_id', solId).order('created_at', { ascending: false });
