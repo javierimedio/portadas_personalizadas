@@ -2395,13 +2395,27 @@ async function openDetalle(solId) {
   document.getElementById('det-footer').innerHTML = '<button class="btn btn-outline" onclick="closeModal(&quot;modal-detalle&quot;)">Cerrar</button>';
   document.getElementById('modal-detalle').classList.add('open');
   const campNombre = allCampanas?.find?.(c => c.id === sol.campana_id)?.nombre || activeCampana?.nombre || '';
-  document.getElementById('det-sub').textContent = `${sol.nombre_empresa||''} · ${sol.provincia||''} · ${ESTADO_LABEL[sol.estado]}${campNombre ? ' · ' + campNombre : ''}`;
+  const disenadorAsignado = sol.disenador_id
+    ? (allPerfiles?.find(p => p.id === sol.disenador_id)?.nombre || '—')
+    : null;
+  document.getElementById('det-sub').textContent = `${sol.nombre_empresa||''} · ${sol.provincia||''} · ${ESTADO_LABEL[sol.estado]}${campNombre ? ' · ' + campNombre : ''}${disenadorAsignado ? ' · 🎨 ' + disenadorAsignado : ''}`;
 
   // Load logs
   const { data: logs } = await db.from('logs').select('*').eq('solicitud_id', solId).order('created_at', { ascending: false });
 
   let htmlLeft = '';
   let htmlRight = '';
+  // Show assigned designer prominently if applicable
+  if (sol.disenador_id && ['en_diseno','modificar_diseno','diseno_en_revision_comercial','confirmada'].includes(sol.estado)) {
+    const disNombre = allPerfiles?.find(p => p.id === sol.disenador_id)?.nombre || '—';
+    htmlRight += `<div style="background:var(--c-purple-l);border:1px solid #ddd6fe;border-radius:8px;padding:.75rem 1rem;margin-bottom:.75rem;display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">🎨</span>
+      <div>
+        <div style="font-size:11px;color:#6b21a8;font-weight:700;text-transform:uppercase;letter-spacing:.05em">Diseñador asignado</div>
+        <div style="font-size:14px;font-weight:600;color:var(--c-dark)">${disNombre}</div>
+      </div>
+    </div>`;
+  }
   const rol = currentPerfil?.rol;
   const est = sol.estado;
   // Catalogos — use the catalogs of THIS solicitud's campaign, not the global CATS
@@ -2713,7 +2727,7 @@ async function eliminarSolicitud(solId) {
 }
 
 async function asignarYAvanzar(solId) {
-  const disenadores = allPerfiles.filter(p => p.rol === 'disenador' && p.activo);
+  const disenadores = allPerfiles.filter(p => ['disenador','responsable_diseno'].includes(p.rol) && p.activo);
   if (!disenadores.length) { showToast('No hay diseñadores disponibles.'); return; }
 
   // Show designer picker
