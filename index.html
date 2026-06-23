@@ -1485,14 +1485,7 @@ function renderComercialTable() {
 
   const rows = allSolicitudes.filter(s => {
     if (['comercial_nacional','comercial_exportacion'].includes(rol) && s.comercial_id !== currentUser.id) return false;
-    if (rol === 'responsable_nacional') {
-      const creator = allPerfiles?.find(p => p.id === s.comercial_id);
-      if (!creator || creator.rol !== 'comercial_nacional') return false;
-    }
-    if (rol === 'responsable_exportacion') {
-      const creator = allPerfiles?.find(p => p.id === s.comercial_id);
-      if (!creator || creator.rol !== 'comercial_exportacion') return false;
-    }
+    if (allowedComercialIds && !allowedComercialIds.has(s.comercial_id)) return false;
     if (comCampId && s.campana_id !== comCampId) return false;
     if (filterComercialId && s.comercial_id !== filterComercialId) return false;
     if (q && !s.cod_sap?.toLowerCase().includes(q) && !s.nombre_empresa?.toLowerCase().includes(q)) return false;
