@@ -3313,14 +3313,14 @@ function renderDashboard() {
     ? allSolicitudes.filter(s => s.campana_id === dashId)
     : allSolicitudes;
 
-  // Responsable: filter to only their type of comercial
+  // Responsable: filter to only their type of comercial (same logic as renderComercialTable)
   const dashRol = currentPerfil?.rol;
   if (dashRol === 'responsable_nacional') {
-    const ids = new Set((allPerfiles||[]).filter(p => p.rol === 'comercial_nacional').map(p => p.id));
-    sols = sols.filter(s => ids.has(s.comercial_id));
+    const ids = new Set((allPerfiles||[]).filter(p => ['comercial_nacional','responsable_nacional'].includes(p.rol)).map(p => p.id));
+    sols = sols.filter(s => ids.has(s.comercial_id) || s.canal === 'nacional');
   } else if (dashRol === 'responsable_exportacion') {
-    const ids = new Set((allPerfiles||[]).filter(p => p.rol === 'comercial_exportacion').map(p => p.id));
-    sols = sols.filter(s => ids.has(s.comercial_id));
+    const ids = new Set((allPerfiles||[]).filter(p => ['comercial_exportacion','responsable_exportacion'].includes(p.rol)).map(p => p.id));
+    sols = sols.filter(s => ids.has(s.comercial_id) || s.canal === 'exportacion');
   }
   const campNombre = dashCampanaId
     ? (allCampanas.find(c => c.id === dashCampanaId)?.nombre || '—')
