@@ -2618,6 +2618,28 @@ async function openDetalle(solId) {
     </div>`).join('');
   htmlRight += '</div>';
 
+  // Diseno upload zone — shown above footer divider in body (for diseño states)
+  if ((rol === 'disenador' || rol === 'responsable_diseno' || rol === 'admin' || rol === 'marketing') && (est === 'en_diseno' || est === 'modificar_diseno')) {
+    htmlLeft += `
+      <div style="border-top:1px solid var(--c-line);margin-top:1.5rem;padding-top:1.25rem">
+        <div style="font-size:12px;font-weight:700;color:var(--c-mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.75rem">Subir diseño</div>
+        <div id="diseno-upload-zone"
+          style="border:2px dashed var(--c-line);border-radius:8px;padding:1rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--c-white)"
+          ondragover="event.preventDefault();event.stopPropagation();this.style.borderColor='var(--c-amber)';this.style.background='var(--c-amber-l)'"
+          ondragleave="this.style.borderColor='var(--c-line)';this.style.background='var(--c-white)'"
+          ondrop="event.preventDefault();event.stopPropagation();this.style.borderColor='var(--c-line)';this.style.background='var(--c-white)';handleDisenoUpload(event,'${solId}')"
+          onclick="document.getElementById('file-diseno-det').click()">
+          <div class="drop-inner">
+            <div style="font-size:24px;margin-bottom:4px">🎨</div>
+            <div style="font-size:13px;font-weight:500;color:var(--c-dark)">Arrastra el diseño aquí o haz clic</div>
+            <div style="font-size:11px;color:var(--c-mid);margin-top:2px">PDF · JPG · PNG · AI · EPS</div>
+          </div>
+        </div>
+        <input type="file" id="file-diseno-det" accept=".pdf,.jpg,.jpeg,.png,.ai,.eps" multiple style="display:none"
+          onchange="handleDisenoFileInput(event,'${solId}')">
+      </div>`;
+  }
+
   // Two-column layout
   document.getElementById('det-body').innerHTML = `
     <div style="display:grid;grid-template-columns:3fr 2fr;gap:1.25rem;align-items:start">
@@ -2668,20 +2690,7 @@ async function openDetalle(solId) {
   // Diseñador/Resp.Diseño/Marketing/Admin: en diseño o modificar → subir diseño y marcar listo
   if ((rol === 'disenador' || rol === 'responsable_diseno' || rol === 'admin' || rol === 'marketing') && (est === 'en_diseno' || est === 'modificar_diseno')) {
     btns += `
-      <div style="width:100%">
-        <div id="diseno-upload-zone"
-          style="border:2px dashed var(--c-line);border-radius:8px;padding:1rem;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:8px;background:var(--c-white)"
-          ondragover="event.preventDefault();event.stopPropagation();document.getElementById('diseno-upload-zone').style.borderColor='var(--c-amber)';document.getElementById('diseno-upload-zone').style.background='var(--c-amber-l)'"
-          ondragleave="document.getElementById('diseno-upload-zone').style.borderColor='var(--c-line)';document.getElementById('diseno-upload-zone').style.background='var(--c-white)'"
-          ondrop="event.preventDefault();event.stopPropagation();document.getElementById('diseno-upload-zone').style.borderColor='var(--c-line)';document.getElementById('diseno-upload-zone').style.background='var(--c-white)';handleDisenoUpload(event,'${solId}')"
-          onclick="document.getElementById('file-diseno-det').click()">
-          <div style="font-size:24px;margin-bottom:4px">🎨</div>
-          <div id="diseno-upload-label" style="font-size:13px;font-weight:500;color:var(--c-dark)">Arrastra el diseño aquí o haz clic</div>
-          <div style="font-size:11px;color:var(--c-mid);margin-top:2px">PDF · JPG · PNG · AI · EPS</div>
-        </div>
-        <input type="file" id="file-diseno-det" accept=".pdf,.jpg,.jpeg,.png,.ai,.eps" multiple style="display:none"
-          onchange="handleDisenoFileInput(event,'${solId}')">
-        <button class="btn btn-amber btn-sm" onclick="marcarDisenoListo('${solId}')">
+    <button class="btn btn-amber btn-sm" onclick="marcarDisenoListo('${solId}')">
           Diseño listo → Revisión cliente
         </button>
       </div>`;
