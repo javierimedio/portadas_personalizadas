@@ -5,7 +5,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Portadas Personalizadas |GOR FACTORY</title>
+<title>Portadas Personalizadas | GOR FACTORY</title>
 <link rel="icon" type="image/jpeg" href="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAQFAwb/xAAjEAACAQMEAwADAAAAAAAAAAABAgMABBESEyExBRRBIlFx/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AOzopS7u5I5ore2jEk8gLfk2FVRjJJ/pHFJt5W5gmmjurZVEMasSjk7hYkKF4+kY5oK9FTfdvIZI1u7eFBMdEbJIWCvjIDcfcditPF3lxfQmWWBIkyVGH1FiCQT11xQZ+VV45YLmHcWRMqXSPcAU44ZRyRkDrqlbWzkv5byS6eUxyxoivo2zlSTlVPIAJGM9nNXKKCd6F1K8bXV2kmydUYWLSNWMBm55xnoYrbxtpJZWuzJMJcMSGCaezn9n6TTdFB//2Q==">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2100,6 +2100,8 @@ async function openFormModal(solId = null) {
         const solCampana = (await loadAllCampanas()).find(c => c.id === sol.campana_id);
         updateCatsForCampana(solCampana);
         buildCatSections();
+        // Re-apply idioma visibility AFTER rebuilding cat sections
+        onIdiomaChange();
       }
       sol.solicitud_catalogos?.forEach(cat => {
         if (cat.catalogo_digital   !== null) setRadio(cat.catalogo, 'catalogo_digital',   cat.catalogo_digital);
@@ -2846,13 +2848,16 @@ async function exportExcel() {
     const bool = (v) => v === true ? 'SI' : v === false ? 'NO' : '';
     const catCols = exportCats.flatMap(cat => {
       const c = get(cat.key);
-      return [
+      const base = [
         bool(c?.catalogo_digital), bool(c?.catalogo_impreso),
         bool(c?.portada_personalizada),
         c?.portada_diseno_propio ? 'DISEÑO PROPIO' : (c?.portada_opcion_1 || ''),
         c?.portada_opcion_2 || '', c?.portada_opcion_3 || '',
         c?.portada_elegida || '', c?.posicion_logo || '', c?.unidades || 0,
       ];
+      // Add con_precios column for Stamina and XMAS
+      if (cat.hasDisenoProp) base.push(c?.con_precios === true ? 'CON PRECIOS' : c?.con_precios === false ? 'SIN PRECIOS' : '');
+      return base;
     });
     return [
       sol.cod_sap || '', sol.nombre_empresa || '',
@@ -2871,13 +2876,15 @@ async function exportExcel() {
   // Column widths
   ws.columns = [
     {width:12},{width:30},{width:18},{width:14},{width:16},
-    ...exportCats.flatMap(() => [
-      {width:9},{width:9},{width:22},{width:13},{width:13},{width:13},{width:14},{width:14},{width:9}
-    ]),
+    ...exportCats.flatMap(cat => {
+      const cols = [{width:9},{width:9},{width:22},{width:13},{width:13},{width:13},{width:14},{width:14},{width:9}];
+      if (cat.hasDisenoProp) cols.push({width:14});
+      return cols;
+    }),
     {width:30},{width:16},{width:32},
   ];
 
-  const totalCols = 5 + (exportCats.length * 9) + 3;
+  const totalCols = 5 + exportCats.reduce((a,c) => a + (c.hasDisenoProp ? 10 : 9), 0) + 3;
 
   // Color palette
   const BLACK  = 'FF000000';
@@ -2928,8 +2935,9 @@ async function exportExcel() {
   const CAT_GROUP_FG = { roly: WHITE, roly_wrk: BLACK, stamina: WHITE, xmas: WHITE };
   let gStart = 6;
   const catGroups = exportCats.map(cat => {
-    const g = { label: cat.label, s: gStart, e: gStart+8, bg: CAT_GROUP_BG[cat.key]||DARK, fg: CAT_GROUP_FG[cat.key]||WHITE };
-    gStart += 9;
+    const cols = cat.hasDisenoProp ? 10 : 9;
+    const g = { label: cat.label, s: gStart, e: gStart+cols-1, bg: CAT_GROUP_BG[cat.key]||DARK, fg: CAT_GROUP_FG[cat.key]||WHITE };
+    gStart += cols;
     return g;
   });
   const stateStart = gStart;
