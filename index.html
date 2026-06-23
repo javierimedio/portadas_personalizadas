@@ -714,6 +714,24 @@
         </div>
       </div>
 
+      <!-- CANAL — visible only for admin/marketing -->
+      <div class="form-grid" id="fg-canal" style="display:none">
+        <div class="form-group">
+          <label>Canal</label>
+          <select id="f-canal" style="width:100%" onchange="onCanalChange()">
+            <option value="">— selecciona canal —</option>
+            <option value="nacional">Nacional</option>
+            <option value="exportacion">Exportación</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Asignar a comercial</label>
+          <select id="f-comercial-asignado" style="width:100%">
+            <option value="">— selecciona comercial —</option>
+          </select>
+        </div>
+      </div>
+
       <hr class="divider">
 
       <!-- LOGO GENERAL -->
@@ -1478,14 +1496,20 @@ function renderComercialTable() {
   // Responsable nacional/exportacion: restrict to their comercials
   let allowedComercialIds = null;
   if (rol === 'responsable_nacional') {
-    allowedComercialIds = new Set(allPerfiles.filter(p => p.rol === 'comercial_nacional').map(p => p.id));
+    allowedComercialIds = new Set(allPerfiles.filter(p => ['comercial_nacional','responsable_nacional'].includes(p.rol)).map(p => p.id));
   } else if (rol === 'responsable_exportacion') {
-    allowedComercialIds = new Set(allPerfiles.filter(p => p.rol === 'comercial_exportacion').map(p => p.id));
+    allowedComercialIds = new Set(allPerfiles.filter(p => ['comercial_exportacion','responsable_exportacion'].includes(p.rol)).map(p => p.id));
   }
+  // Also allow solicitudes explicitly assigned to this canal
+  const canalFilter = rol === 'responsable_nacional' ? 'nacional' : rol === 'responsable_exportacion' ? 'exportacion' : null;
 
   const rows = allSolicitudes.filter(s => {
     if (['comercial_nacional','comercial_exportacion'].includes(rol) && s.comercial_id !== currentUser.id) return false;
-    if (allowedComercialIds && !allowedComercialIds.has(s.comercial_id)) return false;
+    if (allowedComercialIds) {
+      // Pass if comercial is in allowed set OR if canal matches
+      const canalMatch = canalFilter && s.canal === canalFilter;
+      if (!allowedComercialIds.has(s.comercial_id) && !canalMatch) return false;
+    }
     if (comCampId && s.campana_id !== comCampId) return false;
     if (filterComercialId && s.comercial_id !== filterComercialId) return false;
     if (q && !s.cod_sap?.toLowerCase().includes(q) && !s.nombre_empresa?.toLowerCase().includes(q)) return false;
@@ -1998,6 +2022,25 @@ async function onIdiomaChange() {
   document.querySelectorAll('.cat-precios-row').forEach(row => {
     row.style.display = idioma === 'Español' ? 'flex' : 'none';
   });
+}
+
+function onCanalChange(val) {
+  const canal = val ?? document.getElementById('f-canal')?.value;
+  const sel = document.getElementById('f-comercial-asignado');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— selecciona comercial —</option>';
+  if (!canal) return;
+  const roles = canal === 'nacional'
+    ? ['comercial_nacional','responsable_nacional']
+    : ['comercial_exportacion','responsable_exportacion'];
+  (allPerfiles || []).filter(p => roles.includes(p.rol) && p.activo)
+    .sort((a,b) => a.nombre.localeCompare(b.nombre))
+    .forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.nombre;
+      sel.appendChild(opt);
+    });
 }
 
 async function checkCampanaAndOpen() {
