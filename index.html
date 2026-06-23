@@ -2407,7 +2407,6 @@ async function openDetalle(solId) {
           <span>Impreso: <strong>${c.catalogo_impreso===true?'SI':c.catalogo_impreso===false?'NO':'—'}</strong></span>
           <span>Portada: <strong>${c.portada_personalizada===true?'SI':c.portada_personalizada===false?'NO':'—'}</strong></span>
           ${ALL_CATS.find(x=>x.key===c.catalogo)?.hasDisenoProp && c.con_precios!==null && c.con_precios!==undefined ? `<span style="background:var(--c-amber-l);color:#92400e;padding:1px 7px;border-radius:4px;font-weight:700;font-size:11px">${c.con_precios?'CON PRECIOS':'SIN PRECIOS'}</span>` : ''}
-          ${ALL_CATS.find(x=>x.key===c.catalogo)?.hasDisenoProp && c.con_precios !== null && c.con_precios !== undefined ? `<span style="background:var(--c-amber-l);color:var(--c-amber);padding:1px 7px;border-radius:4px;font-weight:600">${c.con_precios ? 'CON PRECIOS' : 'SIN PRECIOS'}</span>` : ''}
           ${c.portada_personalizada ? `<span>P1: <strong>${c.portada_diseno_propio?'Propio':c.portada_opcion_1||'—'}</strong></span>` : ''}
           ${c.portada_personalizada && !c.portada_diseno_propio ? `<span>P2: <strong>${c.portada_opcion_2||'—'}</strong></span><span>P3: <strong>${c.portada_opcion_3||'—'}</strong></span>` : ''}
           ${c.portada_personalizada ? `<span>Logo: <strong>${c.posicion_logo||'—'}</strong></span>` : ''}
