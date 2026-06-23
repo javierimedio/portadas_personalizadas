@@ -1381,7 +1381,7 @@ async function loadData() {
   await loadSolicitudes();
   // Populate campaign filters for ALL roles
   await populateCampanaFilter();
-  if (['admin', 'marketing', 'disenador', 'responsable', 'responsable_nacional', 'responsable_exportacion'].includes(currentPerfil?.rol)) {
+  if (['admin', 'marketing', 'disenador', 'responsable', 'responsable_nacional', 'responsable_exportacion', 'responsable_diseno'].includes(currentPerfil?.rol)) {
     await loadPerfiles();
   }
   if (['admin', 'marketing', 'disenador'].includes(currentPerfil?.rol)) {
@@ -1391,7 +1391,7 @@ async function loadData() {
   }
 
   renderComercialTable();
-  if (['disenador', 'admin', 'marketing'].includes(currentPerfil?.rol)) renderDisenoTable();
+  if (['disenador', 'admin', 'marketing', 'responsable_diseno'].includes(currentPerfil?.rol)) renderDisenoTable();
   if (['admin', 'marketing'].includes(currentPerfil?.rol)) renderUsuariosTable();
   if (['admin', 'marketing', 'responsable', 'responsable_nacional', 'responsable_exportacion'].includes(currentPerfil?.rol)) {
     renderDashboard();
@@ -1674,6 +1674,8 @@ function renderDisenoTable() {
     : allSolicitudes;
   // All roles in Diseño tab see en_diseno and modificar_diseno
   rows = rows.filter(s => ['en_diseno','modificar_diseno'].includes(s.estado));
+  // Diseñador: only own. responsable_diseno: all.
+  if (rol === 'disenador') rows = rows.filter(s => s.disenador_id === currentUser.id);
   const tbody = document.getElementById('tbl-diseno');
   if (!rows.length) { tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">🎨</div><p>No hay solicitudes asignadas.</p></div></td></tr>`; return; }
   tbody.innerHTML = rows.map(s => `
