@@ -2640,6 +2640,19 @@ async function openDetalle(solId) {
     btns += `<button class="btn btn-amber" onclick="cambiarEstadoDirecto('${solId}','enviada')">Enviar a marketing</button>`;
   }
 
+  // Admin/Marketing: editar y asignar canal/comercial en cualquier estado
+  if (rol === 'admin' || rol === 'marketing') {
+    if (est !== 'borrador') {
+      btns += `<button class="btn btn-outline btn-sm" onclick="closeModal('modal-detalle');openFormModal('${solId}')">✏️ Editar</button>`;
+    }
+    btns += `<button class="btn btn-outline btn-sm" onclick="openCanalModal('${solId}')">🔀 Asignar canal</button>`;
+  }
+
+  // Admin/Marketing/Responsable_diseno: reasignar diseñador cuando está en diseño
+  if ((rol === 'admin' || rol === 'marketing' || rol === 'responsable_diseno') && (est === 'en_diseno' || est === 'modificar_diseno')) {
+    btns += `<button class="btn btn-outline btn-sm" onclick="asignarYAvanzar('${solId}')">🔄 Reasignar diseñador</button>`;
+  }
+
   // Marketing/Admin: solicitud enviada → pasar a revisión
   if ((rol === 'marketing' || rol === 'admin') && est === 'enviada') {
     btns += `<button class="btn btn-outline btn-danger btn-sm" onclick="cambiarEstadoDirecto('${solId}','borrador')">Devolver al comercial</button>`;
@@ -2650,11 +2663,6 @@ async function openDetalle(solId) {
   if ((rol === 'marketing' || rol === 'admin') && est === 'en_revision_marketing') {
     btns += `<button class="btn btn-outline btn-danger btn-sm" onclick="cambiarEstadoDirecto('${solId}','borrador')">Devolver al comercial</button>`;
     btns += `<button class="btn btn-amber" onclick="asignarYAvanzar('${solId}')">Enviar a diseño</button>`;
-  }
-
-  // Responsable diseño: can reassign designer
-  if (rol === 'responsable_diseno' && (est === 'en_diseno' || est === 'modificar_diseno')) {
-    btns += `<button class="btn btn-outline btn-sm" onclick="asignarYAvanzar('${solId}')">🔄 Reasignar diseñador</button>`;
   }
 
   // Diseñador/Resp.Diseño/Marketing/Admin: en diseño o modificar → subir diseño y marcar listo
@@ -2817,6 +2825,83 @@ async function asignarYAvanzar(solId) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;display:flex;align-items:center;justify-content:center';
   overlay.innerHTML = `<div style="background:white;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.15);width:320px">${pickerHtml}</div>`;
   document.body.appendChild(overlay);
+}
+
+async function openCanalModal(solId) {
+  const sol = allSolicitudes.find(s => s.id === solId);
+  if (!sol) return;
+
+  // Build modal content
+  const roles_nac = allPerfiles.filter(p => ['comercial_nacional','responsable_nacional'].includes(p.rol) && p.activo).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  const roles_exp = allPerfiles.filter(p => ['comercial_exportacion','responsable_exportacion'].includes(p.rol) && p.activo).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+
+  const html = `
+    <div style="padding:1.5rem">
+      <div style="font-size:14px;font-weight:600;margin-bottom:1rem">Asignar canal y comercial</div>
+      <div class="form-group" style="margin-bottom:1rem">
+        <label>Canal</label>
+        <select id="canal-modal-canal" style="width:100%" onchange="onCanalModalChange()">
+          <option value="">— selecciona canal —</option>
+          <option value="nacional" ${sol.canal==='nacional'?'selected':''}>Nacional</option>
+          <option value="exportacion" ${sol.canal==='exportacion'?'selected':''}>Exportación</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:1.5rem">
+        <label>Comercial asignado</label>
+        <select id="canal-modal-comercial" style="width:100%">
+          <option value="">— selecciona canal primero —</option>
+          ${sol.canal === 'nacional'
+            ? roles_nac.map(p=>`<option value="${p.id}" ${p.id===sol.comercial_id?'selected':''}>${p.nombre}</option>`).join('')
+            : sol.canal === 'exportacion'
+            ? roles_exp.map(p=>`<option value="${p.id}" ${p.id===sol.comercial_id?'selected':''}>${p.nombre}</option>`).join('')
+            : ''}
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="document.getElementById('modal-canal-assign').remove()">Cancelar</button>
+        <button class="btn btn-amber" onclick="saveCanalAssign('${solId}')">Guardar</button>
+      </div>
+    </div>`;
+
+  // Create floating modal
+  let m = document.createElement('div');
+  m.id = 'modal-canal-assign';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center';
+  m.innerHTML = `<div style="background:white;border-radius:12px;width:380px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.3)">${html}</div>`;
+  document.body.appendChild(m);
+
+  // Populate comercial select if canal already set
+  if (sol.canal) onCanalModalChange();
+}
+
+function onCanalModalChange() {
+  const canal = document.getElementById('canal-modal-canal')?.value;
+  const sel = document.getElementById('canal-modal-comercial');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— selecciona comercial —</option>';
+  const roles = canal === 'nacional'
+    ? ['comercial_nacional','responsable_nacional']
+    : ['comercial_exportacion','responsable_exportacion'];
+  (allPerfiles||[]).filter(p => roles.includes(p.rol) && p.activo)
+    .sort((a,b) => a.nombre.localeCompare(b.nombre))
+    .forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.nombre;
+      sel.appendChild(opt);
+    });
+}
+
+async function saveCanalAssign(solId) {
+  const canal = document.getElementById('canal-modal-canal')?.value;
+  const comercialId = document.getElementById('canal-modal-comercial')?.value;
+  if (!canal || !comercialId) { showToast('Selecciona canal y comercial.'); return; }
+  await db.from('solicitudes').update({ canal, comercial_id: comercialId }).eq('id', solId);
+  document.getElementById('modal-canal-assign')?.remove();
+  await loadSolicitudes();
+  renderMktTable(); renderStats(); renderComercialTable();
+  openDetalle(solId);
+  showToast('Canal y comercial asignados correctamente.');
 }
 
 async function confirmAsignar(solId) {
