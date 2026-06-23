@@ -5,7 +5,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Portadas Personalizadas | GOR FACTORY</title>
+<title>Portadas Personalizadas | Roly · Roly WRK · Stamina</title>
 <link rel="icon" type="image/jpeg" href="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAQFAwb/xAAjEAACAQMEAwADAAAAAAAAAAABAgMABBESEyExBRRBIlFx/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AOzopS7u5I5ore2jEk8gLfk2FVRjJJ/pHFJt5W5gmmjurZVEMasSjk7hYkKF4+kY5oK9FTfdvIZI1u7eFBMdEbJIWCvjIDcfcditPF3lxfQmWWBIkyVGH1FiCQT11xQZ+VV45YLmHcWRMqXSPcAU44ZRyRkDrqlbWzkv5byS6eUxyxoivo2zlSTlVPIAJGM9nNXKKCd6F1K8bXV2kmydUYWLSNWMBm55xnoYrbxtpJZWuzJMJcMSGCaezn9n6TTdFB//2Q==">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -309,6 +309,7 @@
         <option value="comercial_exportacion">Comercial Exportación</option>
         <option value="responsable_nacional">Resp. Nacional</option>
         <option value="responsable_exportacion">Resp. Exportación</option>
+        <option value="responsable_diseno">Resp. Diseño</option>
       </select>
       <button id="notif-btn" onclick="toggleNotifPanel()" style="position:relative;background:none;border:none;cursor:pointer;color:white;font-size:18px;padding:4px 8px;line-height:1">
         🔔
@@ -449,6 +450,9 @@
           <optgroup label="Responsable">
             <option value="responsable_nacional">Resp. Nacional</option>
             <option value="responsable_exportacion">Resp. Exportación</option>
+          </optgroup>
+          <optgroup label="Responsable Diseño">
+            <option value="responsable_diseno">Resp. Diseño</option>
           </optgroup>
           <optgroup label="Interno">
             <option value="marketing">Marketing</option>
@@ -799,6 +803,9 @@
             <optgroup label="Responsable Comercial">
               <option value="responsable_nacional">Resp. Comercial Nacional</option>
               <option value="responsable_exportacion">Resp. Comercial Exportación</option>
+            </optgroup>
+            <optgroup label="Responsable Diseño">
+              <option value="responsable_diseno">Resp. Diseño</option>
             </optgroup>
             <optgroup label="Interno">
               <option value="marketing">Marketing</option>
@@ -1345,10 +1352,11 @@ function buildNav() {
   const isComercial = ['comercial_nacional','comercial_exportacion'].includes(rol);
   const isResp      = ['responsable_nacional','responsable_exportacion'].includes(rol);
 
-  if (isAdmin || isMarketing || isResp) items.push({ id: 'dashboard', label: 'Dashboard' });
+  const isRespDis = rol === 'responsable_diseno';
+  if (isAdmin || isMarketing || isResp || isRespDis) items.push({ id: 'dashboard', label: 'Dashboard' });
   if (isAdmin || isMarketing || isComercial || isResp) items.push({ id: 'mis-solicitudes', label: 'Solicitudes' });
   if (isAdmin || isMarketing) items.push({ id: 'panel', label: 'Panel global' });
-  if (isAdmin || isMarketing || isDiseño) items.push({ id: 'diseno', label: 'Diseño' });
+  if (isAdmin || isMarketing || isDiseño || isRespDis) items.push({ id: 'diseno', label: 'Diseño' });
   if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'campanas',      label: 'Campañas' });
   if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'usuarios',      label: 'Usuarios' });
   nav.innerHTML = items.map((it, i) =>
@@ -1681,8 +1689,8 @@ function renderDisenoTable() {
     </tr>`).join('');
 }
 
-const ROL_COLORS = { admin: 'var(--c-amber)', marketing: 'var(--c-blue)', responsable: '#0F6E56', responsable_nacional: '#0F6E56', responsable_exportacion: '#0F6E56', comercial: 'var(--c-teal)', comercial_nacional: 'var(--c-teal)', comercial_exportacion: 'var(--c-teal)', disenador: 'var(--c-purple)' };
-const ROL_LABELS = { admin: 'Administrador', marketing: 'Marketing', responsable: 'Resp. Comercial', responsable_nacional: 'Resp. Nacional', responsable_exportacion: 'Resp. Exportación', comercial: 'Comercial', comercial_nacional: 'Comercial Nacional', comercial_exportacion: 'Comercial Exportación', disenador: 'Diseñador' };
+const ROL_COLORS = { responsable_diseno: 'var(--c-purple)', admin: 'var(--c-amber)', marketing: 'var(--c-blue)', responsable: '#0F6E56', responsable_nacional: '#0F6E56', responsable_exportacion: '#0F6E56', comercial: 'var(--c-teal)', comercial_nacional: 'var(--c-teal)', comercial_exportacion: 'var(--c-teal)', disenador: 'var(--c-purple)' };
+const ROL_LABELS = { responsable_diseno: 'Resp. Diseño', admin: 'Administrador', marketing: 'Marketing', responsable: 'Resp. Comercial', responsable_nacional: 'Resp. Nacional', responsable_exportacion: 'Resp. Exportación', comercial: 'Comercial', comercial_nacional: 'Comercial Nacional', comercial_exportacion: 'Comercial Exportación', disenador: 'Diseñador' };
 
 function renderUsuariosTable() {
   // Show/hide new user button — admin only
@@ -2562,8 +2570,13 @@ async function openDetalle(solId) {
     btns += `<button class="btn btn-amber" onclick="asignarYAvanzar('${solId}')">Enviar a diseño</button>`;
   }
 
-  // Diseñador/Marketing/Admin: en diseño o modificar → subir diseño y marcar listo
-  if ((rol === 'disenador' || rol === 'admin' || rol === 'marketing') && (est === 'en_diseno' || est === 'modificar_diseno')) {
+  // Responsable diseño: can reassign designer
+  if (rol === 'responsable_diseno' && (est === 'en_diseno' || est === 'modificar_diseno')) {
+    btns += `<button class="btn btn-outline btn-sm" onclick="asignarYAvanzar('${solId}')">🔄 Reasignar diseñador</button>`;
+  }
+
+  // Diseñador/Resp.Diseño/Marketing/Admin: en diseño o modificar → subir diseño y marcar listo
+  if ((rol === 'disenador' || rol === 'responsable_diseno' || rol === 'admin' || rol === 'marketing') && (est === 'en_diseno' || est === 'modificar_diseno')) {
     btns += `
       <div style="width:100%">
         <div id="diseno-upload-zone"
