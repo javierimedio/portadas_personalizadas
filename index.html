@@ -2170,6 +2170,23 @@ async function openFormModal(solId = null) {
       });
     }
   }
+  // Canal selector — visible for admin and marketing only
+  const fgCanal = document.getElementById('fg-canal');
+  if (fgCanal) {
+    const showCanal = ['admin','marketing'].includes(currentPerfil?.rol);
+    fgCanal.style.display = showCanal ? 'grid' : 'none';
+    if (showCanal) {
+      const solEdit = solId ? allSolicitudes.find(s => s.id === solId) : null;
+      document.getElementById('f-canal').value = solEdit?.canal || '';
+      document.getElementById('f-comercial-asignado').innerHTML = '<option value="">— selecciona comercial —</option>';
+      if (solEdit?.canal) {
+        onCanalChange(solEdit.canal);
+        setTimeout(() => {
+          if (solEdit.comercial_id) document.getElementById('f-comercial-asignado').value = solEdit.comercial_id;
+        }, 100);
+      }
+    }
+  }
   resetFiles();
   document.getElementById('modal-solicitud').classList.add('open');
 }
