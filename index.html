@@ -338,6 +338,7 @@
         <button class="btn btn-amber" onclick="checkCampanaAndOpen()" id="btn-nueva-sol">+ Nueva solicitud</button>
         <input type="text" id="search-comercial" placeholder="Buscar por código SAP..." style="flex:1;min-width:200px" oninput="renderComercialTable()">
       </div>
+      <div id="diseno-designer-stats" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem"></div>
       <div class="card" style="padding:0">
         <div class="tbl-wrap">
           <table>
@@ -416,6 +417,7 @@
           <select id="filter-campana-diseno" onchange="renderDisenoTable()" style="font-size:13px;min-width:160px"><option value="">Todas las campañas</option></select>
         </div>
       </div>
+      <div id="diseno-designer-stats" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem"></div>
       <div class="card" style="padding:0">
         <div class="tbl-wrap">
           <table>
@@ -1374,7 +1376,7 @@ function buildNav() {
   const isResp      = ['responsable_nacional','responsable_exportacion'].includes(rol);
 
   const isRespDis = rol === 'responsable_diseno';
-  if (isAdmin || isMarketing || isResp || isRespDis) items.push({ id: 'dashboard', label: 'Dashboard' });
+  if (isAdmin || isMarketing || isResp) items.push({ id: 'dashboard', label: 'Dashboard' });
   if (isAdmin || isMarketing || isComercial || isResp) items.push({ id: 'mis-solicitudes', label: 'Solicitudes' });
   if (isAdmin || isMarketing) items.push({ id: 'panel', label: 'Panel global' });
   if (isAdmin || isMarketing || isDiseño || isRespDis) items.push({ id: 'diseno', label: 'Diseño' });
@@ -1695,7 +1697,7 @@ function renderDisenoTable() {
   // All roles in Diseño tab see en_diseno and modificar_diseno
   rows = rows.filter(s => ['en_diseno','modificar_diseno'].includes(s.estado));
   // Diseñador: only own. responsable_diseno: all.
-  if (rol === 'disenador') rows = rows.filter(s => s.asignado_id === currentUser.id);
+  // disenador and responsable_diseno both see all tasks
 
   // Populate designer filter (for admin/marketing/responsable_diseno)
   const disenadorSel = document.getElementById('filter-diseno-disenador');
@@ -1713,6 +1715,24 @@ function renderDisenoTable() {
     disenadorSel.style.display = ['admin','marketing','responsable_diseno'].includes(rol) ? '' : 'none';
     const filterDis = disenadorSel.value;
     if (filterDis) rows = rows.filter(s => s.asignado_id === filterDis);
+  }
+
+  // Designer task counter
+  const statsEl = document.getElementById('diseno-designer-stats');
+  if (statsEl && allPerfiles?.length) {
+    const designers = allPerfiles.filter(p => ['disenador','responsable_diseno'].includes(p.rol) && p.activo);
+    if (designers.length) {
+      statsEl.innerHTML = designers.map(d => {
+        const count = rows.filter(s => s.asignado_id === d.id).length;
+        const color = count === 0 ? 'var(--c-mid)' : count > 5 ? 'var(--c-red)' : 'var(--c-green)';
+        return `<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:white;border-radius:8px;border:1px solid var(--c-line)">
+          <span style="font-size:20px;font-weight:800;color:${color}">${count}</span>
+          <span style="font-size:12px;color:var(--c-dark);font-weight:500">${d.nombre.split(' ')[0]}</span>
+        </div>`;
+      }).join('');
+    } else {
+      statsEl.innerHTML = '';
+    }
   }
 
   const tbody = document.getElementById('tbl-diseno');
