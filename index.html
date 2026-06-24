@@ -412,6 +412,7 @@
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-outline btn-sm" onclick="exportDisenoCSV()">⬇ Exportar CSV</button>
           <button class="btn btn-outline btn-sm" onclick="openCargaMasivaModal()">📦 Carga masiva</button>
+          <select id="filter-diseno-disenador" onchange="renderDisenoTable()" style="font-size:13px;min-width:160px"><option value="">Todos los diseñadores</option></select>
           <select id="filter-campana-diseno" onchange="renderDisenoTable()" style="font-size:13px;min-width:160px"><option value="">Todas las campañas</option></select>
         </div>
       </div>
@@ -421,7 +422,7 @@
             <thead><tr>
               <th>Cód. SAP</th><th>Empresa</th><th>Provincia</th>
               <th>Roly</th><th>Roly WRK</th><th>Stamina</th><th>XMAS</th>
-              <th>Estado</th><th></th>
+              <th>Estado</th><th>Diseñador</th><th></th>
             </tr></thead>
             <tbody id="tbl-diseno"></tbody>
           </table>
@@ -1695,8 +1696,27 @@ function renderDisenoTable() {
   rows = rows.filter(s => ['en_diseno','modificar_diseno'].includes(s.estado));
   // Diseñador: only own. responsable_diseno: all.
   if (rol === 'disenador') rows = rows.filter(s => s.asignado_id === currentUser.id);
+
+  // Populate designer filter (for admin/marketing/responsable_diseno)
+  const disenadorSel = document.getElementById('filter-diseno-disenador');
+  if (disenadorSel && allPerfiles?.length) {
+    const currentVal = disenadorSel.value;
+    const designers = allPerfiles.filter(p => ['disenador','responsable_diseno'].includes(p.rol) && p.activo);
+    if (disenadorSel.options.length <= 1) {
+      designers.sort((a,b) => a.nombre.localeCompare(b.nombre)).forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id; opt.textContent = p.nombre;
+        disenadorSel.appendChild(opt);
+      });
+    }
+    disenadorSel.value = currentVal;
+    disenadorSel.style.display = ['admin','marketing','responsable_diseno'].includes(rol) ? '' : 'none';
+    const filterDis = disenadorSel.value;
+    if (filterDis) rows = rows.filter(s => s.asignado_id === filterDis);
+  }
+
   const tbody = document.getElementById('tbl-diseno');
-  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">🎨</div><p>No hay solicitudes asignadas.</p></div></td></tr>`; return; }
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon">🎨</div><p>No hay solicitudes asignadas.</p></div></td></tr>`; return; }
   tbody.innerHTML = rows.map(s => `
     <tr>
       <td><strong>${s.cod_sap}</strong></td>
@@ -1706,6 +1726,7 @@ function renderDisenoTable() {
       <td>${catSummary(s,'roly_wrk')}</td>
       <td>${catSummary(s,'stamina')}</td><td>${catSummary(s,'xmas')}</td>
       <td><span class="status s-${s.estado}">${ESTADO_LABEL[s.estado]||s.estado}</span></td>
+      <td style="font-size:12px;color:var(--c-mid)">${allPerfiles?.find(p=>p.id===s.asignado_id)?.nombre||'—'}</td>
       <td><button class="btn btn-sm btn-outline" onclick="openDetalle('${s.id}')">Ver</button></td>
     </tr>`).join('');
 }
