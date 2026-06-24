@@ -410,8 +410,8 @@
           <div class="section-sub">Solicitudes en proceso de diseño.</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-outline btn-sm" onclick="exportDisenoCSV()">⬇ Exportar CSV</button>
-          <button class="btn btn-outline btn-sm" onclick="openCargaMasivaModal()">📦 Carga masiva</button>
+          <button class="btn btn-sm" style="background:var(--c-blue);color:white;border:none" onclick="exportDisenoCSV()">⬇ Exportar CSV</button>
+          <button class="btn btn-sm" style="background:var(--c-amber);color:white;border:none" onclick="openCargaMasivaModal()">📦 Carga masiva</button>
           <select id="filter-diseno-disenador" onchange="renderDisenoTable()" style="font-size:13px;min-width:160px"><option value="">Todos los diseñadores</option></select>
           <select id="filter-campana-diseno" onchange="renderDisenoTable()" style="font-size:13px;min-width:160px"><option value="">Todas las campañas</option></select>
         </div>
