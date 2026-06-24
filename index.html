@@ -1422,7 +1422,7 @@ async function loadData() {
 
 async function loadSolicitudes(campanaId = null) {
   let q = db.from('solicitudes')
-    .select(`*, solicitud_catalogos(*), adjuntos(*), perfiles!solicitudes_comercial_id_fkey(nombre, codigo)`)
+    .select(`*, solicitud_catalogos(*), adjuntos(*)`)
     .order('updated_at', { ascending: false });
   if (['comercial','comercial_nacional','comercial_exportacion'].includes(currentPerfil?.rol)) q = q.eq('comercial_id', currentUser.id);
   // disenador: filtered in renderDisenoTable by estado, not here
@@ -2467,7 +2467,7 @@ async function openDetalle(solId) {
       disenadorNombre = dp?.nombre || null;
     }
   }
-  document.getElementById('det-sub').textContent = `${sol.nombre_empresa||''} · ${sol.provincia||''} · ${ESTADO_LABEL[sol.estado]}${campNombre ? ' · ' + campNombre : ''} · 👤 ${sol.perfiles?.nombre || sol.perfiles?.codigo || '—'}`;
+  document.getElementById('det-sub').textContent = `${sol.nombre_empresa||''} · ${sol.provincia||''} · ${ESTADO_LABEL[sol.estado]}${campNombre ? ' · ' + campNombre : ''} · 👤 ${(allPerfiles?.find(p=>p.id===sol.comercial_id)?.nombre || sol.comercial_id || '—')}`;
 
   // Load logs
   const { data: logs } = await db.from('logs').select('*').eq('solicitud_id', solId).order('created_at', { ascending: false });
@@ -3050,7 +3050,7 @@ async function exportExcel() {
     });
     return [
       sol.cod_sap || '', sol.nombre_empresa || '',
-      sol.perfiles?.nombre || sol.perfiles?.codigo || '',
+      (allPerfiles?.find(p=>p.id===sol.comercial_id)?.nombre || ''),
       sol.idioma || '', sol.provincia || '',
       ...catCols,
       sol.comentarios || '',
