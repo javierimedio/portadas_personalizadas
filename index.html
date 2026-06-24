@@ -1252,12 +1252,11 @@ async function bootstrap() {
       await loadPerfil();
       await loadCampana();
       try {
-        initApp();
+        await initApp();
         hideLoading();
       } catch(initErr) {
         console.error('initApp error:', initErr);
         hideLoading();
-        showAuthScreen();
       }
     } else {
       showAuthScreen();
@@ -1275,12 +1274,11 @@ db.auth.onAuthStateChange(async (event, session) => {
     await loadPerfil();
     await loadCampana();
     try {
-      initApp();
+      await initApp();
       hideLoading();
     } catch(e) {
       console.error('initApp error:', e);
       hideLoading();
-      showAuthScreen();
     }
   }
   if (event === 'SIGNED_OUT') {
@@ -1355,7 +1353,11 @@ async function initApp() {
   document.getElementById('user-name').textContent = currentPerfil?.nombre || currentUser.email;
   document.getElementById('role-tag').textContent = ROL_LABELS[currentPerfil?.rol] || currentPerfil?.rol || '—';
   buildCatSections();
-  await loadData();
+  try {
+    await loadData();
+  } catch(e) {
+    console.error('loadData error:', e);
+  }
   buildNav(); // Build nav after data loaded so dashboard renders correctly
   initImpersonateSelector();
   initRealtime(); // Subscribe to live updates
