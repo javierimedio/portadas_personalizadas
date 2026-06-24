@@ -1357,9 +1357,11 @@ async function initApp() {
   buildCatSections();
   console.log('buildCatSections done, calling loadData...');
   try {
+    console.log('calling loadData now...');
     await loadData();
+    console.log('loadData completed');
   } catch(e) {
-    console.error('loadData error:', e);
+    console.error('loadData THREW:', e.message, e.stack);
   }
   buildNav(); // Build nav after data loaded so dashboard renders correctly
   initImpersonateSelector();
