@@ -2493,6 +2493,20 @@ async function openDetalle(solId) {
   document.getElementById('det-footer').innerHTML = '<button class="btn btn-outline" onclick="closeModal(&quot;modal-detalle&quot;)">Cerrar</button>';
   document.getElementById('modal-detalle').classList.add('open');
   const campNombre = allCampanas?.find?.(c => c.id === sol.campana_id)?.nombre || activeCampana?.nombre || '';
+
+  // Auto-assign: if task is en_diseno with no designer and current user is disenador/responsable_diseno → self-assign
+  if (sol.estado === 'en_diseno' && !sol.asignado_id &&
+      ['disenador','responsable_diseno'].includes(currentPerfil?.rol)) {
+    await db.from('solicitudes').update({ asignado_id: currentUser.id }).eq('id', sol.id);
+    await db.from('logs').insert({
+      solicitud_id: sol.id, usuario_id: currentUser.id,
+      usuario_nombre: currentPerfil?.nombre, accion: 'asignacion',
+      detalle: { disenador: currentPerfil?.nombre, auto: true }
+    });
+    sol.asignado_id = currentUser.id; // update local object
+    allSolicitudes = allSolicitudes.map(s => s.id === sol.id ? { ...s, asignado_id: currentUser.id } : s);
+  }
+
   // Load designer name if assigned
   let disenadorNombre = null;
   if (sol.asignado_id) {
@@ -2712,9 +2726,10 @@ async function openDetalle(solId) {
     btns += `<button class="btn btn-outline btn-sm" onclick="openCanalModal('${solId}')">🔀 Asignar canal</button>`;
   }
 
-  // Admin/Marketing/Responsable_diseno: reasignar diseñador cuando está en diseño
-  if ((rol === 'admin' || rol === 'marketing' || rol === 'responsable_diseno') && (est === 'en_diseno' || est === 'modificar_diseno')) {
-    btns += `<button class="btn btn-outline btn-sm" onclick="asignarYAvanzar('${solId}')">🔄 Reasignar diseñador</button>`;
+  // Cualquier rol de diseño puede asignar/reasignar diseñador
+  if (['admin','marketing','responsable_diseno','disenador'].includes(rol) && (est === 'en_diseno' || est === 'modificar_diseno')) {
+    const labelAsign = sol.asignado_id ? '🔄 Reasignar diseñador' : '👤 Asignar diseñador';
+    btns += `<button class="btn btn-outline btn-sm" onclick="asignarYAvanzar('${solId}')">${labelAsign}</button>`;
   }
 
   // Marketing/Admin: solicitud enviada → pasar a revisión
@@ -2726,7 +2741,7 @@ async function openDetalle(solId) {
   // Marketing/Admin: en revisión → enviar a diseño o devolver
   if ((rol === 'marketing' || rol === 'admin') && est === 'en_revision_marketing') {
     btns += `<button class="btn btn-outline btn-danger btn-sm" onclick="cambiarEstadoDirecto('${solId}','borrador')">Devolver al comercial</button>`;
-    btns += `<button class="btn btn-amber" onclick="asignarYAvanzar('${solId}')">Enviar a diseño</button>`;
+    btns += `<button class="btn btn-amber" onclick="enviarADiseno('${solId}')">Enviar a diseño</button>`;
   }
 
   // Diseño listo button — upload zone is in the body above
@@ -2845,6 +2860,11 @@ async function eliminarSolicitud(solId) {
   closeModal('modal-detalle');
   await loadData();
   showToast('Solicitud eliminada.');
+}
+
+async function enviarADiseno(solId) {
+  // Send to diseño without assigning a designer — first designer to open it self-assigns
+  await cambiarEstadoDirecto(solId, 'en_diseno');
 }
 
 async function asignarYAvanzar(solId) {
