@@ -1348,36 +1348,15 @@ async function loadAllCampanas() {
 }
 
 async function initApp() {
-  console.log('initApp START');
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('user-name').textContent = currentPerfil?.nombre || currentUser.email;
   document.getElementById('role-tag').textContent = ROL_LABELS[currentPerfil?.rol] || currentPerfil?.rol || '—';
-  console.log('buildCatSections...');
   buildCatSections();
-  buildNav(); // Build nav BEFORE loadData so pages exist
+  await loadData();
+  buildNav();
   initImpersonateSelector();
-  console.log('buildCatSections done, calling loadData...');
-  try {
-    console.log('calling loadData now...');
-    await loadData();
-    console.log('loadData completed');
-    // Re-render the active page now that data is loaded
-    const activeNav = document.querySelector('.nav-btn.active');
-    console.log('activeNav:', activeNav?.textContent, activeNav?.getAttribute('onclick'));
-    if (activeNav) {
-      const pageId = activeNav.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
-      console.log('re-showing page:', pageId);
-      if (pageId) showPage(pageId);
-    } else {
-      // Fallback: show first page directly
-      const firstNav = document.querySelector('.nav-btn');
-      if (firstNav) firstNav.click();
-    }
-  } catch(e) {
-    console.error('loadData THREW:', e.message, e.stack);
-  }
-  initRealtime(); // Subscribe to live updates
+  initRealtime();
 }
 
 // ── NAV ───────────────────────────────────────────────────
@@ -1418,12 +1397,9 @@ function showPage(id, btn) {
 
 // ── DATA ──────────────────────────────────────────────────
 async function loadData() {
-  console.log('loadData START, rol=', currentPerfil?.rol);
-  try { await loadSolicitudes(); } catch(e) { console.error('loadSolicitudes THREW:', e); }
-  console.log('loadSolicitudes done, count=', allSolicitudes?.length);
+  await loadSolicitudes();
   // Populate campaign filters for ALL roles
-  try { await populateCampanaFilter(); } catch(e) { console.error('populateCampanaFilter THREW:', e); }
-  console.log('populateCampanaFilter done');
+  await populateCampanaFilter();
   if (['admin', 'marketing', 'disenador', 'responsable', 'responsable_nacional', 'responsable_exportacion', 'responsable_diseno'].includes(currentPerfil?.rol)) {
     await loadPerfiles();
   }
@@ -1444,7 +1420,7 @@ async function loadData() {
 
 async function loadSolicitudes(campanaId = null) {
   let q = db.from('solicitudes')
-    .select(`*, solicitud_catalogos(*), adjuntos(*)`)
+    .select(`*, solicitud_catalogos(*), adjuntos(*), perfiles!solicitudes_comercial_id_fkey(nombre, codigo)`)
     .order('updated_at', { ascending: false });
   if (['comercial','comercial_nacional','comercial_exportacion'].includes(currentPerfil?.rol)) q = q.eq('comercial_id', currentUser.id);
   // disenador: filtered in renderDisenoTable by estado, not here
