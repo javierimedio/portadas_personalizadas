@@ -1355,13 +1355,19 @@ async function initApp() {
   document.getElementById('role-tag').textContent = ROL_LABELS[currentPerfil?.rol] || currentPerfil?.rol || '—';
   console.log('buildCatSections...');
   buildCatSections();
-  buildNav(); // Build nav BEFORE loadData so pages are visible when charts render
+  buildNav(); // Build nav BEFORE loadData so pages exist
   initImpersonateSelector();
   console.log('buildCatSections done, calling loadData...');
   try {
     console.log('calling loadData now...');
     await loadData();
     console.log('loadData completed');
+    // Re-render the active page now that data is loaded
+    const activeNav = document.querySelector('.nav-btn.active');
+    if (activeNav) {
+      const pageId = activeNav.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+      if (pageId) showPage(pageId);
+    }
   } catch(e) {
     console.error('loadData THREW:', e.message, e.stack);
   }
