@@ -4329,29 +4329,29 @@ function initImpersonateSelector() {
 function exportDisenoCSV() {
   const campId = document.getElementById('filter-campana-diseno')?.value || getDefaultCampanaId();
   const camp = allCampanas.find(c => c.id === campId);
-  const campCatKeys = camp?.catalogos || ALL_CATS.map(c => c.key);
-  const campCats = ALL_CATS.filter(c => campCatKeys.includes(c.key));
-
+  const FIXED_CATS = [
+    { key: 'roly',     label: 'ROLY' },
+    { key: 'roly_wrk', label: 'WRK' },
+    { key: 'stamina',  label: 'STM' },
+    { key: 'xmas',     label: 'XMAS' },
+  ];
   let rows = allSolicitudes.filter(s => ['en_diseno','modificar_diseno'].includes(s.estado));
   if (campId) rows = rows.filter(s => s.campana_id === campId);
   if (currentPerfil?.rol === 'disenador') rows = rows.filter(s => s.asignado_id === currentUser.id);
-
-  const sep = '\t';
-  const headers = ['CODIGO', ...campCats.map(c => c.label)];
-  const csvRows = [headers.join(sep)];
-
+  const TAB = String.fromCharCode(9);
+  const NL  = String.fromCharCode(10);
+  const BOM = '\ufeff';
+  const headers = ['CODIGO', ...FIXED_CATS.map(c => c.label)];
+  const csvRows = [headers.join(TAB)];
   rows.forEach(s => {
-    const portadas = campCats.map(cat => {
+    const portadas = FIXED_CATS.map(cat => {
       const c = s.solicitud_catalogos?.find(x => x.catalogo === cat.key);
       if (!c || !c.portada_personalizada) return '';
       return c.portada_diseno_propio ? 'PROPIO' : (c.portada_elegida || c.portada_opcion_1 || '');
     });
-    csvRows.push([s.cod_sap, ...portadas].join(sep));
+    csvRows.push([s.cod_sap, ...portadas].join(TAB));
   });
-
-  const eol = '\n';
-  const bom = '\ufeff';
-  const blob = new Blob([bom + csvRows.join(eol)], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([BOM + csvRows.join(NL)], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `diseno_${camp?.nombre||'portadas'}_${new Date().toISOString().slice(0,10)}.csv`;
