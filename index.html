@@ -4369,16 +4369,29 @@ function handleDisenoFileInput(event, solId) {
   event.target.value = '';
 }
 
-function updateDisenoZone(nombre) {
+function updateDisenoZone(text, files) {
   const zone = document.getElementById('diseno-upload-zone');
-  const label = document.getElementById('diseno-upload-label');
-  if (zone) {
-    zone.style.borderColor = 'var(--c-green)';
-    zone.style.background = 'var(--c-green-l)';
-  }
-  if (label) {
-    label.style.color = 'var(--c-green)';
-    label.textContent = '✓ ' + nombre;
+  if (!zone) return;
+  if (files && files.length > 0) {
+    zone.style.borderColor = 'var(--c-amber)';
+    zone.style.background = 'var(--c-amber-l)';
+    const fileList = Array.from(files).map(f =>
+      `<div style="font-size:12px;color:#92400e;padding:2px 0;text-align:left">📄 <strong>${f.name}</strong> <span style="color:var(--c-mid)">(${(f.size/1024).toFixed(0)}kb)</span></div>`
+    ).join('');
+    zone.innerHTML = `
+      <div style="font-size:18px;margin-bottom:6px">✅</div>
+      <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px">${files.length} archivo${files.length>1?'s':''}  seleccionado${files.length>1?'s':''}</div>
+      <div style="max-height:120px;overflow-y:auto;width:100%;padding:0 4px">${fileList}</div>
+      <div style="font-size:11px;color:var(--c-mid);margin-top:8px">Haz clic o arrastra para añadir más</div>`;
+  } else {
+    zone.style.borderColor = 'var(--c-line)';
+    zone.style.background = 'var(--c-white)';
+    zone.innerHTML = `
+      <div class="drop-inner">
+        <div style="font-size:24px;margin-bottom:4px">🎨</div>
+        <div style="font-size:13px;font-weight:500;color:var(--c-dark)">Arrastra el diseño aquí o haz clic</div>
+        <div style="font-size:11px;color:var(--c-mid);margin-top:2px">PDF · JPG · PNG · AI · EPS</div>
+      </div>`;
   }
 }
 
