@@ -4426,19 +4426,31 @@ async function procesarCargaMasiva(campId) {
   const matches = cargaMasivaFiles.map(matchCargaFile).filter(m => m.status === 'ok');
   let ok = 0, errors = 0;
 
+  const session = loadSession();
+  const token = session?.access_token || SUPA_KEY;
+  // Group matches by solicitud to avoid duplicate state changes
+  const processedSols = new Set();
+
   for (const m of matches) {
     try {
-      const filePath = `diseno/${m.sol.id}/${Date.now()}_${m.file.name}`;
-      await supabaseStorage.upload(filePath, m.file, { upsert: true });
-      const { data: { publicUrl } } = supabaseStorage.getPublicUrl(filePath);
+      const filePath = `${m.sol.id}/diseno/${Date.now()}_${m.file.name}`;
+      const uploadRes = await fetch(
+        `${SUPA_URL}/storage/v1/object/portadas-adjuntos/${filePath}`,
+        { method: 'POST', headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': m.file.type || 'application/octet-stream', 'x-upsert': 'true' }, body: m.file }
+      );
+      if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
+
+      const publicUrl = `${SUPA_URL}/storage/v1/object/public/portadas-adjuntos/${filePath}`;
 
       // Save adjunto
       await db.from('adjuntos').insert({
         solicitud_id: m.sol.id,
         nombre: m.file.name,
         url: publicUrl,
-        tipo: 'diseno',
+        tipo: 'diseno_portada',
         catalogo: m.catKey || null,
+        subido_por: currentUser.id,
+        subido_por_nombre: currentPerfil?.nombre,
       });
 
       // Update portada_elegida on the catalog if catKey specified
@@ -4449,10 +4461,21 @@ async function procesarCargaMasiva(campId) {
           .eq('catalogo', m.catKey);
       }
 
-      // Change state to revisión cliente (only once per solicitud)
-      await db.from('solicitudes')
-        .update({ estado: 'diseno_en_revision_comercial', updated_at: new Date().toISOString() })
-        .eq('id', m.sol.id);
+      // Change state once per solicitud
+      if (!processedSols.has(m.sol.id)) {
+        processedSols.add(m.sol.id);
+        await db.from('solicitudes')
+          .update({ estado: 'diseno_en_revision_comercial', updated_at: new Date().toISOString() })
+          .eq('id', m.sol.id);
+        await db.from('logs').insert({
+          solicitud_id: m.sol.id, usuario_id: currentUser.id,
+          usuario_nombre: currentPerfil?.nombre, accion: 'cambio_estado',
+          detalle: { estado_anterior: 'en_diseno', estado_nuevo: 'diseno_en_revision_comercial' }
+        });
+        await enviarNotificacion(m.sol.id, 'diseno_en_revision_comercial', {
+          codSap: m.sol.cod_sap, nombre: m.sol.nombre_empresa
+        });
+      }
 
       ok++;
     } catch(e) {
