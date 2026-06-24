@@ -1364,9 +1364,15 @@ async function initApp() {
     console.log('loadData completed');
     // Re-render the active page now that data is loaded
     const activeNav = document.querySelector('.nav-btn.active');
+    console.log('activeNav:', activeNav?.textContent, activeNav?.getAttribute('onclick'));
     if (activeNav) {
       const pageId = activeNav.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+      console.log('re-showing page:', pageId);
       if (pageId) showPage(pageId);
+    } else {
+      // Fallback: show first page directly
+      const firstNav = document.querySelector('.nav-btn');
+      if (firstNav) firstNav.click();
     }
   } catch(e) {
     console.error('loadData THREW:', e.message, e.stack);
