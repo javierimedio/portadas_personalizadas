@@ -1711,7 +1711,7 @@ function renderDisenoTable() {
       });
     }
     disenadorSel.value = currentVal;
-    disenadorSel.style.display = ['admin','marketing','responsable_diseno'].includes(rol) ? '' : 'none';
+    disenadorSel.style.display = ['admin','marketing','responsable_diseno','disenador'].includes(rol) ? '' : 'none';
     const filterDis = disenadorSel.value;
     if (filterDis) rows = rows.filter(s => s.asignado_id === filterDis);
   }
