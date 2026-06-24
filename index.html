@@ -4247,23 +4247,24 @@ function exportDisenoCSV() {
 
   let rows = allSolicitudes.filter(s => ['en_diseno','modificar_diseno'].includes(s.estado));
   if (campId) rows = rows.filter(s => s.campana_id === campId);
-  const rol = currentPerfil?.rol;
-  if (rol === 'disenador') rows = rows.filter(s => s.asignado_id === currentUser.id);
+  if (currentPerfil?.rol === 'disenador') rows = rows.filter(s => s.asignado_id === currentUser.id);
 
-  const headers = ['CÓD. SAP', 'EMPRESA', 'PROVINCIA', 'DISEÑADOR', ...campCats.map(c => c.label + ' - PORTADA'), 'ESTADO'];
-  const csvRows = [headers.join(';')];
+  const sep = '\t';
+  const headers = ['CODIGO', ...campCats.map(c => c.label)];
+  const csvRows = [headers.join(sep)];
 
   rows.forEach(s => {
-    const dis = allPerfiles?.find(p => p.id === s.asignado_id)?.nombre || '—';
     const portadas = campCats.map(cat => {
       const c = s.solicitud_catalogos?.find(x => x.catalogo === cat.key);
       if (!c || !c.portada_personalizada) return '';
-      return c.portada_diseno_propio ? 'DISEÑO PROPIO' : (c.portada_elegida || c.portada_opcion_1 || '—');
+      return c.portada_diseno_propio ? 'PROPIO' : (c.portada_elegida || c.portada_opcion_1 || '');
     });
-    csvRows.push([s.cod_sap, s.nombre_empresa, s.provincia, dis, ...portadas, ESTADO_LABEL[s.estado]].map(v => `"${(v||'').replace(/"/g,'""')}"`).join(';'));
+    csvRows.push([s.cod_sap, ...portadas].join(sep));
   });
 
-  const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const eol = '\n';
+  const bom = '\ufeff';
+  const blob = new Blob([bom + csvRows.join(eol)], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `diseno_${camp?.nombre||'portadas'}_${new Date().toISOString().slice(0,10)}.csv`;
