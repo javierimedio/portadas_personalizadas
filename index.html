@@ -404,12 +404,15 @@
 
     <!-- DISEÑADOR: MIS ASIGNACIONES -->
     <div class="page" id="page-diseno">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
         <div>
           <div class="section-title">Diseño</div>
           <div class="section-sub">Solicitudes en proceso de diseño.</div>
         </div>
-        <select id="filter-campana-diseno" onchange="renderDisenoTable()" style="font-size:13px;min-width:160px"><option value="">Todas las campañas</option></select>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="exportDisenoCSV()">⬇ Exportar CSV</button>
+          <button class="btn btn-outline btn-sm" onclick="openCargaMasivaModal()">📦 Carga masiva</button>
+          <select id="filter-campana-diseno" onchange="renderDisenoTable()" style="font-size:13px;min-width:160px"><option value="">Todas las campañas</option></select>
       </div>
       <div class="card" style="padding:0">
         <div class="tbl-wrap">
@@ -4234,6 +4237,215 @@ function initImpersonateSelector() {
     sel.style.display = 'inline-block';
   }
 }
+
+
+// ── DISEÑO: EXPORT CSV ────────────────────────────────────
+function exportDisenoCSV() {
+  const campId = document.getElementById('filter-campana-diseno')?.value || getDefaultCampanaId();
+  const camp = allCampanas.find(c => c.id === campId);
+  const campCatKeys = camp?.catalogos || ALL_CATS.map(c => c.key);
+  const campCats = ALL_CATS.filter(c => campCatKeys.includes(c.key));
+
+  let rows = allSolicitudes.filter(s => ['en_diseno','modificar_diseno'].includes(s.estado));
+  if (campId) rows = rows.filter(s => s.campana_id === campId);
+  const rol = currentPerfil?.rol;
+  if (rol === 'disenador') rows = rows.filter(s => s.asignado_id === currentUser.id);
+
+  const headers = ['CÓD. SAP', 'EMPRESA', 'PROVINCIA', 'DISEÑADOR', ...campCats.map(c => c.label + ' - PORTADA'), 'ESTADO'];
+  const csvRows = [headers.join(';')];
+
+  rows.forEach(s => {
+    const dis = allPerfiles?.find(p => p.id === s.asignado_id)?.nombre || '—';
+    const portadas = campCats.map(cat => {
+      const c = s.solicitud_catalogos?.find(x => x.catalogo === cat.key);
+      if (!c || !c.portada_personalizada) return '';
+      return c.portada_diseno_propio ? 'DISEÑO PROPIO' : (c.portada_elegida || c.portada_opcion_1 || '—');
+    });
+    csvRows.push([s.cod_sap, s.nombre_empresa, s.provincia, dis, ...portadas, ESTADO_LABEL[s.estado]].map(v => `"${(v||'').replace(/"/g,'""')}"`).join(';'));
+  });
+
+  const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `diseno_${camp?.nombre||'portadas'}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+// ── DISEÑO: CARGA MASIVA ─────────────────────────────────
+let cargaMasivaFiles = [];
+
+function openCargaMasivaModal() {
+  cargaMasivaFiles = [];
+  const campId = document.getElementById('filter-campana-diseno')?.value || getDefaultCampanaId();
+
+  const m = document.createElement('div');
+  m.id = 'modal-carga-masiva';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:1rem';
+  m.innerHTML = `
+    <div style="background:white;border-radius:12px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="padding:1.5rem;border-bottom:1px solid var(--c-line);display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:16px;font-weight:700">📦 Carga masiva de portadas</div>
+          <div style="font-size:12px;color:var(--c-mid);margin-top:2px">Nombra los archivos con el código SAP del cliente (ej: <strong>12345.pdf</strong>)</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('modal-carga-masiva').remove()">✕</button>
+      </div>
+      <div style="padding:1.5rem">
+        <div id="carga-drop-zone"
+          style="border:2px dashed var(--c-line);border-radius:8px;padding:2rem;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:1rem"
+          ondragover="event.preventDefault();this.style.borderColor='var(--c-amber)';this.style.background='var(--c-amber-l)'"
+          ondragleave="this.style.borderColor='var(--c-line)';this.style.background=''"
+          ondrop="event.preventDefault();this.style.borderColor='var(--c-line)';this.style.background='';handleCargaMasivaFiles(event.dataTransfer.files)"
+          onclick="document.getElementById('input-carga-masiva').click()">
+          <div style="font-size:32px;margin-bottom:8px">📁</div>
+          <div style="font-weight:600">Arrastra los archivos aquí o haz clic</div>
+          <div style="font-size:12px;color:var(--c-mid);margin-top:4px">PDF · JPG · PNG · AI · EPS — Nombra cada archivo con el Código SAP</div>
+        </div>
+        <input type="file" id="input-carga-masiva" multiple accept=".pdf,.jpg,.jpeg,.png,.ai,.eps" style="display:none" onchange="handleCargaMasivaFiles(this.files)">
+        <div id="carga-masiva-list" style="margin-bottom:1rem"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-carga-masiva').remove()">Cancelar</button>
+          <button class="btn btn-amber" id="btn-procesar-carga" onclick="procesarCargaMasiva('${campId}')" disabled>Procesar y enviar a revisión</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+
+function parseCargaFilename(filename) {
+  // Returns { sap, catKey } from filename like:
+  // 665874.pdf           → { sap: '665874', catKey: null }
+  // 665874_roly.pdf      → { sap: '665874', catKey: 'roly' }
+  // 665874_roly_wrk.pdf  → { sap: '665874', catKey: 'roly_wrk' }
+  // 665874_stamina.pdf   → { sap: '665874', catKey: 'stamina' }
+  // 665874_xmas.pdf      → { sap: '665874', catKey: 'xmas' }
+  const base = filename.replace(/\.[^.]+$/, '').trim().toUpperCase();
+  const CAT_SUFFIXES = {
+    '_ROLY_WRK': 'roly_wrk',
+    '_ROLY': 'roly',
+    '_STAMINA': 'stamina',
+    '_XMAS': 'xmas',
+    '_WRK': 'roly_wrk',
+  };
+  for (const [suffix, catKey] of Object.entries(CAT_SUFFIXES)) {
+    if (base.endsWith(suffix)) {
+      return { sap: base.slice(0, -suffix.length), catKey };
+    }
+  }
+  return { sap: base, catKey: null };
+}
+
+function matchCargaFile(file) {
+  const { sap, catKey } = parseCargaFilename(file.name);
+  const sol = allSolicitudes.find(s =>
+    s.cod_sap?.toUpperCase() === sap &&
+    ['en_diseno','modificar_diseno'].includes(s.estado)
+  );
+  if (!sol) return { file, sap, catKey, sol: null, status: 'notfound' };
+
+  // If catKey specified, check that catalog has portada personalizada
+  if (catKey) {
+    const cat = sol.solicitud_catalogos?.find(c => c.catalogo === catKey && c.portada_personalizada);
+    if (!cat) return { file, sap, catKey, sol, status: 'nocatalog' };
+  }
+  return { file, sap, catKey, sol, status: 'ok' };
+}
+
+function handleCargaMasivaFiles(fileList) {
+  const newFiles = Array.from(fileList);
+  cargaMasivaFiles = [...cargaMasivaFiles, ...newFiles];
+  renderCargaMasivaList();
+}
+
+function renderCargaMasivaList() {
+  const list = document.getElementById('carga-masiva-list');
+  const btn = document.getElementById('btn-procesar-carga');
+  if (!list) return;
+
+  if (!cargaMasivaFiles.length) {
+    list.innerHTML = '';
+    if (btn) btn.disabled = true;
+    return;
+  }
+
+  const matches = cargaMasivaFiles.map(matchCargaFile);
+  const okCount = matches.filter(m => m.status === 'ok').length;
+
+  list.innerHTML = `
+    <div style="font-size:12px;font-weight:700;color:var(--c-mid);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">
+      ${okCount} de ${cargaMasivaFiles.length} archivos reconocidos
+    </div>` +
+    matches.map((m, i) => {
+      let badge, detail;
+      if (m.status === 'ok') {
+        const catLabel = m.catKey ? ` · ${ALL_CATS.find(c=>c.key===m.catKey)?.label||m.catKey}` : ' · todos los catálogos';
+        badge = `<span style="color:#15803d;font-weight:600">✅ ${m.sol.nombre_empresa}${catLabel}</span>`;
+      } else if (m.status === 'notfound') {
+        badge = `<span style="color:#dc2626">❌ SAP ${m.sap} no encontrado en diseño</span>`;
+      } else {
+        badge = `<span style="color:#d97706">⚠️ ${m.sol.nombre_empresa} — catálogo ${m.catKey} sin portada personalizada</span>`;
+      }
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--c-line);font-size:12px;gap:8px">
+        <div style="display:flex;align-items:center;gap:6px;min-width:0">
+          <button onclick="cargaMasivaFiles.splice(${i},1);renderCargaMasivaList()" style="border:none;background:none;cursor:pointer;color:var(--c-mid);font-size:14px;padding:0;flex-shrink:0">✕</button>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 <strong>${m.file.name}</strong></span>
+        </div>
+        ${badge}
+      </div>`;
+    }).join('');
+
+  if (btn) btn.disabled = okCount === 0;
+  if (btn) btn.textContent = `Procesar ${okCount} portada${okCount!==1?'s':''} → Revisión cliente`;
+}
+
+async function procesarCargaMasiva(campId) {
+  const btn = document.getElementById('btn-procesar-carga');
+  if (btn) { btn.disabled = true; btn.textContent = 'Procesando...'; }
+
+  const matches = cargaMasivaFiles.map(matchCargaFile).filter(m => m.status === 'ok');
+  let ok = 0, errors = 0;
+
+  for (const m of matches) {
+    try {
+      const filePath = `diseno/${m.sol.id}/${Date.now()}_${m.file.name}`;
+      await supabaseStorage.upload(filePath, m.file, { upsert: true });
+      const { data: { publicUrl } } = supabaseStorage.getPublicUrl(filePath);
+
+      // Save adjunto
+      await db.from('adjuntos').insert({
+        solicitud_id: m.sol.id,
+        nombre: m.file.name,
+        url: publicUrl,
+        tipo: 'diseno',
+        catalogo: m.catKey || null,
+      });
+
+      // Update portada_elegida on the catalog if catKey specified
+      if (m.catKey) {
+        await db.from('solicitud_catalogos')
+          .update({ portada_elegida: m.file.name.replace(/\.[^.]+$/, '') })
+          .eq('solicitud_id', m.sol.id)
+          .eq('catalogo', m.catKey);
+      }
+
+      // Change state to revisión cliente (only once per solicitud)
+      await db.from('solicitudes')
+        .update({ estado: 'diseno_en_revision_comercial', updated_at: new Date().toISOString() })
+        .eq('id', m.sol.id);
+
+      ok++;
+    } catch(e) {
+      console.error('Error procesando', m.file.name, e);
+      errors++;
+    }
+  }
+
+  await loadSolicitudes();
+  renderDisenoTable();
+  document.getElementById('modal-carga-masiva')?.remove();
+  showToast(`✅ ${ok} portada${ok!==1?'s':''} procesada${ok!==1?'s':''}.${errors ? ' ⚠️ ' + errors + ' con errores.' : ''} Solicitudes enviadas a revisión cliente.`);
+}
+
 
 // ── PANEL DE NOTIFICACIONES ───────────────────────────────
 let allNotifs = [];
