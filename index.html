@@ -2653,14 +2653,13 @@ async function openDetalle(solId) {
     </div>
   </div>`;
 
-  // Log → right
-  htmlRight += `<div class="card"><div class="card-title">Historial de cambios</div>`;
-  if (!logs?.length) html += '<p class="text-mid text-sm">Sin actividad registrada.</p>';
-  // Filter out adjunto entries from log (shown separately above)
+  // Log → right: comments first, then collapsible history
   const logsToShow = (logs || []).filter(l => l.accion !== 'adjunto');
-  if (!logsToShow.length) html += '<p class="text-mid text-sm">Sin actividad registrada.</p>';
-  else htmlRight += logsToShow.map(l => `
-    <div class="log-entry">
+  const comentarios = logsToShow.filter(l => l.accion === 'comentario');
+  const historial   = logsToShow.filter(l => l.accion !== 'comentario');
+
+  function renderLogEntry(l) {
+    return `<div class="log-entry">
       <div class="log-dot ${l.accion==='cambio_estado'?'estado':''}"></div>
       <div class="log-time">${fmtDate(l.created_at)}</div>
       <div class="log-text">
@@ -2671,8 +2670,36 @@ async function openDetalle(solId) {
           ? `💬 ${(l.detalle?.texto || '').replace(/@([\w\s áéíóúüñÁÉÍÓÚÜÑ]+?)(?=\s|$|[,.:;!?])/g, '<strong style="color:var(--c-amber)">@$1</strong>')}`
           : l.accion}
       </div>
-    </div>`).join('');
-  htmlRight += '</div>';
+    </div>`;
+  }
+
+  // Comments section
+  htmlRight += `<div class="card" style="margin-bottom:.75rem">
+    <div class="card-title">Comentarios${comentarios.length ? ` (${comentarios.length})` : ''}</div>
+    ${comentarios.length
+      ? comentarios.map(renderLogEntry).join('')
+      : '<p class="text-mid text-sm" style="margin:0">Sin comentarios aún.</p>'}
+  </div>`;
+
+  // Collapsible history
+  const histId = 'hist-' + solId;
+  htmlRight += `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="
+      const b=document.getElementById('${histId}');
+      const btn=document.getElementById('${histId}-btn');
+      const open=b.style.display==='none';
+      b.style.display=open?'block':'none';
+      btn.textContent=open?'Ocultar':'Ver historial (${historial.length})';
+    ">
+      <div class="card-title" style="margin:0">Historial de cambios</div>
+      <button id="${histId}-btn" class="btn btn-outline btn-sm" style="font-size:11px">Ver historial (${historial.length})</button>
+    </div>
+    <div id="${histId}" style="display:none;margin-top:.75rem">
+      ${historial.length
+        ? historial.map(renderLogEntry).join('')
+        : '<p class="text-mid text-sm">Sin actividad registrada.</p>'}
+    </div>
+  </div>`;
 
   // Diseno upload zone — shown above footer divider in body (for diseño states)
   if ((rol === 'disenador' || rol === 'responsable_diseno' || rol === 'admin' || rol === 'marketing') && (est === 'en_diseno' || est === 'modificar_diseno')) {
