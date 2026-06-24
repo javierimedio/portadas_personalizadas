@@ -1355,6 +1355,8 @@ async function initApp() {
   document.getElementById('role-tag').textContent = ROL_LABELS[currentPerfil?.rol] || currentPerfil?.rol || '—';
   console.log('buildCatSections...');
   buildCatSections();
+  buildNav(); // Build nav BEFORE loadData so pages are visible when charts render
+  initImpersonateSelector();
   console.log('buildCatSections done, calling loadData...');
   try {
     console.log('calling loadData now...');
@@ -1363,8 +1365,6 @@ async function initApp() {
   } catch(e) {
     console.error('loadData THREW:', e.message, e.stack);
   }
-  buildNav(); // Build nav after data loaded so dashboard renders correctly
-  initImpersonateSelector();
   initRealtime(); // Subscribe to live updates
 }
 
