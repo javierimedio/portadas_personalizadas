@@ -1218,30 +1218,46 @@ const ESTADO_LABEL = {
 async function doRecovery() {
   const pass = document.getElementById('recovery-pass').value;
   const pass2 = document.getElementById('recovery-pass2').value;
-  const alert = document.getElementById('recovery-alert');
+  const alertEl = document.getElementById('recovery-alert');
 
   if (!pass || pass.length < 8) {
-    alert.innerHTML = '<div class="form-alert error">La contraseña debe tener al menos 8 caracteres.</div>';
+    alertEl.innerHTML = '<div class="form-alert error">La contraseña debe tener al menos 8 caracteres.</div>';
     return;
   }
   if (pass !== pass2) {
-    alert.innerHTML = '<div class="form-alert error">Las contraseñas no coinciden.</div>';
+    alertEl.innerHTML = '<div class="form-alert error">Las contraseñas no coinciden.</div>';
     return;
   }
 
-  const { error } = await db.auth.updateUser({ password: pass });
-  if (error) {
-    alert.innerHTML = `<div class="form-alert error">${error.message}</div>`;
+  // Use the recovery token to update password directly via REST
+  const token = window._recoveryToken;
+  if (!token) {
+    alertEl.innerHTML = '<div class="form-alert error">Token de recuperación no válido. Solicita un nuevo enlace.</div>';
     return;
   }
 
-  alert.innerHTML = '<div class="form-alert success">¡Contraseña actualizada correctamente! Redirigiendo...</div>';
-  setTimeout(async () => {
-    await db.auth.signOut();
-    document.getElementById('recovery-screen').style.display = 'none';
-    document.getElementById('auth-screen').style.display = '';
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }, 2000);
+  const res = await fetch(`${SUPA_URL}/auth/v1/user`, {
+    method: 'PUT',
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ password: pass })
+  });
+
+  if (res.ok) {
+    alertEl.innerHTML = '<div class="form-alert success">¡Contraseña actualizada correctamente! Redirigiendo al login...</div>';
+    window._recoveryToken = null;
+    setTimeout(() => {
+      document.getElementById('recovery-screen').style.display = 'none';
+      document.getElementById('auth-screen').style.display = '';
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }, 2000);
+  } else {
+    const err = await res.json();
+    alertEl.innerHTML = `<div class="form-alert error">${err.message || 'Error al actualizar la contraseña.'}</div>`;
+  }
 }
 
 async function doLogin() {
@@ -1297,22 +1313,16 @@ function showAuthScreen() {
 async function bootstrap() {
   // Check for password recovery token in URL
   const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
-  const queryParams = new URLSearchParams(window.location.search);
-  const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
-  const type = hashParams.get('type') || queryParams.get('type');
+  const accessToken = hashParams.get('access_token');
+  const type = hashParams.get('type');
 
   if (type === 'recovery' && accessToken) {
-    // Set the session from the recovery token
-    const { error } = await db.auth.setSession({
-      access_token: accessToken,
-      refresh_token: hashParams.get('refresh_token') || queryParams.get('refresh_token') || ''
-    });
-    if (!error) {
-      document.getElementById('recovery-screen').style.display = 'flex';
-      document.getElementById('auth-screen').style.display = 'none';
-      hideLoading();
-      return;
-    }
+    // Store token for password update
+    window._recoveryToken = accessToken;
+    document.getElementById('recovery-screen').style.display = 'flex';
+    document.getElementById('auth-screen').style.display = 'none';
+    hideLoading();
+    return;
   }
 
   showLoading('Verificando sesión...');
