@@ -4781,6 +4781,10 @@ async function enviarNotificacion(solId, estado, { codSap, nombre, comercialNomb
         `${base} — Nueva solicitud de ${comercialNombre || sol?.perfiles?.nombre}`,
         `Nueva solicitud de portada para el cliente ${codSap} (${nombre||''}) creada por ${comercialNombre || sol?.perfiles?.nombre}. Accede al panel para revisarla.`
       );
+      push([comercialEmail],
+        `${base} — Solicitud enviada correctamente`,
+        `Tu solicitud de portada para el cliente ${codSap} (${nombre||''}) ha sido enviada correctamente y está pendiente de revisión.`
+      );
       break;
 
     case 'en_diseno':
