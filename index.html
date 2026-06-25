@@ -4763,7 +4763,8 @@ async function enviarNotificacion(solId, estado, { codSap, nombre, comercialNomb
   const resolvedComercialId = sol?.comercial_id || comercialId;
   const comercialEmail   = sol?.perfiles?.email || perfs.find(p => p.id === resolvedComercialId)?.email;
   const disenadorEmail   = sol?.asignado_id ? perfs.find(p => p.id === sol.asignado_id)?.email : null;
-  const mktAdminResp     = perfs.filter(p => ['marketing','admin','responsable','responsable_nacional','responsable_exportacion'].includes(p.rol) && p.activo).map(p => p.email);
+  const mktAdmin         = perfs.filter(p => ['marketing','admin'].includes(p.rol) && p.activo).map(p => p.email);
+  const disenadores      = perfs.filter(p => ['disenador','responsable_diseno'].includes(p.rol) && p.activo).map(p => p.email);
 
   const base = `[Portadas GOR] ${codSap || sol?.cod_sap || ''}`;
 
@@ -4775,59 +4776,46 @@ async function enviarNotificacion(solId, estado, { codSap, nombre, comercialNomb
 
   switch (estado) {
     case 'enviada':
-      // Comercial crea tarea → notificar a marketing/admin/responsable
-      push(mktAdminResp,
+    case 'en_revision_marketing':
+      push(mktAdmin,
         `${base} — Nueva solicitud de ${comercialNombre || sol?.perfiles?.nombre}`,
         `Nueva solicitud de portada para el cliente ${codSap} (${nombre||''}) creada por ${comercialNombre || sol?.perfiles?.nombre}. Accede al panel para revisarla.`
       );
       break;
 
-    case 'en_revision_marketing':
-      // Notificar a marketing/admin/responsable
-      push(mktAdminResp,
-        `${base} — En revisión`,
-        `La solicitud de portada para ${codSap} (${nombre||''}) está en revisión.`
-      );
-      break;
-
     case 'en_diseno':
-      // Notificar al diseñador asignado, al comercial creador y a marketing/admin/responsable
-      push([disenadorEmail],
-        `${base} — Asignada para diseño`,
-        `Se te ha asignado la solicitud de portada para el cliente ${codSap} (${nombre||''}). Accede a la herramienta para ver los detalles.`
-      );
-      push([comercialEmail, ...mktAdminResp],
+      push([comercialEmail, ...mktAdmin],
         `${base} — En diseño`,
         `La solicitud para ${codSap} (${nombre||''}) ha pasado a diseño.`
+      );
+      push(disenadores,
+        `${base} — Nueva tarea de diseño`,
+        `Hay una nueva solicitud de portada para el cliente ${codSap} (${nombre||''}) esperando ser asignada.`
       );
       break;
 
     case 'diseno_en_revision_comercial':
-      // Notificar al comercial que creó la tarea, al diseñador y a marketing/admin/responsable
-      push([comercialEmail, disenadorEmail, ...mktAdminResp],
+      push([comercialEmail, ...mktAdmin],
         `${base} — Diseño listo para revisión`,
-        `El diseño de portada para el cliente ${codSap} (${nombre||''}) está listo para que lo revises. Accede a la herramienta para aprobarlo o solicitar cambios.`
+        `El diseño de portada para el cliente ${codSap} (${nombre||''}) está listo para revisión. Accede a la herramienta para aprobarlo o solicitar cambios.`
       );
       break;
 
     case 'modificar_diseno':
-      // Notificar al diseñador y al comercial
-      push([disenadorEmail, comercialEmail, ...mktAdminResp],
+      push(disenadores,
         `${base} — Modificaciones solicitadas`,
         `Se han solicitado modificaciones en el diseño de portada para el cliente ${codSap} (${nombre||''}). Accede a la herramienta para ver los comentarios.`
       );
       break;
 
     case 'confirmada':
-      // Notificar a todos
-      push([comercialEmail, disenadorEmail, ...mktAdminResp],
+      push([comercialEmail, ...mktAdmin],
         `${base} — ✓ Confirmada`,
         `La solicitud de portada para el cliente ${codSap} (${nombre||''}) ha sido confirmada.`
       );
       break;
 
     case 'borrador':
-      // Devuelta al comercial
       push([comercialEmail],
         `${base} — Devuelta para completar`,
         `Tu solicitud de portada para el cliente ${codSap} (${nombre||''}) ha sido devuelta. Accede a la herramienta para editarla y reenviarla.`
