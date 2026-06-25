@@ -2468,7 +2468,9 @@ async function saveSolicitud(estadoTarget) {
   }
 
   // Notificaciones por email según estado
-  await enviarNotificacion(solId, estadoTarget, { codSap, nombre, comercialNombre: currentPerfil?.nombre });
+  if (estadoTarget !== 'borrador') {
+    await enviarNotificacion(solId, estadoTarget, { codSap, nombre, comercialNombre: currentPerfil?.nombre, comercialId: currentUser.id });
+  }
 
   const prog2 = document.getElementById('upload-progress');
   if (prog2) prog2.style.display = 'none';
@@ -4746,7 +4748,7 @@ async function marcarDisenoListo(solId) {
 
 // ── NOTIFICACIONES ────────────────────────────────────────
 // Guarda en tabla notificaciones. Para envío real, configurar Supabase Edge Function con Resend.
-async function enviarNotificacion(solId, estado, { codSap, nombre, comercialNombre } = {}) {
+async function enviarNotificacion(solId, estado, { codSap, nombre, comercialNombre, comercialId } = {}) {
   const notifs = [];
   const sol = allSolicitudes.find(s => s.id === solId);
 
@@ -4757,8 +4759,9 @@ async function enviarNotificacion(solId, estado, { codSap, nombre, comercialNomb
     perfs = data || [];
   }
 
-  // Recipients
-  const comercialEmail   = sol?.perfiles?.email || perfs.find(p => p.id === sol?.comercial_id)?.email;
+  // Recipients — use comercialId param if sol not yet in allSolicitudes (e.g. just created)
+  const resolvedComercialId = sol?.comercial_id || comercialId;
+  const comercialEmail   = sol?.perfiles?.email || perfs.find(p => p.id === resolvedComercialId)?.email;
   const disenadorEmail   = sol?.asignado_id ? perfs.find(p => p.id === sol.asignado_id)?.email : null;
   const mktAdminResp     = perfs.filter(p => ['marketing','admin','responsable','responsable_nacional','responsable_exportacion'].includes(p.rol) && p.activo).map(p => p.email);
 
