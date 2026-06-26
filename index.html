@@ -242,7 +242,7 @@
   <!-- GOR Factory logo top -->
   <img src="https://dev.gorfactory.com/wp-content/uploads/2026/05/Logo_GOR.png"
        alt="GOR Factory"
-       style="height:56px;display:block;margin:0 auto 2rem;filter:brightness(0) invert(1)"
+       style="height:56px;display:block;margin:0 auto 2rem"
        onerror="this.style.display='none'">
 
   <div class="auth-card">
@@ -336,6 +336,12 @@
         🔔
         <span id="notif-badge" style="display:none;position:absolute;top:0;right:0;background:#E30613;color:white;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px;min-width:14px;text-align:center"></span>
       </button>
+      <select id="notif-pref" onchange="saveNotifPref(this.value)" title="Preferencia de notificaciones" style="font-size:11px;padding:3px 8px;border:1px solid rgba(255,255,255,.3);border-radius:6px;background:#3a3a38;color:white;cursor:pointer">
+        <option value="ambas">🔔 Email + herramienta</option>
+        <option value="email">📧 Solo email</option>
+        <option value="herramienta">🔵 Solo herramienta</option>
+        <option value="ninguna">🔕 Sin notificaciones</option>
+      </select>
       <span class="role-tag" id="role-tag">—</span>
       <span class="user-badge" id="user-name">—</span>
       <button style="padding:.4rem .9rem;border-radius:4px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;" onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.1)'" onclick="doLogout()">Cerrar sesión</button>
@@ -1378,6 +1384,9 @@ async function loadPerfil() {
     const { data } = await db.from('perfiles').select('*').eq('id', currentUser.id).maybeSingle();
     currentPerfil = data;
     console.log('loadPerfil:', currentPerfil?.nombre, currentPerfil?.rol);
+    // Set notification preference selector
+    const notifSel = document.getElementById('notif-pref');
+    if (notifSel) notifSel.value = currentPerfil?.notif_preferencia || 'ambas';
   } catch(e) {
     console.warn('loadPerfil error:', e);
     currentPerfil = null;
@@ -4639,6 +4648,15 @@ async function procesarCargaMasiva(campId) {
 }
 
 
+// ── PREFERENCIA DE NOTIFICACIONES ──────────────────────
+async function saveNotifPref(valor) {
+  if (!currentUser?.id) return;
+  await db.from('perfiles').update({ notif_preferencia: valor }).eq('id', currentUser.id);
+  if (currentPerfil) currentPerfil.notif_preferencia = valor;
+  const labels = { ambas: 'Email + herramienta', email: 'Solo email', herramienta: 'Solo herramienta', ninguna: 'Sin notificaciones' };
+  showToast('Preferencia actualizada: ' + (labels[valor] || valor));
+}
+
 // ── PANEL DE NOTIFICACIONES ───────────────────────────────
 let allNotifs = [];
 let notifPanelOpen = false;
@@ -4908,7 +4926,11 @@ async function enviarNotificacion(solId, estado, { codSap, nombre, comercialNomb
   }
 
   for (const n of notifs) {
-    await db.from('notificaciones').insert(n);
+    await db.from('notificaciones').insert({
+      ...n,
+      enviado: n.solo_herramienta ? true : false,
+      enviado_at: n.solo_herramienta ? new Date().toISOString() : null,
+    });
   }
 
   // Email disabled — notifications shown in-app panel
