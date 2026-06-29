@@ -1913,9 +1913,17 @@ function renderComercialTable() {
   const respFilter = document.getElementById('filter-comercial-resp');
   if (respFilter) {
     respFilter.style.display = ['responsable','responsable_nacional','responsable_exportacion','admin','marketing'].includes(rol) ? 'inline-block' : 'none';
-    // Populate if needed
+    // Populate filtered by rol if needed
     if (respFilter.options.length <= 1 && allPerfiles?.length) {
-      allPerfiles.filter(p => ['comercial','comercial_nacional','comercial_exportacion'].includes(p.rol) && p.activo)
+      let comercialesVisibles = allPerfiles.filter(p => p.activo);
+      if (rol === 'responsable_nacional') {
+        comercialesVisibles = comercialesVisibles.filter(p => ['comercial_nacional','responsable_nacional'].includes(p.rol));
+      } else if (rol === 'responsable_exportacion') {
+        comercialesVisibles = comercialesVisibles.filter(p => ['comercial_exportacion','responsable_exportacion'].includes(p.rol));
+      } else {
+        comercialesVisibles = comercialesVisibles.filter(p => ['comercial','comercial_nacional','comercial_exportacion'].includes(p.rol));
+      }
+      comercialesVisibles
         .sort((a,b) => a.nombre.localeCompare(b.nombre))
         .forEach(p => {
           const opt = document.createElement('option');
