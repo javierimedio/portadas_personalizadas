@@ -585,6 +585,33 @@
       <div class="filter-bar" style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
         <select id="filter-campana-comercial" onchange="renderComercialTable()" style="font-size:13px;min-width:160px"><option value="">Todas las campañas</option></select>
         <select id="filter-comercial-resp" onchange="renderComercialTable()" style="font-size:13px;min-width:160px;display:none"><option value="">Todos los comerciales</option></select>
+        <select id="filter-idioma-comercial" onchange="renderComercialTable()" style="font-size:13px;min-width:150px;display:none">
+          <option value="">Todos los idiomas</option>
+          <option value="Alemán">Alemán</option>
+          <option value="Búlgaro">Búlgaro</option>
+          <option value="Checo">Checo</option>
+          <option value="Croata">Croata</option>
+          <option value="Danés">Danés</option>
+          <option value="Eslovaco">Eslovaco</option>
+          <option value="Esloveno">Esloveno</option>
+          <option value="Español">Español</option>
+          <option value="Estonio">Estonio</option>
+          <option value="Finlandés">Finlandés</option>
+          <option value="Francés">Francés</option>
+          <option value="Griego">Griego</option>
+          <option value="Holandés">Holandés</option>
+          <option value="Húngaro">Húngaro</option>
+          <option value="Inglés">Inglés</option>
+          <option value="Italiano">Italiano</option>
+          <option value="Letón">Letón</option>
+          <option value="Lituano">Lituano</option>
+          <option value="Macedonio">Macedonio</option>
+          <option value="Polaco">Polaco</option>
+          <option value="Portugués">Portugués</option>
+          <option value="Rumano">Rumano</option>
+          <option value="Ruso">Ruso</option>
+          <option value="Ucraniano">Ucraniano</option>
+        </select>
         <button class="btn btn-amber" onclick="checkCampanaAndOpen()" id="btn-nueva-sol">+ Nueva solicitud</button>
         <input type="text" id="search-comercial" placeholder="Buscar por código SAP..." style="flex:1;min-width:200px" oninput="renderComercialTable()">
       </div>
@@ -592,7 +619,7 @@
         <div class="tbl-wrap">
           <table>
             <thead><tr>
-              <th>Cód. SAP</th><th>Empresa</th><th>Provincia</th>
+              <th>Cód. SAP</th><th>Empresa</th><th id="th-provincia-idioma">Provincia</th>
               <th>Roly</th><th>Roly WRK</th><th>Stamina</th><th>XMAS</th>
               <th>Estado</th><th>Actualizado</th><th></th>
             </tr></thead>
@@ -1880,6 +1907,7 @@ function renderComercialTable() {
   const _comSel = document.getElementById('filter-campana-comercial');
   const comCampId = (_comSel && _comSel.options.length > 1) ? _comSel.value : getDefaultCampanaId();
   const rol = currentPerfil?.rol;
+  const isExport = ['comercial_exportacion', 'responsable_exportacion'].includes(rol);
 
   // Show/hide responsable filter
   const respFilter = document.getElementById('filter-comercial-resp');
@@ -1899,6 +1927,13 @@ function renderComercialTable() {
   }
   const filterComercialId = respFilter?.style.display !== 'none' ? (respFilter?.value || '') : '';
 
+  // Show/hide idioma filter and update table header
+  const idiomaFilter = document.getElementById('filter-idioma-comercial');
+  if (idiomaFilter) idiomaFilter.style.display = isExport ? 'inline-block' : 'none';
+  const thProvIdioma = document.getElementById('th-provincia-idioma');
+  if (thProvIdioma) thProvIdioma.textContent = isExport ? 'Idioma' : 'Provincia';
+  const filterIdioma = isExport ? (idiomaFilter?.value || '') : '';
+
   // Responsable nacional/exportacion: restrict to their comercials
   let allowedComercialIds = null;
   if (rol === 'responsable_nacional') {
@@ -1906,18 +1941,17 @@ function renderComercialTable() {
   } else if (rol === 'responsable_exportacion') {
     allowedComercialIds = new Set(allPerfiles.filter(p => ['comercial_exportacion','responsable_exportacion'].includes(p.rol)).map(p => p.id));
   }
-  // Also allow solicitudes explicitly assigned to this canal
   const canalFilter = rol === 'responsable_nacional' ? 'nacional' : rol === 'responsable_exportacion' ? 'exportacion' : null;
 
   const rows = allSolicitudes.filter(s => {
     if (['comercial_nacional','comercial_exportacion'].includes(rol) && s.comercial_id !== currentUser.id) return false;
     if (allowedComercialIds) {
-      // Pass if comercial is in allowed set OR if canal matches
       const canalMatch = canalFilter && s.canal === canalFilter;
       if (!allowedComercialIds.has(s.comercial_id) && !canalMatch) return false;
     }
     if (comCampId && s.campana_id !== comCampId) return false;
     if (filterComercialId && s.comercial_id !== filterComercialId) return false;
+    if (filterIdioma && s.idioma !== filterIdioma) return false;
     if (q && !s.cod_sap?.toLowerCase().includes(q) && !s.nombre_empresa?.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -1953,7 +1987,7 @@ function renderComercialTable() {
         ${s.nombre_empresa||'—'}
         ${s.campana_id !== activeCampana?.id ? `<span style="font-size:10px;background:var(--c-amber-l);color:var(--c-amber);padding:1px 5px;border-radius:4px;margin-left:4px">${allCampanas?.find?.(c=>c.id===s.campana_id)?.nombre||''}</span>` : ''}
       </td>
-      <td>${s.provincia||'<span class="text-mid">—</span>'}</td>
+      <td>${isExport ? (s.idioma||'<span class="text-mid">—</span>') : (s.provincia||'<span class="text-mid">—</span>')}</td>
       <td>${catSummary(s,'roly')}</td>
       <td>${catSummary(s,'roly_wrk')}</td>
       <td>${catSummary(s,'stamina')}</td><td>${catSummary(s,'xmas')}</td>
