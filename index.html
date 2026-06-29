@@ -839,17 +839,21 @@
         <div class="section-title" style="margin-bottom:.25rem">Mi cuenta</div>
         <div class="section-sub" style="margin-bottom:1.5rem">Consulta y actualiza tu información personal</div>
 
-        <!-- Info card: rol + código (solo lectura) -->
+        <!-- Preferencia de notificaciones -->
         <div class="card" style="margin-bottom:1rem">
-          <div class="card-title" style="margin-bottom:1rem">Información de cuenta</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+          <div class="card-title" style="margin-bottom:1rem">Notificaciones</div>
+          <div style="display:flex;flex-direction:column;gap:.75rem">
             <div>
-              <div style="font-size:11px;font-weight:600;color:var(--c-mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Rol</div>
-              <div id="perfil-rol-display" style="font-size:14px;font-weight:600;color:var(--c-dark);padding:.5rem .75rem;background:var(--c-light);border-radius:var(--radius)">—</div>
+              <label style="font-size:12px;font-weight:600;color:var(--c-mid);display:block;margin-bottom:4px">¿Cómo quieres recibir las notificaciones?</label>
+              <select id="perfil-notif-pref" onchange="saveNotifPrefFromPerfil(this.value)" style="width:100%">
+                <option value="ambas">🔔 Email + herramienta (recomendado)</option>
+                <option value="email">📧 Solo email</option>
+                <option value="herramienta">🖥 Solo en la herramienta</option>
+                <option value="ninguna">🔕 Sin notificaciones</option>
+              </select>
             </div>
-            <div>
-              <div style="font-size:11px;font-weight:600;color:var(--c-mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Código</div>
-              <div id="perfil-codigo-display" style="font-size:14px;font-weight:600;color:var(--c-dark);padding:.5rem .75rem;background:var(--c-light);border-radius:var(--radius);font-family:monospace">—</div>
+            <div style="font-size:12px;color:var(--c-mid);line-height:1.5">
+              Las notificaciones te informan de cambios de estado en tus solicitudes, asignaciones de diseño y comentarios del equipo.
             </div>
           </div>
         </div>
@@ -903,21 +907,17 @@
           </div>
         </div>
 
-        <!-- Preferencia de notificaciones -->
+        <!-- Info card: rol + código (solo lectura) -->
         <div class="card">
-          <div class="card-title" style="margin-bottom:1rem">Notificaciones</div>
-          <div style="display:flex;flex-direction:column;gap:.75rem">
+          <div class="card-title" style="margin-bottom:1rem">Información de cuenta</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
             <div>
-              <label style="font-size:12px;font-weight:600;color:var(--c-mid);display:block;margin-bottom:4px">¿Cómo quieres recibir las notificaciones?</label>
-              <select id="perfil-notif-pref" onchange="saveNotifPrefFromPerfil(this.value)" style="width:100%">
-                <option value="ambas">🔔 Email + herramienta (recomendado)</option>
-                <option value="email">📧 Solo email</option>
-                <option value="herramienta">🖥 Solo en la herramienta</option>
-                <option value="ninguna">🔕 Sin notificaciones</option>
-              </select>
+              <div style="font-size:11px;font-weight:600;color:var(--c-mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Rol</div>
+              <div id="perfil-rol-display" style="font-size:14px;font-weight:600;color:var(--c-dark);padding:.5rem .75rem;background:var(--c-light);border-radius:var(--radius)">—</div>
             </div>
-            <div style="font-size:12px;color:var(--c-mid);line-height:1.5">
-              Las notificaciones te informan de cambios de estado en tus solicitudes, asignaciones de diseño y comentarios del equipo.
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--c-mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Código</div>
+              <div id="perfil-codigo-display" style="font-size:14px;font-weight:600;color:var(--c-dark);padding:.5rem .75rem;background:var(--c-light);border-radius:var(--radius);font-family:monospace">—</div>
             </div>
           </div>
         </div>
