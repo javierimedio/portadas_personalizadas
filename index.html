@@ -4291,7 +4291,8 @@ function renderCampanasTable() {
       <td>
         <div class="gap-8">
           <button class="btn btn-sm btn-outline" onclick="openCampanaModal('${c.id}')">Editar</button>
-          ${!isActive && c.activa ? `<button class="btn btn-sm btn-green" onclick="setActiveCampana('${c.id}')">Usar como activa</button>` : ''}
+           ${!isActive && c.activa ? `<button class="btn btn-sm btn-green" onclick="setActiveCampana('${c.id}')">Usar como activa</button>` : ''}
+          <button class="btn btn-sm btn-danger" onclick="eliminarCampana('${c.id}','${c.nombre.replace(/'/g,"\\'")}')" title="Eliminar campaña">🗑 Eliminar</button>
         </div>
       </td>
     </tr>`;
@@ -4384,6 +4385,32 @@ async function setActiveCampana(id) {
   closeModal('modal-detalle');
   await loadAndRenderCampanas();
   showToast(`Campaña "${c.nombre}" establecida como activa.`);
+}
+
+async function eliminarCampana(id, nombre) {
+  const solCount = allSolicitudes.filter(s => s.campana_id === id).length;
+  const warn = solCount > 0
+    ? `\n\n⚠️ Esta campaña tiene ${solCount} solicitud(es) asociadas. También se eliminarán.`
+    : '';
+  if (!confirm(`¿Eliminar la campaña "${nombre}"? Esta acción no se puede deshacer.${warn}`)) return;
+
+  // Eliminar solicitudes asociadas y sus datos
+  const solIds = allSolicitudes.filter(s => s.campana_id === id).map(s => s.id);
+  for (const solId of solIds) {
+    await db.from('solicitud_catalogos').delete().eq('solicitud_id', solId);
+    await db.from('adjuntos').delete().eq('solicitud_id', solId);
+    await db.from('logs').delete().eq('solicitud_id', solId);
+    await db.from('notificaciones').delete().eq('solicitud_id', solId);
+    await db.from('solicitudes').delete().eq('id', solId);
+  }
+  await db.from('campanas').delete().eq('id', id);
+
+  // Si era la activa, resetear
+  if (activeCampana?.id === id) activeCampana = null;
+
+  await loadAndRenderCampanas();
+  await loadSolicitudes();
+  showToast(`Campaña "${nombre}" eliminada.`);
 }
 
 // ── ROL IMPERSONATION (admin only) ───────────────────────
