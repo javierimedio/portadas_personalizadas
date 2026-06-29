@@ -226,6 +226,202 @@
   .mt-1 { margin-top: .5rem; }
   .gap-8 { display: flex; gap: 8px; align-items: center; }
   select[multiple] { height: auto; }
+
+  /* ═══════════════════════════════════════════════
+     RESPONSIVE — Tablet & Mobile
+     Breakpoints: 768px (tablet), 480px (mobile)
+  ═══════════════════════════════════════════════ */
+
+  /* ── Hamburger button (hidden on desktop) ── */
+  .hamburger {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: white;
+    padding: 6px 8px;
+    flex-direction: column;
+    gap: 5px;
+    align-items: center;
+    justify-content: center;
+  }
+  .hamburger span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background: white;
+    border-radius: 2px;
+    transition: transform .2s, opacity .2s;
+  }
+  .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .hamburger.open span:nth-child(2) { opacity: 0; }
+  .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  /* ── Nav drawer (mobile) ── */
+  .nav-drawer-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 98;
+  }
+  .nav-drawer-backdrop.open { display: block; }
+
+  @media (max-width: 768px) {
+    /* Topbar */
+    .topbar { padding: 0 1rem; }
+    .topbar-brand span:not(:first-child) { display: none; }
+    .topbar-brand > img:not(:first-child) { display: none; }
+    .topbar-brand > span[style*="rgba(255,255,255,.35)"] { display: none; }
+    .hamburger { display: flex; }
+
+    /* Hide non-essential topbar items on tablet */
+    #impersonate-rol { display: none !important; }
+    #notif-pref { display: none !important; }
+
+    /* Nav — horizontal scroll on tablet */
+    .nav { padding: 0 .75rem; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .nav::-webkit-scrollbar { display: none; }
+    .nav-btn { padding: .65rem .75rem; font-size: 12px; flex-shrink: 0; }
+
+    /* Main padding */
+    .main { padding: 1rem; }
+
+    /* Cards */
+    .card { padding: 1rem; }
+
+    /* Tables — always scrollable */
+    .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { min-width: 600px; }
+
+    /* Filters row — wrap to column */
+    .toggle-row { flex-direction: column; align-items: stretch; gap: .5rem; }
+    .toggle-row select,
+    .toggle-row input { width: 100% !important; min-width: unset !important; }
+    .filter-bar { flex-direction: column; align-items: stretch; }
+    .filter-bar select,
+    .filter-bar input { width: 100% !important; min-width: unset !important; flex: none !important; }
+
+    /* Button rows */
+    .btn-row { flex-wrap: wrap; }
+    .gap-8 { flex-wrap: wrap; }
+
+    /* Form grid — single column */
+    .form-grid { grid-template-columns: 1fr; }
+
+    /* Modal — fullscreen on mobile */
+    .modal-bg { padding: 0; align-items: flex-end; }
+    .modal {
+      max-width: 100% !important;
+      max-height: 92vh;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+
+    /* Stat cards row */
+    #com-stats-row { flex-wrap: wrap; }
+    #com-stats-row .stat-card { min-width: calc(50% - .375rem); }
+
+    /* Notification panel */
+    #notif-panel { width: 100%; }
+
+    /* Page-level inline filter bars */
+    div[style*="display:flex"][style*="gap:8px"][style*="flex-wrap:wrap"] {
+      flex-direction: column;
+    }
+    div[style*="display:flex"][style*="gap:8px"][style*="flex-wrap:wrap"] select,
+    div[style*="display:flex"][style*="gap:8px"][style*="flex-wrap:wrap"] input {
+      width: 100%;
+      min-width: unset !important;
+    }
+  }
+
+  @media (max-width: 480px) {
+    /* Topbar brand: only logo on phone */
+    .topbar-brand > span { display: none; }
+    .topbar-right .role-tag { display: none; }
+    .topbar-right #user-name { max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+
+    /* Nav — drawer instead of horizontal scroll */
+    .nav {
+      display: none;
+      position: fixed;
+      top: 52px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--c-white);
+      flex-direction: column;
+      gap: 0;
+      padding: .5rem 0;
+      overflow-y: auto;
+      z-index: 99;
+      border-bottom: none;
+      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    }
+    .nav.mobile-open { display: flex; }
+    .nav-btn {
+      width: 100%;
+      text-align: left;
+      padding: .9rem 1.25rem;
+      font-size: 14px;
+      border-bottom: 1px solid var(--c-line);
+      border-left: 3px solid transparent;
+    }
+    .nav-btn:last-child { border-bottom: none; }
+    .nav-btn.active {
+      border-bottom-color: var(--c-line);
+      border-left-color: var(--c-amber);
+      background: var(--c-light);
+    }
+
+    /* Main */
+    .main { padding: .75rem; }
+
+    /* Tables — mobile card style for action-heavy rows */
+    .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { min-width: 500px; font-size: 12px; }
+    th, td { padding: .5rem .6rem; }
+
+    /* Stat cards — full width on phone */
+    #com-stats-row .stat-card { min-width: 100%; }
+
+    /* Modals */
+    .modal-bg { padding: 0; align-items: flex-end; }
+    .modal { border-radius: 12px 12px 0 0; max-height: 95vh; }
+    .modal-header { padding: 1rem; }
+    .modal-body { padding: 1rem; }
+    .modal-footer { padding: .75rem 1rem; flex-direction: column; }
+    .modal-footer .btn { width: 100%; justify-content: center; }
+
+    /* Card padding */
+    .card { padding: .75rem; }
+    .card-title { font-size: 12px; }
+
+    /* Button size */
+    .btn { font-size: 12px; padding: .45rem .8rem; }
+    .btn-sm { font-size: 11px; padding: .25rem .55rem; }
+
+    /* Filter bars: full column */
+    .toggle-row { flex-direction: column; }
+    .toggle-row > * { width: 100% !important; min-width: unset !important; }
+
+    /* Cat section body */
+    .cat-body table { min-width: 360px; }
+
+    /* Notification panel */
+    #notif-panel { width: 100%; top: 52px; height: calc(100vh - 52px); }
+
+    /* Logout button */
+    .topbar-right button[onclick="doLogout()"] { padding: .35rem .6rem; font-size: 11px; }
+  }
+
+  /* Touch-friendly interactive elements */
+  @media (pointer: coarse) {
+    .btn { min-height: 40px; }
+    .nav-btn { min-height: 44px; }
+    select, input[type="text"], input[type="email"], input[type="password"], textarea { min-height: 40px; }
+    .modal-close { min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; }
+  }
 </style>
 </head>
 <body>
@@ -304,6 +500,8 @@
 </div>
 
 <div id="app">
+  <div id="nav-drawer-backdrop" class="nav-drawer-backdrop" onclick="closeMobileNav()"></div>
+
   <div class="topbar">
     <div class="topbar-brand">
       <img src="https://dev.gorfactory.com/wp-content/uploads/2026/05/Logo_GOR.png" 
@@ -320,6 +518,9 @@
            style="height:14px;filter:brightness(0) invert(1);opacity:.5;vertical-align:middle;margin-left:10px">
     </div>
     <div class="topbar-right">
+      <button class="hamburger" id="hamburger-btn" onclick="toggleMobileNav()" aria-label="Menú">
+        <span></span><span></span><span></span>
+      </button>
       <select id="impersonate-rol" onchange="impersonateRol(this.value)"
         style="font-size:11px;padding:3px 8px;border:1px solid rgba(255,255,255,.4);border-radius:6px;background:#3a3a38;color:white;cursor:pointer;display:none"
         title="Simular rol (solo admin)">
@@ -359,7 +560,7 @@
       <!-- Mini stats row -->
       <div id="com-stats-row" style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1.25rem"></div>
 
-      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+      <div class="filter-bar" style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
         <select id="filter-campana-comercial" onchange="renderComercialTable()" style="font-size:13px;min-width:160px"><option value="">Todas las campañas</option></select>
         <select id="filter-comercial-resp" onchange="renderComercialTable()" style="font-size:13px;min-width:160px;display:none"><option value="">Todos los comerciales</option></select>
         <button class="btn btn-amber" onclick="checkCampanaAndOpen()" id="btn-nueva-sol">+ Nueva solicitud</button>
@@ -387,8 +588,7 @@
       </div>
       <div id="campana-banner"></div>
       <div class="stats-row" id="stats-row"></div>
-      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
-        <input type="text" id="search-mkt" placeholder="Buscar SAP, empresa..." style="flex:1;min-width:160px" oninput="renderMktTable()">
+      <div class="filter-bar" style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center"> style="flex:1;min-width:160px" oninput="renderMktTable()">
         <select id="filter-campana" onchange="filterCampana()" style="min-width:130px">
           <option value="">Todas las campañas</option>
         </select>
@@ -4291,7 +4491,7 @@ function renderCampanasTable() {
       <td>
         <div class="gap-8">
           <button class="btn btn-sm btn-outline" onclick="openCampanaModal('${c.id}')">Editar</button>
-           ${!isActive && c.activa ? `<button class="btn btn-sm btn-green" onclick="setActiveCampana('${c.id}')">Usar como activa</button>` : ''}
+          ${!isActive && c.activa ? `<button class="btn btn-sm btn-green" onclick="setActiveCampana('${c.id}')">Usar como activa</button>` : ''}
           <button class="btn btn-sm btn-danger" onclick="eliminarCampana('${c.id}','${c.nombre.replace(/'/g,"\\'")}')" title="Eliminar campaña">🗑 Eliminar</button>
         </div>
       </td>
@@ -4394,7 +4594,6 @@ async function eliminarCampana(id, nombre) {
     : '';
   if (!confirm(`¿Eliminar la campaña "${nombre}"? Esta acción no se puede deshacer.${warn}`)) return;
 
-  // Eliminar solicitudes asociadas y sus datos
   const solIds = allSolicitudes.filter(s => s.campana_id === id).map(s => s.id);
   for (const solId of solIds) {
     await db.from('solicitud_catalogos').delete().eq('solicitud_id', solId);
@@ -4405,7 +4604,6 @@ async function eliminarCampana(id, nombre) {
   }
   await db.from('campanas').delete().eq('id', id);
 
-  // Si era la activa, resetear
   if (activeCampana?.id === id) activeCampana = null;
 
   await loadAndRenderCampanas();
@@ -5082,6 +5280,46 @@ async function confirmImport() {
   await loadData();
   showToast(`Importación completada: ${ok} creados${errors > 0 ? `, ${errors} errores` : ''}.`);
 }
+
+// ── MOBILE NAVIGATION ────────────────────────────────────────────
+function toggleMobileNav() {
+  const nav = document.getElementById('main-nav');
+  const btn = document.getElementById('hamburger-btn');
+  const backdrop = document.getElementById('nav-drawer-backdrop');
+  const isOpen = nav.classList.contains('mobile-open');
+  if (isOpen) {
+    closeMobileNav();
+  } else {
+    nav.classList.add('mobile-open');
+    btn.classList.add('open');
+    backdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeMobileNav() {
+  const nav = document.getElementById('main-nav');
+  const btn = document.getElementById('hamburger-btn');
+  const backdrop = document.getElementById('nav-drawer-backdrop');
+  nav.classList.remove('mobile-open');
+  btn.classList.remove('open');
+  backdrop.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Close nav on tab switch (mobile)
+const _origShowPage = typeof showPage === 'function' ? showPage : null;
+document.addEventListener('click', function(e) {
+  const navBtn = e.target.closest('.nav-btn');
+  if (navBtn && window.innerWidth <= 480) {
+    closeMobileNav();
+  }
+});
+
+// Close on resize if desktop
+window.addEventListener('resize', function() {
+  if (window.innerWidth > 480) closeMobileNav();
+});
 
 </script>
 </body>
