@@ -227,6 +227,10 @@
   .gap-8 { display: flex; gap: 8px; align-items: center; }
   select[multiple] { height: auto; }
 
+  /* ── Dashboard chart grids ── */
+  .dash-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  .dash-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+
   /* ═══════════════════════════════════════════════
      RESPONSIVE — Tablet & Mobile
      Breakpoints: 768px (tablet), 480px (mobile)
@@ -293,6 +297,14 @@
     /* Tables — always scrollable */
     .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     table { min-width: 600px; }
+
+    /* Dashboard chart grids → 1 columna en tablet */
+    .dash-grid-2,
+    .dash-grid-3 { grid-template-columns: 1fr; }
+
+    /* Dashboard KPI cards → 2 columnas */
+    #dash-kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: .75rem; margin-bottom: 1.25rem; }
+    #dash-kpis .stat-card { margin-bottom: 0 !important; }
 
     /* Filters row — wrap to column */
     .toggle-row { flex-direction: column; align-items: stretch; gap: .5rem; }
@@ -381,6 +393,11 @@
     .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     table { min-width: 500px; font-size: 12px; }
     th, td { padding: .5rem .6rem; }
+
+    /* Dashboard → columna única en phone */
+    .dash-grid-2,
+    .dash-grid-3 { grid-template-columns: 1fr; }
+    #dash-kpis { grid-template-columns: repeat(2, 1fr); }
 
     /* Stat cards — full width on phone */
     #com-stats-row .stat-card { min-width: 100%; }
@@ -588,7 +605,8 @@
       </div>
       <div id="campana-banner"></div>
       <div class="stats-row" id="stats-row"></div>
-      <div class="filter-bar" style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center"> style="flex:1;min-width:160px" oninput="renderMktTable()">
+      <div class="filter-bar" style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+        <input type="text" id="search-mkt" placeholder="Buscar SAP, empresa..." style="flex:1;min-width:160px" oninput="renderMktTable()">
         <select id="filter-campana" onchange="filterCampana()" style="min-width:130px">
           <option value="">Todas las campañas</option>
         </select>
@@ -730,7 +748,7 @@
       <div id="dash-kpis" style="margin-bottom:1.5rem"></div>
 
       <!-- Charts row 1 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div class="dash-grid-2">
         <div class="card">
           <div class="card-title">Estado de solicitudes</div>
           <div style="position:relative;height:220px;overflow:hidden">
@@ -746,7 +764,7 @@
       </div>
 
       <!-- Charts row 1b: idiomas -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div class="dash-grid-2">
         <div class="card">
           <div class="card-title">Solicitudes por idioma</div>
           <div style="position:relative;height:200px;overflow:hidden">
@@ -762,7 +780,7 @@
       </div>
 
       <!-- Charts row 2 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div class="dash-grid-3">
         <div class="card">
           <div class="card-title">Unidades por catálogo</div>
           <div style="position:relative;height:200px;overflow:hidden">
