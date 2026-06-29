@@ -554,14 +554,14 @@
         🔔
         <span id="notif-badge" style="display:none;position:absolute;top:0;right:0;background:#E30613;color:white;font-size:9px;font-weight:700;padding:1px 4px;border-radius:10px;min-width:14px;text-align:center"></span>
       </button>
-      <select id="notif-pref" onchange="saveNotifPref(this.value)" title="Preferencia de notificaciones" style="font-size:11px;padding:3px 8px;border:1px solid rgba(255,255,255,.3);border-radius:6px;background:#3a3a38;color:white;cursor:pointer">
-        <option value="ambas">🔔 Email + herramienta</option>
-        <option value="email">📧 Solo email</option>
-        <option value="herramienta">🔵 Solo herramienta</option>
-        <option value="ninguna">🔕 Sin notificaciones</option>
+      <select id="notif-pref" onchange="saveNotifPref(this.value)" style="display:none">
+        <option value="ambas">Email + herramienta</option>
+        <option value="email">Solo email</option>
+        <option value="herramienta">Solo herramienta</option>
+        <option value="ninguna">Sin notificaciones</option>
       </select>
       <span class="role-tag" id="role-tag">—</span>
-      <span class="user-badge" id="user-name">—</span>
+      <button id="user-name" onclick="showPage('perfil')" style="background:none;border:none;cursor:pointer;color:white;font-size:13px;font-weight:500;padding:0;text-decoration:underline;text-underline-offset:2px;text-decoration-color:rgba(255,255,255,.4)" title="Mi cuenta">—</button>
       <button style="padding:.4rem .9rem;border-radius:4px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;" onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.1)'" onclick="doLogout()">Cerrar sesión</button>
     </div>
   </div>
@@ -829,9 +829,97 @@
       </div>
     </div>
   </div>
-</div>
+    <div class="page" id="page-perfil">
+      <div style="max-width:640px;margin:0 auto">
+        <div class="section-title" style="margin-bottom:.25rem">Mi cuenta</div>
+        <div class="section-sub" style="margin-bottom:1.5rem">Consulta y actualiza tu información personal</div>
 
-<!-- ── PANEL NOTIFICACIONES ──────────────────────────── -->
+        <!-- Info card: rol + código (solo lectura) -->
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-title" style="margin-bottom:1rem">Información de cuenta</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--c-mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Rol</div>
+              <div id="perfil-rol-display" style="font-size:14px;font-weight:600;color:var(--c-dark);padding:.5rem .75rem;background:var(--c-light);border-radius:var(--radius)">—</div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--c-mid);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Código</div>
+              <div id="perfil-codigo-display" style="font-size:14px;font-weight:600;color:var(--c-dark);padding:.5rem .75rem;background:var(--c-light);border-radius:var(--radius);font-family:monospace">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Datos personales -->
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-title" style="margin-bottom:1rem">Datos personales</div>
+          <div id="perfil-alert" style="display:none;padding:.6rem .9rem;border-radius:var(--radius);margin-bottom:.75rem;font-size:13px"></div>
+          <div style="display:flex;flex-direction:column;gap:.75rem">
+            <div>
+              <label style="font-size:12px;font-weight:600;color:var(--c-mid);display:block;margin-bottom:4px">Nombre completo</label>
+              <input type="text" id="perfil-nombre" placeholder="Tu nombre" style="width:100%">
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:var(--c-mid);display:block;margin-bottom:4px">Email</label>
+              <input type="email" id="perfil-email" placeholder="tu@email.com" style="width:100%">
+              <div style="font-size:11px;color:var(--c-mid);margin-top:4px">⚠️ Cambiar el email requiere confirmación en el nuevo correo.</div>
+            </div>
+            <div style="display:flex;justify-content:flex-end">
+              <button class="btn btn-amber" onclick="savePerfilDatos()">Guardar cambios</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cambio de contraseña -->
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-title" style="margin-bottom:1rem">Cambiar contraseña</div>
+          <div id="perfil-pwd-alert" style="display:none;padding:.6rem .9rem;border-radius:var(--radius);margin-bottom:.75rem;font-size:13px"></div>
+          <div style="display:flex;flex-direction:column;gap:.75rem">
+            <div>
+              <label style="font-size:12px;font-weight:600;color:var(--c-mid);display:block;margin-bottom:4px">Nueva contraseña</label>
+              <div style="position:relative">
+                <input type="password" id="perfil-pwd1" placeholder="Mínimo 8 caracteres" style="width:100%;padding-right:2.5rem">
+                <button type="button" onclick="togglePwdVisibility('perfil-pwd1', this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--c-mid);font-size:14px">👁</button>
+              </div>
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:var(--c-mid);display:block;margin-bottom:4px">Confirmar contraseña</label>
+              <div style="position:relative">
+                <input type="password" id="perfil-pwd2" placeholder="Repite la contraseña" style="width:100%;padding-right:2.5rem">
+                <button type="button" onclick="togglePwdVisibility('perfil-pwd2', this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--c-mid);font-size:14px">👁</button>
+              </div>
+            </div>
+            <div>
+              <div id="perfil-pwd-strength" style="height:4px;border-radius:2px;background:var(--c-line);margin-top:-4px;transition:background .2s,width .2s"></div>
+              <div id="perfil-pwd-strength-label" style="font-size:11px;color:var(--c-mid);margin-top:4px"></div>
+            </div>
+            <div style="display:flex;justify-content:flex-end">
+              <button class="btn btn-amber" onclick="savePerfilPassword()">Actualizar contraseña</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preferencia de notificaciones -->
+        <div class="card">
+          <div class="card-title" style="margin-bottom:1rem">Notificaciones</div>
+          <div style="display:flex;flex-direction:column;gap:.75rem">
+            <div>
+              <label style="font-size:12px;font-weight:600;color:var(--c-mid);display:block;margin-bottom:4px">¿Cómo quieres recibir las notificaciones?</label>
+              <select id="perfil-notif-pref" onchange="saveNotifPrefFromPerfil(this.value)" style="width:100%">
+                <option value="ambas">🔔 Email + herramienta (recomendado)</option>
+                <option value="email">📧 Solo email</option>
+                <option value="herramienta">🖥 Solo en la herramienta</option>
+                <option value="ninguna">🔕 Sin notificaciones</option>
+              </select>
+            </div>
+            <div style="font-size:12px;color:var(--c-mid);line-height:1.5">
+              Las notificaciones te informan de cambios de estado en tus solicitudes, asignaciones de diseño y comentarios del equipo.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="notif-panel" style="position:fixed;top:52px;right:0;width:360px;height:calc(100vh - 52px);background:white;box-shadow:-4px 0 20px rgba(0,0,0,.12);z-index:150;flex-direction:column;transform:translateX(100%);transition:transform .2s ease;display:none">
   <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--c-line);display:flex;justify-content:space-between;align-items:center">
     <div style="font-size:14px;font-weight:700">Notificaciones</div>
@@ -1688,6 +1776,7 @@ function buildNav() {
   if (isAdmin || isMarketing || isDiseño || isRespDis) items.push({ id: 'diseno', label: 'Diseño' });
   if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'campanas',      label: 'Campañas' });
   if (['admin', 'marketing'].includes(rol))                              items.push({ id: 'usuarios',      label: 'Usuarios' });
+  items.push({ id: 'perfil', label: '👤 Mi cuenta' }); // visible para todos
   nav.innerHTML = items.map((it, i) =>
     `<button class="nav-btn ${i===0?'active':''}" onclick="showPage('${it.id}', this)">${it.label}</button>`
   ).join('');
@@ -1703,6 +1792,7 @@ function showPage(id, btn) {
   else { const b = document.querySelector(`.nav-btn[onclick*="'${id}'"]`); if(b) b.classList.add('active'); }
   if (id === 'campanas') loadAndRenderCampanas();
   if (id === 'dashboard') { if (allSolicitudes) renderDashboard(); }
+  if (id === 'perfil') loadPerfilPage();
 }
 
 // ── DATA ──────────────────────────────────────────────────
@@ -5297,6 +5387,149 @@ async function confirmImport() {
   closeModal('modal-import-users');
   await loadData();
   showToast(`Importación completada: ${ok} creados${errors > 0 ? `, ${errors} errores` : ''}.`);
+}
+
+// ── PERFIL / MI CUENTA ───────────────────────────────────────────
+
+function loadPerfilPage() {
+  if (!currentPerfil && !currentUser) return;
+  // Read-only fields
+  document.getElementById('perfil-rol-display').textContent   = ROL_LABELS[currentPerfil?.rol] || currentPerfil?.rol || '—';
+  document.getElementById('perfil-codigo-display').textContent = currentPerfil?.codigo || '—';
+  // Editable fields
+  document.getElementById('perfil-nombre').value = currentPerfil?.nombre || '';
+  document.getElementById('perfil-email').value  = currentUser?.email || '';
+  // Notif preference
+  const notifSel = document.getElementById('perfil-notif-pref');
+  if (notifSel) notifSel.value = currentPerfil?.notif_preferencia || 'ambas';
+  // Clear alerts
+  perfilAlert('', '', 'perfil-alert');
+  perfilAlert('', '', 'perfil-pwd-alert');
+  document.getElementById('perfil-pwd1').value = '';
+  document.getElementById('perfil-pwd2').value = '';
+  document.getElementById('perfil-pwd-strength').style.background = 'var(--c-line)';
+  document.getElementById('perfil-pwd-strength').style.width = '0';
+  document.getElementById('perfil-pwd-strength-label').textContent = '';
+  // Password strength watcher
+  document.getElementById('perfil-pwd1').oninput = function() { checkPwdStrength(this.value); };
+}
+
+function perfilAlert(msg, type, elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!msg) { el.style.display = 'none'; return; }
+  const styles = {
+    ok:    'background:var(--c-green-l);color:var(--c-green);border:1px solid var(--c-green)',
+    error: 'background:var(--c-red-l);color:var(--c-red);border:1px solid var(--c-red)',
+    info:  'background:var(--c-blue-l);color:var(--c-blue);border:1px solid var(--c-blue)',
+  };
+  el.style.cssText = (styles[type] || styles.info) + ';display:block;padding:.6rem .9rem;border-radius:var(--radius);margin-bottom:.75rem;font-size:13px';
+  el.textContent = msg;
+}
+
+async function savePerfilDatos() {
+  const nombre = document.getElementById('perfil-nombre').value.trim();
+  const email  = document.getElementById('perfil-email').value.trim();
+  if (!nombre) { perfilAlert('El nombre no puede estar vacío.', 'error', 'perfil-alert'); return; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { perfilAlert('Introduce un email válido.', 'error', 'perfil-alert'); return; }
+
+  const btn = document.querySelector('#page-perfil .card:nth-child(2) .btn-amber');
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+  try {
+    // Update name in perfiles table
+    const { error: errPerfil } = await db.from('perfiles').update({ nombre }).eq('id', currentUser.id);
+    if (errPerfil) throw errPerfil;
+    currentPerfil.nombre = nombre;
+    document.getElementById('user-name').textContent = nombre;
+
+    // Update email in auth if changed
+    if (email !== currentUser.email) {
+      const res = await fetch(`${SUPA_URL}/auth/v1/user`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': `Bearer ${loadSession()?.access_token || SUPA_KEY}` },
+        body: JSON.stringify({ email })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.msg || json.error_description || 'Error al actualizar email');
+      perfilAlert('Nombre actualizado. Revisa tu bandeja de entrada para confirmar el nuevo email.', 'info', 'perfil-alert');
+    } else {
+      perfilAlert('Datos actualizados correctamente.', 'ok', 'perfil-alert');
+    }
+    showToast('Perfil actualizado.');
+  } catch(e) {
+    perfilAlert('Error: ' + (e.message || e), 'error', 'perfil-alert');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar cambios'; }
+  }
+}
+
+async function savePerfilPassword() {
+  const pwd1 = document.getElementById('perfil-pwd1').value;
+  const pwd2 = document.getElementById('perfil-pwd2').value;
+  if (!pwd1) { perfilAlert('Introduce una nueva contraseña.', 'error', 'perfil-pwd-alert'); return; }
+  if (pwd1.length < 8) { perfilAlert('La contraseña debe tener al menos 8 caracteres.', 'error', 'perfil-pwd-alert'); return; }
+  if (pwd1 !== pwd2) { perfilAlert('Las contraseñas no coinciden.', 'error', 'perfil-pwd-alert'); return; }
+
+  const btn = document.querySelector('#page-perfil .card:nth-child(3) .btn-amber');
+  if (btn) { btn.disabled = true; btn.textContent = 'Actualizando...'; }
+
+  try {
+    const res = await fetch(`${SUPA_URL}/auth/v1/user`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': `Bearer ${loadSession()?.access_token || SUPA_KEY}` },
+      body: JSON.stringify({ password: pwd1 })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.msg || json.error_description || 'Error al actualizar contraseña');
+    perfilAlert('Contraseña actualizada correctamente.', 'ok', 'perfil-pwd-alert');
+    document.getElementById('perfil-pwd1').value = '';
+    document.getElementById('perfil-pwd2').value = '';
+    document.getElementById('perfil-pwd-strength').style.background = 'var(--c-line)';
+    document.getElementById('perfil-pwd-strength-label').textContent = '';
+    showToast('Contraseña actualizada.');
+  } catch(e) {
+    perfilAlert('Error: ' + (e.message || e), 'error', 'perfil-pwd-alert');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Actualizar contraseña'; }
+  }
+}
+
+async function saveNotifPrefFromPerfil(valor) {
+  await saveNotifPref(valor);
+  // Keep topbar selector in sync
+  const topbarSel = document.getElementById('notif-pref');
+  if (topbarSel) topbarSel.value = valor;
+}
+
+function checkPwdStrength(pwd) {
+  const bar   = document.getElementById('perfil-pwd-strength');
+  const label = document.getElementById('perfil-pwd-strength-label');
+  if (!bar || !label) return;
+  let score = 0;
+  if (pwd.length >= 8)  score++;
+  if (pwd.length >= 12) score++;
+  if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score++;
+  if (/[0-9]/.test(pwd)) score++;
+  if (/[^A-Za-z0-9]/.test(pwd)) score++;
+  const levels = [
+    { pct: '20%', color: 'var(--c-red)',    text: 'Muy débil' },
+    { pct: '40%', color: '#f59e0b',         text: 'Débil' },
+    { pct: '60%', color: '#eab308',         text: 'Aceptable' },
+    { pct: '80%', color: 'var(--c-amber)',  text: 'Fuerte' },
+    { pct: '100%', color: 'var(--c-green)', text: 'Muy fuerte' },
+  ];
+  const lvl = levels[Math.max(0, score - 1)] || levels[0];
+  bar.style.cssText = `height:4px;border-radius:2px;background:${lvl.color};width:${lvl.pct};transition:background .2s,width .3s`;
+  label.textContent = pwd ? lvl.text : '';
+  label.style.color = lvl.color;
+}
+
+function togglePwdVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  if (input.type === 'password') { input.type = 'text'; btn.textContent = '🙈'; }
+  else { input.type = 'password'; btn.textContent = '👁'; }
 }
 
 // ── MOBILE NAVIGATION ────────────────────────────────────────────
