@@ -1247,16 +1247,16 @@
         <label>Catálogos incluidos <span class="req">*</span></label>
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px" id="c-catalogos">
           <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
-            <input type="checkbox" value="roly" checked> Roly
+            <input type="checkbox" value="roly" checked onchange="toggleCoverCatRow('roly',this.checked)"> Roly
           </label>
           <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
-            <input type="checkbox" value="roly_wrk" checked> Roly WRK
+            <input type="checkbox" value="roly_wrk" checked onchange="toggleCoverCatRow('roly_wrk',this.checked)"> Roly WRK
           </label>
           <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
-            <input type="checkbox" value="stamina" checked> Stamina
+            <input type="checkbox" value="stamina" checked onchange="toggleCoverCatRow('stamina',this.checked)"> Stamina
           </label>
           <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer">
-            <input type="checkbox" value="xmas"> XMAS
+            <input type="checkbox" value="xmas" onchange="toggleCoverCatRow('xmas',this.checked)"> XMAS
           </label>
         </div>
       </div>
@@ -1269,46 +1269,103 @@
       </div>
 
       <hr class="divider">
-      <div class="card-title" style="font-size:12px">PDFs de portadas y instrucciones (opcionales)</div>
-      <div style="font-size:11px;color:var(--c-mid);margin-bottom:.75rem">Los comerciales podrán verlos y descargarlos al crear una solicitud.</div>
-      <div id="c-covers-list" style="display:flex;flex-direction:column;gap:.75rem">
-        <div style="display:flex;gap:8px;align-items:center">
-          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">Roly</span>
-          <div id="cover-zone-roly" style="flex:1;border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 12px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
-               onclick="document.getElementById('cover-file-roly').click()"
-               ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'roly')">
-            📄 Arrastra el PDF o haz clic
+      <div class="card-title" style="font-size:12px">PDFs de portadas e instrucciones <span class="req">*</span></div>
+      <div style="font-size:11px;color:var(--c-mid);margin-bottom:.75rem">Por cada catálogo incluido, sube el PDF de opciones de portada y el PDF de instrucciones. Los comerciales podrán verlos y descargarlos al crear una solicitud.</div>
+      <div id="c-covers-list" style="display:flex;flex-direction:column;gap:1rem">
+        <div class="cover-cat-row" data-catkey="roly">
+          <div style="font-size:11px;color:var(--c-dark);font-weight:600;margin-bottom:4px">Roly</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <div style="font-size:10px;color:var(--c-mid);margin-bottom:3px">Portadas disponibles</div>
+              <div id="cover-zone-roly" style="border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
+                   onclick="document.getElementById('cover-file-roly').click()"
+                   ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'roly','portadas')">
+                📄 Arrastra el PDF o haz clic
+              </div>
+              <input type="file" id="cover-file-roly" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'roly','portadas')">
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--c-mid);margin-bottom:3px">Instrucciones</div>
+              <div id="instr-zone-roly" style="border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
+                   onclick="document.getElementById('instr-file-roly').click()"
+                   ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'roly','instrucciones')">
+                📋 Arrastra el PDF o haz clic
+              </div>
+              <input type="file" id="instr-file-roly" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'roly','instrucciones')">
+            </div>
           </div>
-          <input type="file" id="cover-file-roly" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'roly')">
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">Roly WRK</span>
-          <div id="cover-zone-roly_wrk" style="flex:1;border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 12px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
-               onclick="document.getElementById('cover-file-roly_wrk').click()"
-               ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'roly_wrk')">
-            📄 Arrastra el PDF o haz clic
+        <div class="cover-cat-row" data-catkey="roly_wrk">
+          <div style="font-size:11px;color:var(--c-dark);font-weight:600;margin-bottom:4px">Roly WRK</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <div style="font-size:10px;color:var(--c-mid);margin-bottom:3px">Portadas disponibles</div>
+              <div id="cover-zone-roly_wrk" style="border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
+                   onclick="document.getElementById('cover-file-roly_wrk').click()"
+                   ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'roly_wrk','portadas')">
+                📄 Arrastra el PDF o haz clic
+              </div>
+              <input type="file" id="cover-file-roly_wrk" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'roly_wrk','portadas')">
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--c-mid);margin-bottom:3px">Instrucciones</div>
+              <div id="instr-zone-roly_wrk" style="border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
+                   onclick="document.getElementById('instr-file-roly_wrk').click()"
+                   ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'roly_wrk','instrucciones')">
+                📋 Arrastra el PDF o haz clic
+              </div>
+              <input type="file" id="instr-file-roly_wrk" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'roly_wrk','instrucciones')">
+            </div>
           </div>
-          <input type="file" id="cover-file-roly_wrk" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'roly_wrk')">
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">Stamina</span>
-          <div id="cover-zone-stamina" style="flex:1;border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 12px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
-               onclick="document.getElementById('cover-file-stamina').click()"
-               ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'stamina')">
-            📄 Arrastra el PDF o haz clic
+        <div class="cover-cat-row" data-catkey="stamina">
+          <div style="font-size:11px;color:var(--c-dark);font-weight:600;margin-bottom:4px">Stamina</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <div style="font-size:10px;color:var(--c-mid);margin-bottom:3px">Portadas disponibles</div>
+              <div id="cover-zone-stamina" style="border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
+                   onclick="document.getElementById('cover-file-stamina').click()"
+                   ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'stamina','portadas')">
+                📄 Arrastra el PDF o haz clic
+              </div>
+              <input type="file" id="cover-file-stamina" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'stamina','portadas')">
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--c-mid);margin-bottom:3px">Instrucciones</div>
+              <div id="instr-zone-stamina" style="border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
+                   onclick="document.getElementById('instr-file-stamina').click()"
+                   ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'stamina','instrucciones')">
+                📋 Arrastra el PDF o haz clic
+              </div>
+              <input type="file" id="instr-file-stamina" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'stamina','instrucciones')">
+            </div>
           </div>
-          <input type="file" id="cover-file-stamina" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'stamina')">
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span style="font-size:11px;min-width:70px;color:var(--c-dark);font-weight:600">XMAS</span>
-          <div id="cover-zone-xmas" style="flex:1;border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 12px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
-               onclick="document.getElementById('cover-file-xmas').click()"
-               ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'xmas')">
-            📄 Arrastra el PDF o haz clic
+        <div class="cover-cat-row" data-catkey="xmas">
+          <div style="font-size:11px;color:var(--c-dark);font-weight:600;margin-bottom:4px">XMAS</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <div style="font-size:10px;color:var(--c-mid);margin-bottom:3px">Portadas disponibles</div>
+              <div id="cover-zone-xmas" style="border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
+                   onclick="document.getElementById('cover-file-xmas').click()"
+                   ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'xmas','portadas')">
+                📄 Arrastra el PDF o haz clic
+              </div>
+              <input type="file" id="cover-file-xmas" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'xmas','portadas')">
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--c-mid);margin-bottom:3px">Instrucciones</div>
+              <div id="instr-zone-xmas" style="border:1.5px dashed var(--c-line);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:11px;color:var(--c-mid);text-align:center"
+                   onclick="document.getElementById('instr-file-xmas').click()"
+                   ondragover="event.preventDefault()" ondrop="handleCoverDrop(event,'xmas','instrucciones')">
+                📋 Arrastra el PDF o haz clic
+              </div>
+              <input type="file" id="instr-file-xmas" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'xmas','instrucciones')">
+            </div>
           </div>
-          <input type="file" id="cover-file-xmas" accept=".pdf" style="display:none" onchange="handleCoverFile(event,'xmas')">
         </div>
       </div>
+      <div id="c-pdf-alert" style="display:none;margin-top:.75rem;font-size:11px;color:var(--c-red)"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-campana')">Cancelar</button>
@@ -2314,13 +2371,19 @@ function buildCatSections() {
       </div>
       <div class="cat-body" id="cat-body-${cat.key}">
 
-        <!-- Ver portadas PDF -->
-        ${activeCampana?.covers?.[cat.key] ? `
-        <div style="margin-bottom:.5rem">
+        <!-- Ver portadas PDF / instrucciones PDF -->
+        ${(activeCampana?.covers?.[cat.key] || activeCampana?.covers_instrucciones?.[cat.key]) ? `
+        <div style="margin-bottom:.5rem;display:flex;gap:8px;flex-wrap:wrap">
+          ${activeCampana?.covers?.[cat.key] ? `
           <a href="${activeCampana.covers[cat.key]}" target="_blank"
              style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--c-blue);font-weight:600;text-decoration:none;padding:5px 10px;border:1px solid var(--c-blue);border-radius:6px;background:var(--c-blue-l)">
             📄 Ver portadas disponibles
-          </a>
+          </a>` : ''}
+          ${activeCampana?.covers_instrucciones?.[cat.key] ? `
+          <a href="${activeCampana.covers_instrucciones[cat.key]}" target="_blank"
+             style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--c-amber);font-weight:600;text-decoration:none;padding:5px 10px;border:1px solid var(--c-amber);border-radius:6px;background:var(--c-amber-l)">
+            📋 Ver instrucciones
+          </a>` : ''}
         </div>` : ''}
 
         <!-- Catálogo digital -->
@@ -4491,24 +4554,37 @@ function startPolling() {
 }
 
 // ── COVER PDF UPLOAD ─────────────────────────────────────
-let coverFiles = {};
+let coverFiles = {};       // { roly: File, roly_wrk: File, ... } — portadas
+let instrFiles = {};       // { roly: File, roly_wrk: File, ... } — instrucciones
 
-function handleCoverDrop(event, key) {
-  event.preventDefault();
-  const file = event.dataTransfer.files[0];
-  if (file) setCoverFile(key, file);
+function toggleCoverCatRow(key, visible) {
+  const row = document.querySelector(`.cover-cat-row[data-catkey="${key}"]`);
+  if (row) row.style.display = visible ? '' : 'none';
 }
 
-function handleCoverFile(event, key) {
+function syncCoverCatRows() {
+  document.querySelectorAll('#c-catalogos input[type=checkbox]').forEach(cb => {
+    toggleCoverCatRow(cb.value, cb.checked);
+  });
+}
+
+function handleCoverDrop(event, key, tipo) {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0];
+  if (file) setCoverFile(key, file, tipo);
+}
+
+function handleCoverFile(event, key, tipo) {
   const file = event.target.files[0];
-  if (file) setCoverFile(key, file);
+  if (file) setCoverFile(key, file, tipo);
   event.target.value = '';
 }
 
-function setCoverFile(key, file) {
+function setCoverFile(key, file, tipo) {
   if (!file.name.endsWith('.pdf')) { showToast('Solo se aceptan archivos PDF'); return; }
-  coverFiles[key] = file;
-  const zone = document.getElementById('cover-zone-' + key);
+  const isInstr = tipo === 'instrucciones';
+  if (isInstr) instrFiles[key] = file; else coverFiles[key] = file;
+  const zone = document.getElementById((isInstr ? 'instr-zone-' : 'cover-zone-') + key);
   if (zone) {
     zone.style.background = 'var(--c-amber-l)';
     zone.style.borderColor = 'var(--c-amber)';
@@ -4534,6 +4610,26 @@ async function uploadCoverFiles(campanaId) {
     } catch(e) { console.warn('Cover upload error:', key, e); }
   }
   return covers;
+}
+
+async function uploadInstrFiles(campanaId) {
+  const instrucciones = {};
+  const session = loadSession();
+  const token = session?.access_token || SUPA_KEY;
+  for (const [key, file] of Object.entries(instrFiles)) {
+    try {
+      const fileName = `instrucciones/${campanaId}/${key}_${Date.now()}.pdf`;
+      const res = await fetch(`${SUPA_URL}/storage/v1/object/portadas-adjuntos/${fileName}`, {
+        method: 'POST',
+        headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/pdf', 'x-upsert': 'true' },
+        body: file
+      });
+      if (res.ok) {
+        instrucciones[key] = `${SUPA_URL}/storage/v1/object/public/portadas-adjuntos/${fileName}`;
+      }
+    } catch(e) { console.warn('Instrucciones upload error:', key, e); }
+  }
+  return instrucciones;
 }
 
 // ── AUTO-ADJUDICACIÓN DE PORTADAS ─────────────────────────
@@ -4666,8 +4762,27 @@ function openCampanaModal(editId = null) {
   document.getElementById('c-descripcion').value = '';
   document.getElementById('c-cierre').value = '';
   document.getElementById('campana-alert').innerHTML = '';
+  document.getElementById('c-pdf-alert').style.display = 'none';
   campanaActiva = true;
   selectCampanaActiva(true);
+
+  // Reset file state + all 8 dropzones to their default empty look
+  coverFiles = {};
+  instrFiles = {};
+  ['roly','roly_wrk','stamina','xmas'].forEach(k => {
+    const coverZone = document.getElementById('cover-zone-' + k);
+    if (coverZone) {
+      coverZone.style.background = '';
+      coverZone.style.borderColor = 'var(--c-line)';
+      coverZone.innerHTML = '📄 Arrastra el PDF o haz clic';
+    }
+    const instrZone = document.getElementById('instr-zone-' + k);
+    if (instrZone) {
+      instrZone.style.background = '';
+      instrZone.style.borderColor = 'var(--c-line)';
+      instrZone.innerHTML = '📋 Arrastra el PDF o haz clic';
+    }
+  });
 
   if (editId) {
     const c = allCampanas.find(x => x.id === editId);
@@ -4682,7 +4797,7 @@ function openCampanaModal(editId = null) {
       document.querySelectorAll('#c-catalogos input[type=checkbox]').forEach(cb => {
         cb.checked = keys.includes(cb.value);
       });
-      // Restore existing covers — show in zones
+      // Restore existing covers (portadas) — show in zones
       ['roly','roly_wrk','stamina','xmas'].forEach(k => {
         if (c.covers?.[k]) {
           const zone = document.getElementById('cover-zone-' + k);
@@ -4690,6 +4805,17 @@ function openCampanaModal(editId = null) {
             zone.style.background = '#E8F5E9';
             zone.style.borderColor = 'var(--c-green)';
             zone.innerHTML = `✅ PDF cargado <a href="${c.covers[k]}" target="_blank" style="margin-left:8px;font-size:10px;color:var(--c-blue)">Ver</a> · <span style="font-size:10px;color:var(--c-mid)">Sube otro para reemplazar</span>`;
+          }
+        }
+      });
+      // Restore existing covers_instrucciones — show in zones
+      ['roly','roly_wrk','stamina','xmas'].forEach(k => {
+        if (c.covers_instrucciones?.[k]) {
+          const zone = document.getElementById('instr-zone-' + k);
+          if (zone) {
+            zone.style.background = '#E8F5E9';
+            zone.style.borderColor = 'var(--c-green)';
+            zone.innerHTML = `✅ PDF cargado <a href="${c.covers_instrucciones[k]}" target="_blank" style="margin-left:8px;font-size:10px;color:var(--c-blue)">Ver</a> · <span style="font-size:10px;color:var(--c-mid)">Sube otro para reemplazar</span>`;
           }
         }
       });
@@ -4701,6 +4827,7 @@ function openCampanaModal(editId = null) {
     document.getElementById('btn-save-campana').textContent = 'Crear campaña';
   }
   document.getElementById('modal-campana').classList.add('open');
+  syncCoverCatRows();
 }
 
 async function saveCampana() {
@@ -4714,18 +4841,42 @@ async function saveCampana() {
   const catalogosSelected = [...document.querySelectorAll('#c-catalogos input[type=checkbox]:checked')].map(cb => cb.value);
   if (!catalogosSelected.length) { showAlert('campana-alert', 'Selecciona al menos un catálogo.', 'error'); return; }
 
-  // Upload any new cover PDFs
+  // Validate that every selected catalog has BOTH PDFs (existing or newly uploaded)
+  const existingCampanaCheck = allCampanas.find(c => c.id === editId);
+  const existingCoversCheck = existingCampanaCheck?.covers || {};
+  const existingInstrCheck  = existingCampanaCheck?.covers_instrucciones || {};
+  const pdfAlertEl = document.getElementById('c-pdf-alert');
+  const missing = [];
+  for (const catKey of catalogosSelected) {
+    const hasPortada = coverFiles[catKey] || existingCoversCheck[catKey];
+    const hasInstr    = instrFiles[catKey]  || existingInstrCheck[catKey];
+    if (!hasPortada) missing.push(`${ALL_CATS.find(c=>c.key===catKey)?.label || catKey} (portadas)`);
+    if (!hasInstr)    missing.push(`${ALL_CATS.find(c=>c.key===catKey)?.label || catKey} (instrucciones)`);
+  }
+  if (missing.length) {
+    pdfAlertEl.style.display = 'block';
+    pdfAlertEl.textContent = `⚠️ Faltan PDFs obligatorios: ${missing.join(', ')}.`;
+    return;
+  }
+  pdfAlertEl.style.display = 'none';
+
+  // Upload any new cover/instrucciones PDFs
   showToast('Guardando campaña...');
-  const existingCampana = allCampanas.find(c => c.id === editId);
+  const existingCampana = existingCampanaCheck;
   const existingCovers = existingCampana?.covers || {};
-  const newCovers = await uploadCoverFiles(editId || 'new_' + Date.now());
+  const existingInstr  = existingCampana?.covers_instrucciones || {};
+  const idForUpload = editId || 'new_' + Date.now();
+  const newCovers = await uploadCoverFiles(idForUpload);
+  const newInstr  = await uploadInstrFiles(idForUpload);
   const covers = { ...existingCovers, ...newCovers };
+  const covers_instrucciones = { ...existingInstr, ...newInstr };
   coverFiles = {}; // reset
+  instrFiles = {}; // reset
 
   if (editId) {
-    await db.from('campanas').update({ nombre, descripcion, fecha_cierre, activa: campanaActiva, catalogos: catalogosSelected, covers }).eq('id', editId);
+    await db.from('campanas').update({ nombre, descripcion, fecha_cierre, activa: campanaActiva, catalogos: catalogosSelected, covers, covers_instrucciones }).eq('id', editId);
   } else {
-    await db.from('campanas').insert({ nombre, descripcion, fecha_cierre, activa: campanaActiva, catalogos: catalogosSelected, covers });
+    await db.from('campanas').insert({ nombre, descripcion, fecha_cierre, activa: campanaActiva, catalogos: catalogosSelected, covers, covers_instrucciones });
   }
 
   closeModal('modal-campana');
