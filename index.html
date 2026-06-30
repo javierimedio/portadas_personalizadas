@@ -2016,7 +2016,7 @@ function renderComercialTable() {
     }
     if (comCampId && s.campana_id !== comCampId) return false;
     if (filterComercialId && s.comercial_id !== filterComercialId) return false;
-    if (filterIdioma && s.idioma !== filterIdioma) return false;
+    if (filterIdioma && s.idioma?.toUpperCase() !== filterIdioma.toUpperCase()) return false;
     if (q && !s.cod_sap?.toLowerCase().includes(q) && !s.nombre_empresa?.toLowerCase().includes(q)) return false;
     return true;
   });
