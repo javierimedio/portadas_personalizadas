@@ -156,6 +156,7 @@
   .s-diseno_en_revision    { background: var(--c-amber-l);  color: var(--c-amber); }
   .s-diseno_en_revision_comercial { background: #FEF3D0; color: #B8860B; }
   .s-modificar_diseno      { background: var(--c-red-l);    color: var(--c-red); }
+  .s-archivada             { background: #F3F4F6;           color: #6B7280; border: 1px solid #D1D5DB; }
   .s-confirmada            { background: var(--c-green-l);  color: var(--c-green); }
 
   /* ── TABLE ── */
@@ -965,6 +966,42 @@
 <div id="notif-overlay" onclick="toggleNotifPanel()" style="display:none;position:fixed;inset:0;z-index:149"></div>
 
 <!-- ── MODAL SOLICITUD ──────────────────────────────────── -->
+<!-- ── MODAL SOLICITAR MODIFICACIÓN ────────────────────────────── -->
+<div class="modal-bg" id="modal-modificacion">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <div class="modal-title">Solicitar modificación</div>
+      <button class="modal-close" onclick="closeModal('modal-modificacion')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="modif-sol-id">
+      <div class="form-group" style="margin-bottom:1rem">
+        <label>Comentario para el equipo de diseño <span class="req">*</span></label>
+        <textarea id="modif-comentario" rows="4" placeholder="Describe qué debe modificarse..." style="width:100%;resize:vertical"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Adjuntar archivo (opcional) — nuevo logo u otro documento</label>
+        <div id="modif-drop-zone"
+          style="border:2px dashed var(--c-line);border-radius:var(--radius);padding:1rem;text-align:center;cursor:pointer;transition:background .15s"
+          onclick="document.getElementById('modif-file-input').click()"
+          ondragover="event.preventDefault();document.getElementById('modif-drop-zone').style.background='var(--c-amber-l)'"
+          ondragleave="document.getElementById('modif-drop-zone').style.background=''"
+          ondrop="event.preventDefault();document.getElementById('modif-drop-zone').style.background='';handleModifDrop(event)">
+          <div style="font-size:22px;margin-bottom:4px">📎</div>
+          <div style="font-size:12px;color:var(--c-mid)">Arrastra el archivo aquí o haz clic</div>
+          <div style="font-size:11px;color:var(--c-mid);margin-top:3px">PDF, AI, EPS, SVG, JPG, PNG</div>
+        </div>
+        <input type="file" id="modif-file-input" accept=".pdf,.ai,.eps,.svg,.jpg,.jpeg,.png" style="display:none" onchange="handleModifFileInput(event)">
+        <div id="modif-file-preview" style="margin-top:8px;font-size:12px;color:var(--c-dark)"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-modificacion')">Cancelar</button>
+      <button class="btn btn-danger" onclick="enviarModificacion()">Solicitar modificación</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-solicitud">
   <div class="modal">
     <div class="modal-header">
@@ -1613,6 +1650,7 @@ const ESTADO_LABEL = {
   diseno_en_revision_comercial: 'Revisión cliente',
   modificar_diseno:             'Modificar diseño',
   confirmada:                   'Confirmada',
+  archivada:                    'Archivada',
 };
 
 // ── AUTH ──────────────────────────────────────────────────
@@ -2024,7 +2062,7 @@ function renderComercialTable() {
   // Update mini stats
   const statsRow = document.getElementById('com-stats-row');
   if (statsRow) {
-    const total = rows.length;
+    const total = rows.filter(s => s.estado !== 'archivada').length;
     const pe = (e) => rows.filter(s => s.estado === e).length;
     const stats = [
       { num: total,                                    lbl: 'Total',            cls: '' },
@@ -2344,9 +2382,10 @@ function renderStats() {
   const _statSel = document.getElementById('filter-campana');
   const statCampId = (_statSel && _statSel.options.length > 1) ? _statSel.value : getDefaultCampanaId();
   const statSols = statCampId ? allSolicitudes.filter(s => s.campana_id === statCampId) : allSolicitudes;
-  const total = statSols.length;
-  const porEstado = (e) => statSols.filter(s => s.estado === e).length;
-  const completas = statSols.filter(s => missingFields(s).length === 0).length;
+  const statSolsActivas = statSols.filter(s => s.estado !== 'archivada');
+  const total = statSolsActivas.length;
+  const porEstado = (e) => statSolsActivas.filter(s => s.estado === e).length;
+  const completas = statSolsActivas.filter(s => missingFields(s).length === 0).length;
   document.getElementById('stats-row').innerHTML = `
     <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-lbl">Total</div></div>
     <div class="stat-card"><div class="stat-num">${porEstado('borrador')}</div><div class="stat-lbl">Borrador</div></div>
@@ -2386,56 +2425,57 @@ function buildCatSections() {
           </a>` : ''}
         </div>` : ''}
 
-        <!-- Catálogo digital -->
+        <!-- PORTADA PERSONALIZADA — primera opción, controla todo lo demás -->
         <div class="toggle-row">
-          <span class="toggle-label">Catálogo digital</span>
-          <div class="radio-group">
-            <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_digital" data-val="true" onclick="selectOpt(this)">SI</span>
-            <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_digital" data-val="false" onclick="selectOpt(this)">NO</span>
-          </div>
-        </div>
-
-        <!-- Catálogo impreso → muestra posición logo y unidades -->
-        <div class="toggle-row">
-          <span class="toggle-label">Catálogo impreso</span>
-          <div class="radio-group">
-            <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_impreso" data-val="true" onclick="selectOpt(this);toggleImpresoFields('${cat.key}',true)">SI</span>
-            <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_impreso" data-val="false" onclick="selectOpt(this);toggleImpresoFields('${cat.key}',false)">NO</span>
-          </div>
-        </div>
-
-        <!-- Campos que se muestran al marcar SI en catálogo impreso -->
-        <div class="cat-fields" id="impreso-fields-${cat.key}">
-          <div class="form-grid" style="margin-bottom:.75rem">
-            <div class="form-group">
-              <label>Unidades <span class="req">*</span></label>
-              <input type="number" id="${cat.key}-und" placeholder="ej: 100" min="1">
-            </div>
-          </div>
-        </div>
-
-        <!-- Precios — solo Stamina y XMAS cuando idioma es Español -->
-        ${cat.hasDisenoProp ? `
-        <div class="toggle-row cat-precios-row" id="precios-row-${cat.key}" style="display:none">
-          <span class="toggle-label">Catálogo con precios</span>
-          <div class="radio-group">
-            <span class="radio-opt" data-cat="${cat.key}" data-field="con_precios" data-val="true" onclick="selectOpt(this)">CON PRECIOS</span>
-            <span class="radio-opt" data-cat="${cat.key}" data-field="con_precios" data-val="false" onclick="selectOpt(this)">SIN PRECIOS</span>
-          </div>
-        </div>` : ''}
-
-        <!-- Portada personalizada → muestra opciones de portada -->
-        <div class="toggle-row">
-          <span class="toggle-label">Portada personalizada</span>
+          <span class="toggle-label" style="font-weight:700">Portada personalizada</span>
           <div class="radio-group">
             <span class="radio-opt" data-cat="${cat.key}" data-field="portada_personalizada" data-val="true" onclick="selectOpt(this);togglePortadaFields('${cat.key}',true)">SI</span>
             <span class="radio-opt" data-cat="${cat.key}" data-field="portada_personalizada" data-val="false" onclick="selectOpt(this);togglePortadaFields('${cat.key}',false)">NO</span>
           </div>
         </div>
 
-        <!-- Campos portada personalizada -->
+        <!-- Resto visible solo si portada_personalizada = SI -->
         <div class="cat-fields" id="portada-fields-${cat.key}">
 
+          <!-- Catálogo digital -->
+          <div class="toggle-row">
+            <span class="toggle-label">Catálogo digital</span>
+            <div class="radio-group">
+              <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_digital" data-val="true" onclick="selectOpt(this)">SI</span>
+              <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_digital" data-val="false" onclick="selectOpt(this)">NO</span>
+            </div>
+          </div>
+
+          <!-- Catálogo impreso -->
+          <div class="toggle-row">
+            <span class="toggle-label">Catálogo impreso</span>
+            <div class="radio-group">
+              <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_impreso" data-val="true" onclick="selectOpt(this);toggleImpresoFields('${cat.key}',true)">SI</span>
+              <span class="radio-opt" data-cat="${cat.key}" data-field="catalogo_impreso" data-val="false" onclick="selectOpt(this);toggleImpresoFields('${cat.key}',false)">NO</span>
+            </div>
+          </div>
+
+          <!-- Unidades (visible solo si impreso = SI) -->
+          <div class="cat-fields" id="impreso-fields-${cat.key}">
+            <div class="form-grid" style="margin-bottom:.75rem">
+              <div class="form-group">
+                <label>Unidades <span class="req">*</span></label>
+                <input type="number" id="${cat.key}-und" placeholder="ej: 100" min="1">
+              </div>
+            </div>
+          </div>
+
+          <!-- Precios — solo Stamina y XMAS cuando idioma es Español -->
+          ${cat.hasDisenoProp ? `
+          <div class="toggle-row cat-precios-row" id="precios-row-${cat.key}" style="display:none">
+            <span class="toggle-label">Catálogo con precios</span>
+            <div class="radio-group">
+              <span class="radio-opt" data-cat="${cat.key}" data-field="con_precios" data-val="true" onclick="selectOpt(this)">CON PRECIOS</span>
+              <span class="radio-opt" data-cat="${cat.key}" data-field="con_precios" data-val="false" onclick="selectOpt(this)">SIN PRECIOS</span>
+            </div>
+          </div>` : ''}
+
+          <!-- Diseño 100% propio — solo Stamina/XMAS -->
           ${cat.hasDisenoProp ? `
           <div class="toggle-row" style="margin-bottom:.75rem">
             <span class="toggle-label">Diseño 100% propio</span>
@@ -2445,6 +2485,7 @@ function buildCatSections() {
             </div>
           </div>` : ''}
 
+          <!-- Opciones de portada (1ª, 2ª, 3ª preferencia) -->
           <div class="cat-fields visible" id="opciones-fields-${cat.key}">
             <p style="font-size:12px;color:var(--c-mid);margin-bottom:.75rem">Indica las 3 portadas por orden de preferencia (1ª es la prioritaria):</p>
             <div class="form-grid" style="margin-bottom:.75rem">
@@ -2463,7 +2504,7 @@ function buildCatSections() {
             </div>
           </div>
 
-          <!-- Posición logo — solo cuando NO es diseño propio (en stamina se oculta con diseño propio) -->
+          <!-- Posición logo -->
           <div class="cat-fields visible" id="pos-logo-fields-${cat.key}">
             <div class="form-group" style="margin-bottom:.75rem">
               <label>Posición logo <span class="req">*</span></label>
@@ -2525,11 +2566,17 @@ function toggleImpresoFields(key, show) {
 function togglePortadaFields(key, show) {
   document.getElementById('portada-fields-' + key).classList.toggle('visible', show);
   if (!show) {
-    document.getElementById('opciones-fields-' + key).classList.remove('visible');
+    // Clear impreso fields too when portada = NO
+    const impresoEl = document.getElementById('impreso-fields-' + key);
+    if (impresoEl) impresoEl.classList.remove('visible');
+    const opcEl = document.getElementById('opciones-fields-' + key);
+    if (opcEl) opcEl.classList.remove('visible');
     const posEl = document.getElementById('pos-logo-fields-' + key);
     if (posEl) posEl.classList.remove('visible');
   } else {
-    // Show posicion logo by default (except stamina with diseño propio)
+    // Show opciones and pos-logo by default when portada = SI
+    const opcEl = document.getElementById('opciones-fields-' + key);
+    if (opcEl) opcEl.classList.add('visible');
     const posEl = document.getElementById('pos-logo-fields-' + key);
     if (posEl) {
       const isPropio = key === 'stamina' && document.querySelector(
@@ -3285,10 +3332,14 @@ async function openDetalle(solId) {
     btns += `<button class="btn btn-amber btn-sm" onclick="marcarDisenoListo('${solId}')">Diseño listo → Revisión cliente</button>`;
   }
 
-  // Comercial/Admin/Marketing: revisión cliente → confirmar o pedir cambios
+  // Comercial/Responsable/Admin/Marketing: revisión cliente → confirmar, solicitar modificación o archivar
   if (est === 'diseno_en_revision_comercial') {
-    btns += `<button class="btn btn-outline btn-danger" onclick="cambiarEstadoDirecto('${solId}','modificar_diseno')">Solicitar modificación</button>`;
-    btns += `<button class="btn btn-green" onclick="cambiarEstadoDirecto('${solId}','confirmada')">✓ Confirmar diseño</button>`;
+    const rolesRevision = ['comercial_nacional','comercial_exportacion','responsable_nacional','responsable_exportacion','admin','marketing'];
+    if (rolesRevision.includes(rol)) {
+      btns += `<button class="btn btn-outline btn-danger" onclick="abrirModalModificacion('${solId}')">Solicitar modificación</button>`;
+      btns += `<button class="btn btn-outline" style="color:var(--c-mid);border-color:var(--c-mid)" onclick="archivarSolicitud('${solId}')">📁 Archivar</button>`;
+      btns += `<button class="btn btn-green" onclick="cambiarEstadoDirecto('${solId}','confirmada')">✓ Confirmar diseño</button>`;
+    }
   }
 
   // Eliminar — borrador siempre, admin cualquier estado
@@ -3355,6 +3406,109 @@ async function cambiarEstado(solId, nuevoEstado) {
 }
 
 let _cambiarEstadoInProgress = false;
+// ── MODAL SOLICITAR MODIFICACIÓN ─────────────────────────────────
+let modifFile = null;
+
+function abrirModalModificacion(solId) {
+  document.getElementById('modif-sol-id').value = solId;
+  document.getElementById('modif-comentario').value = '';
+  document.getElementById('modif-file-preview').textContent = '';
+  document.getElementById('modif-drop-zone').style.background = '';
+  modifFile = null;
+  closeModal('modal-detalle');
+  document.getElementById('modal-modificacion').classList.add('open');
+}
+
+function handleModifDrop(event) {
+  const file = event.dataTransfer.files[0];
+  if (file) setModifFile(file);
+}
+
+function handleModifFileInput(event) {
+  const file = event.target.files[0];
+  if (file) setModifFile(file);
+  event.target.value = '';
+}
+
+function setModifFile(file) {
+  modifFile = file;
+  const prev = document.getElementById('modif-file-preview');
+  prev.innerHTML = `<span style="color:var(--c-green)">✅ ${file.name}</span> <span style="color:var(--c-mid)">(${(file.size/1024).toFixed(0)} KB)</span> <button type="button" onclick="modifFile=null;document.getElementById('modif-file-preview').textContent=''" style="background:none;border:none;cursor:pointer;color:var(--c-red);font-size:12px;margin-left:6px">✕ Quitar</button>`;
+  const zone = document.getElementById('modif-drop-zone');
+  zone.style.background = 'var(--c-green-l)';
+  zone.style.borderColor = 'var(--c-green)';
+}
+
+async function enviarModificacion() {
+  const solId = document.getElementById('modif-sol-id').value;
+  const comentario = document.getElementById('modif-comentario').value.trim();
+  if (!comentario) { showToast('Escribe un comentario antes de enviar.'); return; }
+
+  const btn = document.querySelector('#modal-modificacion .btn-danger');
+  btn.disabled = true; btn.textContent = 'Enviando...';
+
+  try {
+    // Upload adjunto if present
+    let adjuntoUrl = null;
+    let adjuntoNombre = null;
+    if (modifFile) {
+      const session = loadSession();
+      const token = session?.access_token || SUPA_KEY;
+      const ext = modifFile.name.split('.').pop();
+      const fileName = `modificaciones/${solId}/${Date.now()}.${ext}`;
+      const res = await fetch(`${SUPA_URL}/storage/v1/object/portadas-adjuntos/${fileName}`, {
+        method: 'POST',
+        headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': modifFile.type || 'application/octet-stream', 'x-upsert': 'true' },
+        body: modifFile
+      });
+      if (res.ok) {
+        adjuntoUrl = `${SUPA_URL}/storage/v1/object/public/portadas-adjuntos/${fileName}`;
+        adjuntoNombre = modifFile.name;
+      }
+    }
+
+    // Add log entry with comment + adjunto
+    const logTexto = adjuntoUrl
+      ? `${comentario}\n📎 Adjunto: [${adjuntoNombre}](${adjuntoUrl})`
+      : comentario;
+    await db.from('logs').insert({
+      solicitud_id: solId,
+      usuario_id: currentUser.id,
+      usuario_nombre: currentPerfil?.nombre || currentUser.email,
+      tipo: 'comentario',
+      texto: logTexto,
+    });
+
+    // Also save as adjunto record if uploaded
+    if (adjuntoUrl) {
+      await db.from('adjuntos').insert({
+        solicitud_id: solId,
+        url: adjuntoUrl,
+        nombre: adjuntoNombre,
+        tipo: 'modificacion',
+        subido_por: currentUser.id,
+        subido_por_nombre: currentPerfil?.nombre || currentUser.email,
+      });
+    }
+
+    // Change state to modificar_diseno
+    await cambiarEstadoDirecto(solId, 'modificar_diseno', comentario);
+    closeModal('modal-modificacion');
+    showToast('Modificación solicitada al equipo de diseño.');
+  } catch(e) {
+    showToast('Error al enviar: ' + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = 'Solicitar modificación';
+  }
+}
+
+// ── ARCHIVAR SOLICITUD ────────────────────────────────────────────
+async function archivarSolicitud(solId) {
+  if (!confirm('¿Archivar esta solicitud?\n\nLas unidades dejarán de contabilizarse en totales y en la exportación Excel, pero la solicitud seguirá visible para consulta.')) return;
+  await cambiarEstadoDirecto(solId, 'archivada');
+  showToast('Solicitud archivada.');
+}
+
 async function cambiarEstadoDirecto(solId, nuevoEstado) {
   if (_cambiarEstadoInProgress) return;
   _cambiarEstadoInProgress = true;
@@ -3620,10 +3774,11 @@ async function exportExcel() {
   const exportCatKeys = exportCamp?.catalogos || ALL_CATS.map(c => c.key);
   const exportCats = ALL_CATS.filter(c => exportCatKeys.includes(c.key));
 
-  // Filter solicitudes by selected campaign
-  const exportSols = campId
+  // Filter solicitudes by selected campaign — exclude archivadas from export
+  const exportSols = (campId
     ? allSolicitudes.filter(s => s.campana_id === campId)
-    : allSolicitudes;
+    : allSolicitudes
+  ).filter(s => s.estado !== 'archivada');
 
   const dataRows = exportSols.map(sol => {
     const get = (key) => sol.solicitud_catalogos?.find(c => c.catalogo === key);
@@ -3845,7 +4000,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 // Close modals on ESC
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    ['modal-detalle','modal-solicitud','modal-usuario','modal-campana','modal-import-users'].forEach(id => {
+    ['modal-detalle','modal-solicitud','modal-usuario','modal-campana','modal-import-users','modal-modificacion'].forEach(id => {
       const el = document.getElementById(id);
       if (el?.classList.contains('open')) el.classList.remove('open');
     });
