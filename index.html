@@ -3243,7 +3243,7 @@ async function openDetalle(solId) {
         ${l.accion === 'cambio_estado'
           ? `<span class="status s-${l.detalle?.estado_anterior}" style="font-size:10px">${ESTADO_LABEL[l.detalle?.estado_anterior]||l.detalle?.estado_anterior}</span> → <span class="status s-${l.detalle?.estado_nuevo}" style="font-size:10px">${ESTADO_LABEL[l.detalle?.estado_nuevo]||l.detalle?.estado_nuevo}</span>`
           : l.accion === 'comentario'
-          ? `💬 ${(l.detalle?.texto || '').replace(/@([\w\s áéíóúüñÁÉÍÓÚÜÑ]+?)(?=\s|$|[,.:;!?])/g, '<strong style="color:var(--c-amber)">@$1</strong>')}`
+          ? `💬 ${(l.detalle?.texto || l.texto || '').replace(/@([\w\s áéíóúüñÁÉÍÓÚÜÑ]+?)(?=\s|$|[,.:;!?])/g, '<strong style="color:var(--c-amber)">@$1</strong>')}`
           : l.accion}
       </div>
     </div>`;
@@ -3495,8 +3495,8 @@ async function enviarModificacion() {
       solicitud_id: solId,
       usuario_id: currentUser.id,
       usuario_nombre: currentPerfil?.nombre || currentUser.email,
-      tipo: 'comentario',
-      texto: logTexto,
+      accion: 'comentario',
+      detalle: { texto: logTexto, fecha: new Date().toISOString() },
     });
 
     // Also save as adjunto record if uploaded
