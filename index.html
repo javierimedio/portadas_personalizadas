@@ -615,6 +615,9 @@
         </select>
         <button class="btn btn-amber" onclick="checkCampanaAndOpen()" id="btn-nueva-sol">+ Nueva solicitud</button>
         <input type="text" id="search-comercial" placeholder="Buscar por código SAP..." style="flex:1;min-width:200px" oninput="renderComercialTable()">
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--c-mid);cursor:pointer;white-space:nowrap">
+          <input type="checkbox" id="show-archivadas" onchange="renderComercialTable()"> Ver archivadas
+        </label>
       </div>
       <div class="card" style="padding:0">
         <div class="tbl-wrap">
@@ -652,6 +655,7 @@
           <option value="diseno_en_revision_comercial">Revisión cliente</option>
           <option value="modificar_diseno">Modificar diseño</option>
           <option value="confirmada">Confirmada</option>
+          <option value="archivada">📁 Archivadas</option>
         </select>
         <select id="filter-comercial" onchange="renderMktTable()" style="min-width:130px">
           <option value="">Todos los comerciales</option>
@@ -2056,6 +2060,7 @@ function renderComercialTable() {
     if (filterComercialId && s.comercial_id !== filterComercialId) return false;
     if (filterIdioma && s.idioma?.toUpperCase() !== filterIdioma.toUpperCase()) return false;
     if (q && !s.cod_sap?.toLowerCase().includes(q) && !s.nombre_empresa?.toLowerCase().includes(q)) return false;
+    if (s.estado === 'archivada' && !document.getElementById('show-archivadas')?.checked) return false; // archivadas ocultas por defecto
     return true;
   });
 
@@ -2194,6 +2199,7 @@ function renderMktTable() {
   }
   if (q)          rows = rows.filter(s => s.cod_sap?.toLowerCase().includes(q) || s.nombre_empresa?.toLowerCase().includes(q) || s.perfiles?.codigo?.toLowerCase().includes(q) || s.perfiles?.nombre?.toLowerCase().includes(q));
   if (est)        rows = rows.filter(s => s.estado === est);
+  else            rows = rows.filter(s => s.estado !== 'archivada'); // archivadas solo visibles al filtrar explícitamente
   if (fComercial) rows = rows.filter(s => s.comercial_id === fComercial);
   if (fProvincia) rows = rows.filter(s => s.provincia?.toLowerCase().includes(fProvincia));
   // Sort
