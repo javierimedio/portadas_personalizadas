@@ -615,9 +615,17 @@
         </select>
         <button class="btn btn-amber" onclick="checkCampanaAndOpen()" id="btn-nueva-sol">+ Nueva solicitud</button>
         <input type="text" id="search-comercial" placeholder="Buscar por código SAP..." style="flex:1;min-width:200px" oninput="renderComercialTable()">
-        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--c-mid);cursor:pointer;white-space:nowrap">
-          <input type="checkbox" id="show-archivadas" onchange="renderComercialTable()"> Ver archivadas
-        </label>
+        <select id="filter-estado-comercial" onchange="renderComercialTable()" style="font-size:13px;min-width:150px">
+          <option value="">Todos los estados</option>
+          <option value="borrador">Borrador</option>
+          <option value="enviada">Enviada</option>
+          <option value="en_revision_marketing">En revisión</option>
+          <option value="en_diseno">En diseño</option>
+          <option value="diseno_en_revision_comercial">Revisión cliente</option>
+          <option value="modificar_diseno">Modificar diseño</option>
+          <option value="confirmada">Confirmada</option>
+          <option value="archivada">📁 Archivadas</option>
+        </select>
       </div>
       <div class="card" style="padding:0">
         <div class="tbl-wrap">
@@ -1058,7 +1066,7 @@
           <span class="field-error" id="err-idioma"></span>
         </div>
         <div class="form-group" id="provincia-group">
-          <label>Provincia <span class="req">*</span></label>
+          <label>Provincia / País <span class="req" id="provincia-req">*</span></label>
           <select id="f-provincia-select" style="width:100%;display:none">
             <option value="">— selecciona provincia —</option>
 <option value="Álava">Álava</option>
@@ -1982,7 +1990,7 @@ function catSummary(sol, catKey) {
 
 function missingFields(sol) {
   const missing = [];
-  if (!sol.provincia) missing.push('Provincia');
+  if (!sol.provincia && (sol.idioma?.toUpperCase() === 'ESPAÑOL' || !sol.idioma)) missing.push('Provincia');
   // Use the catalogs of THIS solicitud's campaign, not the global CATS
   const solCats = getCatsForCampana(sol.campana_id);
   solCats.forEach(cat => {
@@ -2060,7 +2068,9 @@ function renderComercialTable() {
     if (filterComercialId && s.comercial_id !== filterComercialId) return false;
     if (filterIdioma && s.idioma?.toUpperCase() !== filterIdioma.toUpperCase()) return false;
     if (q && !s.cod_sap?.toLowerCase().includes(q) && !s.nombre_empresa?.toLowerCase().includes(q)) return false;
-    if (s.estado === 'archivada') { const showArch = document.getElementById('show-archivadas'); if (!showArch || !showArch.checked) return false; }
+    const filterEstCom = document.getElementById('filter-estado-comercial')?.value || '';
+    if (filterEstCom && s.estado !== filterEstCom) return false; // filtra por estado exacto (incluye archivada)
+    if (!filterEstCom && s.estado === 'archivada') return false; // oculta archivadas si no hay filtro
     return true;
   });
 
@@ -2612,17 +2622,21 @@ async function onIdiomaChange() {
   const idioma = document.getElementById('f-idioma')?.value;
   const sel = document.getElementById('f-provincia-select');
   const inp = document.getElementById('f-provincia');
+  const req = document.getElementById('provincia-req');
+  const isEspanol = idioma === 'Español';
   if (!idioma) { sel.style.display='none'; inp.style.display='none'; return; }
-  if (idioma === 'Español') {
+  if (isEspanol) {
     sel.style.display = 'block';
     inp.style.display = 'none';
   } else {
     sel.style.display = 'none';
     inp.style.display = 'block';
   }
+  // Provincia solo obligatoria para Español
+  if (req) req.style.display = isEspanol ? '' : 'none';
   // Show/hide precios rows for Stamina and XMAS
   document.querySelectorAll('.cat-precios-row').forEach(row => {
-    row.style.display = idioma === 'Español' ? 'flex' : 'none';
+    row.style.display = isEspanol ? 'flex' : 'none';
   });
 }
 
@@ -2828,7 +2842,7 @@ async function saveSolicitud(estadoTarget) {
   } else {
     document.getElementById('err-idioma').textContent = '';
   }
-  if (!provincia) {
+  if (!provincia && idioma === 'Español') {
     document.getElementById('err-provincia').textContent = 'Campo obligatorio';
     valid = false; errors.push('Provincia / Región');
   } else {
