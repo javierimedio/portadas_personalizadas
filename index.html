@@ -2060,7 +2060,7 @@ function renderComercialTable() {
     if (filterComercialId && s.comercial_id !== filterComercialId) return false;
     if (filterIdioma && s.idioma?.toUpperCase() !== filterIdioma.toUpperCase()) return false;
     if (q && !s.cod_sap?.toLowerCase().includes(q) && !s.nombre_empresa?.toLowerCase().includes(q)) return false;
-    if (s.estado === 'archivada' && !document.getElementById('show-archivadas')?.checked) return false; // archivadas ocultas por defecto
+    if (s.estado === 'archivada') { const showArch = document.getElementById('show-archivadas'); if (!showArch || !showArch.checked) return false; }
     return true;
   });
 
@@ -4194,20 +4194,23 @@ function renderDashboard() {
   const campNombre = dashCampanaId
     ? (allCampanas.find(c => c.id === dashCampanaId)?.nombre || '—')
     : 'Todas las campañas';
+
+  // ── KPIs ── (declared early so label can use archivadas)
+  const archivadas  = sols.filter(s => s.estado === 'archivada').length;
+  const solsActivas = sols.filter(s => s.estado !== 'archivada');
+  const total     = solsActivas.length;
+  const completas = solsActivas.filter(s => missingFields(s).length === 0).length;
+  const confirmadas = solsActivas.filter(s => s.estado === 'confirmada').length;
+  const enDiseno  = solsActivas.filter(s => ['en_diseno','modificar_diseno'].includes(s.estado)).length;
+  const pendientes= solsActivas.filter(s => ['borrador','enviada','en_revision_marketing'].includes(s.estado)).length;
+
   const el = document.getElementById('dash-campana-label');
-  if (el) el.textContent = `${campNombre} · ${sols.length} solicitudes`;
+  if (el) el.textContent = `${campNombre} · ${total} solicitudes${archivadas ? ' (+ ' + archivadas + ' archivadas)' : ''}`;
 
   // Determine which catalogs are relevant for the selected campaign
   const dashCampana = dashCampanaId ? allCampanas.find(c => c.id === dashCampanaId) : null;
   const dashCatKeys = dashCampana?.catalogos || ALL_CATS.map(c => c.key);
   const DASH_CATS = ALL_CATS.filter(c => dashCatKeys.includes(c.key));
-
-  // ── KPIs ──
-  const total     = sols.length;
-  const completas = sols.filter(s => missingFields(s).length === 0).length;
-  const confirmadas = sols.filter(s => s.estado === 'confirmada').length;
-  const enDiseno  = sols.filter(s => ['en_diseno','modificar_diseno'].includes(s.estado)).length;
-  const pendientes= sols.filter(s => ['borrador','enviada','en_revision_marketing'].includes(s.estado)).length;
   const unRoly    = sols.reduce((a,s) => a + (s.solicitud_catalogos?.find(c=>c.catalogo==='roly')?.unidades||0), 0);
   const unWrk     = sols.reduce((a,s) => a + (s.solicitud_catalogos?.find(c=>c.catalogo==='roly_wrk')?.unidades||0), 0);
   const unStamina = sols.reduce((a,s) => a + (s.solicitud_catalogos?.find(c=>c.catalogo==='stamina')?.unidades||0), 0);
@@ -4219,16 +4222,17 @@ function renderDashboard() {
   const unNacional = sumUnds(sols.filter(s => (s.idioma||'').toUpperCase() === 'ESPAÑOL'));
   const unExport   = sumUnds(sols.filter(s => (s.idioma||'').toUpperCase() !== 'ESPAÑOL' && s.idioma));
 
-  const solEnRevision = sols.filter(s=>s.estado==='en_revision_marketing').length;
-  const solRevCliente = sols.filter(s=>s.estado==='diseno_en_revision_comercial').length;
+  const solEnRevision = solsActivas.filter(s=>s.estado==='en_revision_marketing').length;
+  const solRevCliente = solsActivas.filter(s=>s.estado==='diseno_en_revision_comercial').length;
   const solicitudesKpis = [
     { num: total,                                           lbl: 'Total solicitudes',  cls: '' },
-    { num: sols.filter(s=>s.estado==='borrador').length,    lbl: 'Borrador',           cls: '' },
-    { num: sols.filter(s=>s.estado==='enviada').length,     lbl: 'Enviadas',           cls: 'amber' },
+    { num: solsActivas.filter(s=>s.estado==='borrador').length,    lbl: 'Borrador',           cls: '' },
+    { num: solsActivas.filter(s=>s.estado==='enviada').length,     lbl: 'Enviadas',           cls: 'amber' },
     { num: solEnRevision,                                   lbl: 'En revisión de marketing',   cls: '' },
     { num: enDiseno,                                        lbl: 'En diseño',          cls: 'blue' },
     { num: solRevCliente,                                   lbl: 'En revisión del cliente',   cls: '' },
     { num: confirmadas,                                     lbl: 'Completadas ✓',      cls: 'green' },
+    { num: archivadas,                                      lbl: 'Archivadas',          cls: '' },
   ];
   // Precios breakdown — only Stamina and XMAS for Español solicitudes
   const solEspanol = sols.filter(s => (s.idioma||'').toUpperCase() === 'ESPAÑOL');
@@ -4283,8 +4287,8 @@ function renderDashboard() {
     </div>`;
 
   // ── CHART 1: Estados (Doughnut) ──
-  const estadoOrder = ['borrador','enviada','en_revision_marketing','en_diseno','diseno_en_revision_comercial','modificar_diseno','confirmada'];
-  const estadoColors = ['#E0DED6','#F59E0B','#003087','#534AB7','#FAB518','#E30613','#3B6D11'];
+  const estadoOrder = ['borrador','enviada','en_revision_marketing','en_diseno','diseno_en_revision_comercial','modificar_diseno','confirmada','archivada'];
+  const estadoColors = ['#E0DED6','#F59E0B','#003087','#534AB7','#FAB518','#E30613','#3B6D11','#9CA3AF'];
   const estadoCounts = estadoOrder.map(e => sols.filter(s => s.estado === e).length);
   const estadoLabels = estadoOrder.map(e => ESTADO_LABEL[e] || e);
 
@@ -4489,6 +4493,7 @@ function renderDashboard() {
     { key: ['en_diseno','modificar_diseno'],       label: 'En diseño',          color: '#534AB7' },
     { key: ['diseno_en_revision_comercial'],       label: 'Revisión cliente',   color: '#FAB518' },
     { key: ['confirmada'],                         label: 'Completadas',        color: '#3B6D11' },
+    { key: ['archivada'],                              label: 'Archivadas',         color: '#9CA3AF' },
   ];
   const progEl = document.getElementById('dash-progreso');
   if (progEl && total > 0) {
