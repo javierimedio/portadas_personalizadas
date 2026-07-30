@@ -2,6 +2,8 @@
 
 Feature-based, con separación explícita entre dominio, aplicación, infraestructura y UI (ver `02-arquitectura.md`). Esto describe el esqueleto que se crea en la Fase 0 del roadmap — nada de esto existe todavía.
 
+Por el principio inamovible (`00-resumen-ejecutivo.md`), esta estructura organiza el código de forma distinta pero opera exactamente sobre el mismo esquema que hoy: sin tablas nuevas, sin columnas nuevas salvo RLS. Donde el nombre de un archivo podría sugerir una funcionalidad nueva, la nota junto a él aclara que replica el comportamiento actual.
+
 ```
 portadas-personalizadas/
 ├── docs/                                 # Esta documentación de diseño
@@ -86,10 +88,9 @@ portadas-personalizadas/
 │   │   │   ├── application/
 │   │   │   │   ├── create-campana.action.ts
 │   │   │   │   ├── update-campana.action.ts
-│   │   │   │   └── upload-campana-documento.action.ts
+│   │   │   │   └── upload-campana-cover.action.ts # escribe en campanas.covers/covers_instrucciones (JSON), igual que hoy — sin tabla nueva
 │   │   │   ├── infrastructure/
-│   │   │   │   ├── campanas.repository.ts
-│   │   │   │   └── campana-documentos.repository.ts
+│   │   │   │   └── campanas.repository.ts
 │   │   │   └── ui/
 │   │   │       ├── campanas-table.tsx
 │   │   │       └── campana-form.tsx
@@ -109,13 +110,13 @@ portadas-personalizadas/
 │   │   │
 │   │   ├── notificaciones/
 │   │   │   ├── application/
-│   │   │   │   ├── mark-read.action.ts
 │   │   │   │   └── enviar-notificacion.ts        # invocada desde los casos de uso de solicitudes/diseño
 │   │   │   ├── infrastructure/
 │   │   │   │   └── notificaciones.repository.ts
 │   │   │   └── ui/
 │   │   │       ├── notificaciones-panel.tsx
-│   │   │       └── notificaciones-badge.tsx      # Client Component + Realtime
+│   │   │       ├── notificaciones-badge.tsx      # Client Component + Realtime
+│   │   │       └── use-read-state.ts             # hook cliente sobre localStorage (portadas_notifs_read), igual que hoy — sin Server Action ni columna read_at
 │   │   │
 │   │   ├── dashboard/
 │   │   │   ├── application/                      # agregaciones de solo lectura

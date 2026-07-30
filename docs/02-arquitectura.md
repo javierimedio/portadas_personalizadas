@@ -44,7 +44,7 @@ flowchart LR
 3. **Server Components por defecto.** Listados de solicitudes, campañas, usuarios y el panel global se leen server-side. Un componente es Client solo si necesita interactividad puntual (carga masiva con preview, dashboard con Chart.js, badge de notificaciones en vivo, autocompletado de menciones).
 4. **Server Actions para toda escritura del propio dominio.** No se crea una API REST propia para el CRUD interno: crear solicitud, cambiar de estado, asignar diseñador, subir adjunto, confirmar/archivar son Server Actions.
 5. **React Query solo donde aporta valor real** (ver 2.5).
-6. **Nada de datos de auditoría sobrescritos.** `logs` es append-only a nivel de base de datos (permisos revocados de `UPDATE`/`DELETE`), no solo por convención de la UI — igual que hoy funciona de facto, pero garantizado.
+6. **Ningún cambio de esquema salvo el estrictamente necesario para RLS.** No se introducen tipos, tablas ni columnas nuevas por esta migración — ver `03-modelo-datos.md` § 3.3 y `07-propuestas-futuras.md` para todo lo que se identificó como mejorable pero se deja fuera.
 
 ## 2.3 Capas
 
@@ -79,7 +79,6 @@ flowchart TD
 | Contador de notificaciones que debe sentirse "vivo" | Client Component + Supabase Realtime | Badge de no leídas en el header |
 | Exportar Excel | Route Handler que genera el `.xlsx` server-side con `exceljs` | Exportación del panel global por campaña |
 | Importar Excel | Client Component (parseo con `xlsx` en el navegador para preview) → Server Action (inserta/actualiza validado) | Importación masiva de solicitudes |
-| Tarea programada | Supabase Edge Function + `pg_cron` (si se activa email, ver pregunta abierta) | Recordatorio de campaña próxima a cerrar |
 
 ## 2.5 Cuándo sí usar React Query (y cuándo no)
 
@@ -95,15 +94,16 @@ flowchart TD
 
 - **Auth**: email/password + recuperación de contraseña (ya existente, se conserva). El rol y canal **no** se guardan en `app_metadata` del JWT — se resuelven en cada consulta contra `perfiles`, que es lo que las políticas RLS consultan. Esto es exactamente el comportamiento actual (el rol vive en una tabla, no en el JWT); lo que cambia es que la comprobación pasa de vivir solo en el JS a estar garantizada por RLS.
 - **RLS**: activada en todas las tablas de dominio. Patrón: `comercial` ve/edita solo sus propias solicitudes; `responsable_comercial` ve/edita las de su canal; `disenador` ve/edita las que tiene asignadas (o sin asignar, para autoasignarse) en estados de diseño; `responsable_diseno` ve/edita todas las de diseño; `admin`/`marketing` ven/editan todo. Detalle completo en `03-modelo-datos.md`.
-- **Storage**: se mantiene el bucket `portadas-adjuntos`, con políticas de Storage que replican la misma lógica de acceso que RLS en PostgreSQL (hoy la URL pública basta porque no hay política real; tras la migración el acceso se acota por solicitud/rol).
+- **Storage**: se mantiene el bucket `portadas-adjuntos` exactamente igual, con URLs públicas sin políticas de acceso nuevas — no se restringe en esta migración (ver pregunta abierta 2 de `00-resumen-ejecutivo.md` y `07-propuestas-futuras.md` § 6, donde queda documentada la mejora de seguridad que supondría hacerlo).
 - **Realtime**: activado sobre `solicitudes` y `notificaciones`, igual que hoy — pero consumido con `supabase-js` en el cliente en vez del WebSocket Phoenix manual actual, con el mismo *fallback* a polling si la suscripción falla.
-- **Edge Functions**: se conserva `create-user` (alta de usuario con Service Role Key). Se añade una función de recordatorios/nightly-digest solo si la pregunta abierta de email se resuelve que sí.
+- **Edge Functions**: se conserva `create-user` (alta de usuario con Service Role Key), sin cambios. No se añaden funciones nuevas en esta migración — el envío real de email queda en `07-propuestas-futuras.md` § 4.
 
-## 2.7 Seguridad y auditoría
+## 2.7 Seguridad
 
 - Principio de menor privilegio: el cliente Supabase usado en Server Components/Actions siempre lleva el JWT del usuario; la `service_role` key solo se usa en la Edge Function `create-user`, nunca expuesta a código que responde a una petición de usuario normal.
-- `logs` (ya existente) se refuerza como append-only real a nivel de base de datos (`revoke update, delete`), y sigue sirviendo doble propósito: historial de auditoría y feed de comentarios/menciones, igual que hoy.
-- El bucket de Storage deja de servir todo con URL pública sin control: las políticas de Storage exigen que quien lee/escribe un archivo de una solicitud tenga acceso a esa solicitud según las mismas reglas de RLS.
+- `logs` sigue funcionando exactamente igual que hoy (historial de auditoría y feed de comentarios/menciones); no se revocan permisos de `UPDATE`/`DELETE` en esta migración — es una mejora de seguridad de bajo riesgo pero no estrictamente necesaria, documentada en `07-propuestas-futuras.md` § 8.
+- El bucket de Storage sigue sirviendo con URL pública sin control de acceso, igual que hoy (ver 2.6).
+- RLS en las tablas de PostgreSQL es la única pieza de seguridad que se añade en esta migración, y es invisible para cualquier uso legítimo de la app: implementa exactamente las mismas reglas de visibilidad que hoy decide el JS, solo que ya no se pueden saltar llamando directo a la API.
 
 ## 2.8 Calidad y despliegue
 
