@@ -80,7 +80,7 @@ flowchart TD
 | Autocompletado de menciones en comentarios | Client Component con estado local | `@` + búsqueda entre `perfiles` activos |
 | Contador de notificaciones que debe sentirse "vivo" | Client Component + Supabase Realtime | Badge de no leídas en el header |
 | Exportar Excel | Route Handler que genera el `.xlsx` server-side con `exceljs` | Exportación del panel global por campaña |
-| Importar Excel | Client Component (parseo con `xlsx` en el navegador para preview) → Server Action (inserta/actualiza validado) | Importación masiva de solicitudes |
+| Importar Excel | Client Component (parseo con `xlsx` en el navegador para preview) → Server Action (crea usuarios validado) | Importación masiva de **usuarios** (no de solicitudes, ver `01-analisis-funcional.md` § 1.4.11) |
 
 ## 2.5 Cuándo sí usar React Query (y cuándo no)
 

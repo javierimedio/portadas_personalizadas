@@ -103,16 +103,19 @@ portadas-personalizadas/
     │   │   │
     │   │   ├── usuarios/
     │   │   │   ├── domain/
-    │   │   │   │   └── perfil.schema.ts
+    │   │   │   │   ├── perfil.schema.ts
+    │   │   │   │   └── import-usuarios.rules.ts   # validación de filas del Excel importado (roles válidos, campos obligatorios)
     │   │   │   ├── application/
-    │   │   │   │   ├── create-usuario.action.ts  # invoca la Edge Function create-user (copia en el proyecto de desarrollo)
+    │   │   │   │   ├── create-usuario.action.ts   # invoca la Edge Function create-user (copia en el proyecto de desarrollo)
     │   │   │   │   ├── update-usuario.action.ts
-    │   │   │   │   └── toggle-usuario.action.ts
+    │   │   │   │   ├── toggle-usuario.action.ts
+    │   │   │   │   └── import-usuarios.action.ts  # importación masiva — es de usuarios, no de solicitudes (ver 01-analisis-funcional.md § 1.4.11); verificar primero si el endpoint que usa hoy (/auth/v1/admin/users) funciona con la clave pública
     │   │   │   ├── infrastructure/
     │   │   │   │   └── perfiles.repository.ts
     │   │   │   └── ui/
     │   │   │       ├── usuarios-table.tsx
-    │   │   │       └── usuario-form.tsx
+    │   │   │       ├── usuario-form.tsx
+    │   │   │       └── import-usuarios-modal.tsx
     │   │   │
     │   │   ├── notificaciones/
     │   │   │   ├── application/
@@ -131,14 +134,11 @@ portadas-personalizadas/
     │   │   │       ├── kpi-cards.tsx
     │   │   │       └── charts/                   # los 7 gráficos actuales, 1 componente por gráfico
     │   │   │
-    │   │   └── import-export/
-    │   │       ├── domain/
-    │   │       │   └── import.rules.ts            # validación de filas del Excel importado
+    │   │   └── panel-global/
     │   │       ├── application/
-    │   │       │   ├── import-solicitudes.action.ts
-    │   │       │   └── export-solicitudes.ts      # usado por el Route Handler de export
+    │   │       │   └── export-solicitudes.ts       # usado por el Route Handler de export, ver app/api/export
     │   │       └── ui/
-    │   │           └── import-modal.tsx
+    │   │           └── panel-table.tsx
     │   │
     │   ├── shared/
     │   │   ├── domain/                            # tipos comunes (Result, Pagination...)
@@ -153,7 +153,7 @@ portadas-personalizadas/
     │       └── ui/                                # shadcn/ui generado (no se edita a mano salvo tokens)
     │
     ├── tests/
-    │   ├── unit/                                  # dominio, sin red: solicitud.rules, carga-masiva.rules, import.rules
+    │   ├── unit/                                  # dominio, sin red: solicitud.rules, carga-masiva.rules, import-usuarios.rules
     │   ├── integration/                           # repositorios + RLS contra el proyecto Supabase de desarrollo
     │   └── e2e/                                   # Playwright: crear→enviar→diseño→confirmar
     │

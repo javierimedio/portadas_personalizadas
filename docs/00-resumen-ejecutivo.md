@@ -25,6 +25,7 @@ Corolario operativo: **ninguna fase del roadmap empieza sin que la anterior teng
 | 6 | [`06-roadmap.md`](./06-roadmap.md) | Migración por módulos en fases, cada una validada antes de empezar la siguiente |
 | 7 | [`07-propuestas-futuras.md`](./07-propuestas-futuras.md) | Mejoras identificadas durante el diseño, explícitamente fuera de esta migración |
 | 8 | [`08-protocolo-validacion.md`](./08-protocolo-validacion.md) | Checklist de comparación `index.html` vs Next.js al final de cada fase, y regla de bloqueo entre fases |
+| 9 | [`09-matriz-paridad-funcional.md`](./09-matriz-paridad-funcional.md) | Inventario exhaustivo de las ~230 funcionalidades existentes en `index.html`, con su estado y fase de migración — la referencia objetiva de que nada se pierde |
 
 ## Cómo leer esto
 
@@ -68,4 +69,4 @@ El bucket `portadas-adjuntos` del entorno de desarrollo permanece aislado (archi
 
 Las URLs del bucket de **producción** siguen siendo públicas durante toda la migración, sin restricción (ver `07-propuestas-futuras.md` § 6) — es una brecha de seguridad conocida que esta migración no cierra por no ser estrictamente necesaria para el cambio de arquitectura.
 
-Con esto, todas las decisiones de entorno están resueltas. Queda aprobado el diseño completo (documentos 0-8); se empieza a construir la Fase 0.
+Con esto, todas las decisiones de entorno están resueltas. Queda aprobado el diseño completo (documentos 0-9); se empieza a construir la Fase 0.

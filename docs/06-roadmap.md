@@ -80,22 +80,22 @@ Alcance confirmado (una solicitud es una sola entidad; separar su flujo en fases
 
 - Alta de usuario (invoca la copia de la Edge Function `create-user` desplegada en el proyecto de desarrollo).
 - Edición de datos y alta/baja lógica (`activo`), sin borrado — igual que hoy.
+- Importación masiva de **usuarios** desde Excel/CSV, con la misma validación de filas. Nota de corrección: en versiones anteriores de este roadmap esto aparecía como "importación de solicitudes" por error — es importación de usuarios (ver `01-analisis-funcional.md` § 1.4.11 y `09-matriz-paridad-funcional.md`, incluida la verificación pendiente de si el endpoint que usa hoy funciona realmente en producción).
 
 **Criterio de salida**: un usuario de prueba dado de alta en desarrollo puede iniciar sesión ahí y tiene exactamente los permisos que ese rol tiene hoy en producción.
 
 **Checklist**: `docs/checklists/fase-4-usuarios.md`, aprobado antes de empezar la Fase 5.
 
-## Fase 5 — Panel global, exportación e importación de Excel
+## Fase 5 — Panel global y exportación a Excel
 
-**Objetivo**: paridad total en la vista global y el intercambio de datos por Excel.
+**Objetivo**: paridad total en la vista global y la exportación de datos por Excel.
 
 - Panel global: todas las solicitudes de todas las campañas, con los mismos filtros que hoy.
 - Exportación a `.xlsx` de una campaña, con el mismo formato de columnas que genera `exceljs` hoy.
-- Importación masiva de solicitudes desde Excel/CSV, con la misma validación de filas.
 
 **Criterio de salida**: exportando el mismo conjunto de datos de prueba desde ambos entornos, los dos `.xlsx` son indistinguibles columna por columna.
 
-**Checklist**: `docs/checklists/fase-5-panel-export-import.md`, aprobado antes de empezar la Fase 5.5.
+**Checklist**: `docs/checklists/fase-5-panel-export.md`, aprobado antes de empezar la Fase 5.5.
 
 ## Fase 5.5 — Validación documental con datos realistas
 
@@ -126,4 +126,4 @@ Alcance confirmado (una solicitud es una sola entidad; separar su flujo en fases
 
 ---
 
-No se empieza a picar código de ninguna fase hasta que los documentos 0-8 y las preguntas abiertas de `00-resumen-ejecutivo.md` estén aprobados. Ninguna fase incluye mejoras funcionales — cualquier idea que surja durante la implementación se añade a `07-propuestas-futuras.md`, no al alcance de la fase en curso. Y ninguna fase empieza sin el checklist aprobado de la anterior (`08-protocolo-validacion.md`).
+No se empieza a picar código de ninguna fase hasta que los documentos 0-9 y las preguntas abiertas de `00-resumen-ejecutivo.md` estén aprobados. Ninguna fase incluye mejoras funcionales — cualquier idea que surja durante la implementación se añade a `07-propuestas-futuras.md`, no al alcance de la fase en curso. Ninguna fase empieza sin el checklist aprobado de la anterior (`08-protocolo-validacion.md`), y ese checklist no se aprueba con filas de `09-matriz-paridad-funcional.md` de esa fase todavía en `Pendiente` o `Regresión detectada`.

@@ -2,13 +2,15 @@
 
 Regla de bloqueo, sin excepciones: **no se empieza a implementar la fase N+1 hasta que el checklist de la fase N esté aprobado explícitamente**. Si el checklist detecta una regresión, esa fase no se considera terminada — se corrige y se repite la comparación, cuantas veces sea necesario, antes de pedir aprobación de nuevo.
 
+Este protocolo trabaja siempre junto con `09-matriz-paridad-funcional.md`: el checklist de una fase resume el resultado, pero la matriz es el inventario fila a fila que hay que actualizar de verdad. Antes de dar por buena una fase: todas las filas de la matriz correspondientes a esa fase deben pasar a `Validada` (o quedar explícitamente en `Regresión detectada` si algo bloquea, lo que impide aprobar el checklist).
+
 ## 8.1 Cuándo se ejecuta
 
 Al terminar de implementar el alcance de una fase en el entorno de desarrollo (`06-roadmap.md`), antes de tocar el código de la fase siguiente. Nunca se valida "por encima" ni se acumulan dos fases sin checklist intermedio, aunque parezca que se avanza más rápido así.
 
 ## 8.2 Cómo se compara
 
-1. Se define un conjunto de escenarios de prueba que cubran el alcance completo de la fase (cada rol implicado, cada estado relevante, los casos límite documentados en `01-analisis-funcional.md` y `05-flujo-navegacion.md`).
+1. Se filtran en `09-matriz-paridad-funcional.md` todas las filas cuya columna Fase corresponda a la fase en curso — esa lista de IDs es el alcance exacto a cubrir, sin añadir ni olvidar nada respecto a lo ya inventariado.
 2. Cada escenario se reproduce **en los dos entornos** con datos equivalentes: en producción (`index.html`, datos reales o de prueba ya existentes) y en desarrollo (Next.js, sobre el clon con datos sintéticos de la Fase 0, ampliados si la fase lo requiere).
 3. Se compara el resultado observable, no el código: misma pantalla, mismo dato, mismo comportamiento ante la misma acción. Cualquier discrepancia se anota, sin filtrarla por "parece poco importante".
 4. Se ejecutan además los tests automatizados de la fase (unitarios de dominio, integración de repositorios/RLS contra el proyecto de desarrollo, y end-to-end si el flujo lo justifica).
@@ -25,12 +27,12 @@ Entorno de desarrollo comparado: <URL de desarrollo, commit/rama>
 Entorno de producción comparado: <URL de producción>
 
 ## Funcionalidades migradas
-- [ ] <funcionalidad concreta> — verificada en escenario: <cuál>
+- [ ] <ID de 09-matriz-paridad-funcional.md, p. ej. SOL-07> <funcionalidad> — verificada en escenario: <cuál> — matriz actualizada a "Validada"
 - [ ] ...
 
 ## Funcionalidades pendientes
-- <funcionalidad del alcance de la fase que no llegó a implementarse, y por qué>
-(si no hay ninguna, indicar "Ninguna — alcance completo")
+- <ID de la matriz> <funcionalidad del alcance de la fase que no llegó a implementarse, y por qué>
+(si no hay ninguna, indicar "Ninguna — alcance completo, todos los ID de la matriz para esta fase están en Validada")
 
 ## Diferencias detectadas
 Cualquier discrepancia observada entre ambos entornos, aunque no afecte a la funcionalidad (p. ej. un mensaje de error con distinta redacción por venir de una librería distinta).

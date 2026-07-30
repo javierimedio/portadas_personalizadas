@@ -85,9 +85,9 @@ Vista de todas las solicitudes (`admin`/`marketing`) con exportación a `.xlsx` 
 
 Alta vía Edge Function `create-user` (se conserva tal cual), edición, alta/baja lógica sin borrado.
 
-### 1.4.11 Importación masiva de solicitudes
+### 1.4.11 Importación masiva de usuarios
 
-Carga de Excel/CSV para crear/actualizar solicitudes en bloque, mismo formato de entrada que hoy.
+Carga de Excel/CSV para crear varios usuarios de golpe (email, nombre, contraseña, rol, código), con previsualización y validación de rol antes de confirmar. **Corrección respecto a versiones anteriores de este documento**: esta importación es de usuarios, no de solicitudes — no existe una importación masiva de solicitudes en `index.html`. Además, el código llama a `/auth/v1/admin/users` (endpoint de administración de Supabase) usando el token de sesión del usuario o la clave pública como fallback; ese endpoint normalmente exige la `service_role` key, así que **antes de dar por buena esta funcionalidad hay que verificar en producción si realmente crea usuarios o falla silenciosamente** — ver `09-matriz-paridad-funcional.md`.
 
 ## 1.5 Requisitos no funcionales de esta migración
 
