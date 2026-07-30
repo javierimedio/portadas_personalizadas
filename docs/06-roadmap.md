@@ -2,6 +2,8 @@
 
 Migración por módulos: en todo momento la aplicación de producción (`index.html`) está 100% operativa para los usuarios reales, y el sistema nuevo se construye y valida en un entorno de desarrollo completamente separado. Cada fase termina con un criterio de salida verificable **por comparación de comportamiento**, no por "parece que funciona": se replican los mismos escenarios (mismos roles, mismos datos de prueba) en ambos entornos y se comprueba que el resultado es idéntico.
 
+**Regla de bloqueo entre fases**: ninguna fase empieza sin que la anterior tenga su checklist de `08-protocolo-validacion.md` aprobado explícitamente. Cada fase de las que siguen termina generando `docs/checklists/fase-N-<nombre>.md` con funcionalidades migradas, pendientes, diferencias detectadas, posibles regresiones y resultado de pruebas — sin ese documento aprobado, la fase siguiente no se toca.
+
 ## Estrategia de entornos
 
 Dos entornos con **URLs, proyectos Vercel y proyectos Supabase completamente separados** durante toda la migración — ver el análisis y la justificación completa en la conversación de diseño; resumen de las decisiones:
@@ -12,7 +14,7 @@ Dos entornos con **URLs, proyectos Vercel y proyectos Supabase completamente sep
 | Código | `index.html` en la raíz del repo, rama `main` — **no se toca** hasta el cutover | Next.js en `/webapp` del mismo repositorio, rama dedicada a la migración |
 | Proyecto Vercel | El actual, sin cambios de configuración | Uno nuevo, Root Directory `/webapp`, dominio fijado a la rama de migración |
 | Proyecto Supabase | El actual (`paqtohmxagfebeyyurlq.supabase.co`), **sin RLS hasta el cutover** | Uno nuevo: mismo esquema (clonado con `supabase db pull` sobre producción, operación de solo lectura), datos sintéticos, usuarios de prueba propios (nunca credenciales reales) |
-| Storage | Bucket público actual, sin cambios | Bucket propio, vacío o con archivos de prueba |
+| Storage | Bucket público actual, sin cambios | Bucket propio con archivos de prueba en las Fases 0-4; snapshot de solo lectura de archivos reales en la Fase 5.5 (ver más abajo) |
 | Edge Functions | `create-user` existente, sin tocar | Copia de `create-user` redesplegada en el proyecto de desarrollo |
 
 Como cada entorno tiene su propia base de datos, **nada de lo que se haga en desarrollo puede afectar a producción** — no hay filas compartidas, no hay RLS compartida, no hay sesión compartida. Esto es más simple de razonar que una convivencia a nivel de nav/rutas, aunque signifique que la validación de cada fase se hace en desarrollo con datos de prueba representativos, no con el uso real de los usuarios hasta el cutover final.
@@ -30,6 +32,8 @@ Como cada entorno tiene su propia base de datos, **nada de lo que se haga en des
 
 **Criterio de salida**: cada usuario de prueba, en el entorno de desarrollo, ve exactamente lo que su rol equivalente ve hoy en producción — verificado comparando resultados, no solo revisando el código. La URL de producción no ha cambiado en absoluto.
 
+**Checklist**: `docs/checklists/fase-0-fundaciones.md`, aprobado antes de empezar la Fase 1.
+
 ## Fase 1 — Login + Layout + Dashboard
 
 **Objetivo**: en la URL de desarrollo, el usuario de prueba puede entrar, navegar por el layout con el mismo nav condicionado por rol, y ver el Dashboard con los mismos KPIs y los mismos 7 gráficos que production muestra para el escenario equivalente.
@@ -39,6 +43,8 @@ Como cada entorno tiene su propia base de datos, **nada de lo que se haga en des
 - Dashboard completo: KPIs de estado/unidades/precios y los 7 gráficos, filtrable por campaña, acotado por canal para `responsable_nacional`/`responsable_exportacion`.
 
 **Criterio de salida**: para un conjunto de datos de prueba sembrado de forma idéntica en ambos entornos, el Dashboard de desarrollo produce números y gráficos idénticos a los que `index.html` produciría con esos mismos datos.
+
+**Checklist**: `docs/checklists/fase-1-login-layout-dashboard.md`, aprobado antes de empezar la Fase 2.
 
 ## Fase 2 — Solicitudes (incluye diseño, comentarios y notificaciones)
 
@@ -54,6 +60,8 @@ Alcance confirmado (una solicitud es una sola entidad; separar su flujo en fases
 
 **Criterio de salida**: un escenario de prueba completo (varios comerciales, varios diseñadores, varias solicitudes recorriendo toda la máquina de estados) produce en desarrollo el mismo resultado final que el mismo escenario reproducido en producción.
 
+**Checklist**: `docs/checklists/fase-2-solicitudes.md`, aprobado antes de empezar la Fase 3.
+
 ## Fase 3 — Campañas
 
 **Objetivo**: `admin`/`marketing` pueden crear y gestionar campañas desde el entorno de desarrollo con paridad total.
@@ -64,6 +72,8 @@ Alcance confirmado (una solicitud es una sola entidad; separar su flujo en fases
 
 **Criterio de salida**: crear la misma campaña (mismos campos) en ambos entornos produce el mismo comportamiento observable en cada uno (catálogos activos, cierre, documentos).
 
+**Checklist**: `docs/checklists/fase-3-campanas.md`, aprobado antes de empezar la Fase 4.
+
 ## Fase 4 — Usuarios
 
 **Objetivo**: `admin`/`marketing` gestionan usuarios desde el entorno de desarrollo con paridad total.
@@ -72,6 +82,8 @@ Alcance confirmado (una solicitud es una sola entidad; separar su flujo en fases
 - Edición de datos y alta/baja lógica (`activo`), sin borrado — igual que hoy.
 
 **Criterio de salida**: un usuario de prueba dado de alta en desarrollo puede iniciar sesión ahí y tiene exactamente los permisos que ese rol tiene hoy en producción.
+
+**Checklist**: `docs/checklists/fase-4-usuarios.md`, aprobado antes de empezar la Fase 5.
 
 ## Fase 5 — Panel global, exportación e importación de Excel
 
@@ -83,11 +95,29 @@ Alcance confirmado (una solicitud es una sola entidad; separar su flujo en fases
 
 **Criterio de salida**: exportando el mismo conjunto de datos de prueba desde ambos entornos, los dos `.xlsx` son indistinguibles columna por columna.
 
+**Checklist**: `docs/checklists/fase-5-panel-export-import.md`, aprobado antes de empezar la Fase 5.5.
+
+## Fase 5.5 — Validación documental con datos realistas
+
+**Objetivo**: hasta aquí, la gestión documental (logo del cliente, diseño final, carga masiva, documentos de campaña) se ha validado contra archivos de prueba sintéticos en el bucket de desarrollo — suficiente para validar el código, pero no para dar por buena la experiencia real de subida/descarga/visualización con los tipos, tamaños y nombres de archivo que de verdad circulan en producción. Esta fase cierra esa brecha **sin escribir nunca en el proyecto de producción**.
+
+**Estrategia — snapshot de solo lectura desde producción**:
+
+1. **Selección de una muestra representativa** de solicitudes reales de producción (varios catálogos, varios estados, varios comerciales/diseñadores) mediante consultas `SELECT` de solo lectura contra la base de datos de producción — ninguna escritura.
+2. **Copia de los archivos asociados** a esa muestra: descarga desde las URLs públicas del bucket de producción (operación de lectura, `GET`) y subida al bucket del proyecto de **desarrollo**, conservando la misma ruta relativa. En ningún momento se escribe, borra ni modifica un objeto del bucket de producción.
+3. **Inserción de filas equivalentes** en las tablas del proyecto Supabase de desarrollo (`solicitudes`, `solicitud_catalogos`, `adjuntos`) que reproducen los metadatos reales de esa muestra, con `storage_path`/`url` apuntando a las copias recién subidas en desarrollo — de modo que las referencias a archivos en desarrollo sean consistentes y navegables igual que en producción.
+4. **Revisión de contenido antes de copiar**: comprobación rápida de que la muestra elegida no incluye archivos con datos personales más allá de logos/diseños de empresa (que es lo que cabe esperar en este bucket) — si apareciera algo inesperado, se excluye de la muestra en vez de copiarlo.
+5. Con esa muestra ya en desarrollo, se ejecutan y validan los flujos completos de gestión documental: subida de logo, subida de diseño final, carga masiva emparejando por SAP+catálogo, descarga y visualización de adjuntos, documentos de campaña (covers/instrucciones).
+
+**Criterio de salida**: los flujos de subida, descarga, visualización y referencias a archivos, ejecutados sobre la muestra realista en desarrollo, se comportan igual que sus equivalentes en producción — y en ningún momento del proceso se ha escrito sobre el proyecto Supabase ni el bucket de producción.
+
+**Checklist**: `docs/checklists/fase-5.5-validacion-documental.md`, aprobado antes de iniciar el Cutover.
+
 ## Cutover — el único momento en que producción se toca
 
 **Objetivo**: mover a los usuarios reales al sistema nuevo, con el menor riesgo posible y en pasos independientes y reversibles.
 
-1. **QA end-to-end completo** en el entorno de desarrollo: los 6 criterios de salida anteriores verificados a la vez, sobre el conjunto de datos de prueba más completo posible.
+1. **QA end-to-end completo** en el entorno de desarrollo: los criterios de salida de todas las fases anteriores (0 a 5.5), cada uno con su checklist ya aprobado, verificados de nuevo a la vez sobre el conjunto de datos de prueba más completo posible — incluida la muestra realista de la Fase 5.5.
 2. **Aplicar RLS al proyecto Supabase de producción** (las mismas políticas ya validadas en desarrollo), con `index.html` todavía siendo lo que ven los usuarios reales. Observar tráfico real durante un periodo sin incidencias — si algo falla, el rollback es el script SQL de reversión (`DROP POLICY`, `DISABLE ROW LEVEL SECURITY`), ya probado en desarrollo, sin ningún despliegue de por medio.
 3. **Solo después**, reasignar el dominio de producción del proyecto Vercel actual al proyecto Vercel del sistema nuevo. Es una operación de segundos en el panel de Vercel, y reversible igual de rápido si aparece cualquier problema: reasignar el dominio de vuelta.
 4. `index.html` se archiva (no se borra) como referencia histórica, con la fecha de corte documentada.
@@ -96,4 +126,4 @@ Alcance confirmado (una solicitud es una sola entidad; separar su flujo en fases
 
 ---
 
-No se empieza a picar código de ninguna fase hasta que los documentos 0-7 y las preguntas abiertas de `00-resumen-ejecutivo.md` estén aprobados. Ninguna fase incluye mejoras funcionales — cualquier idea que surja durante la implementación se añade a `07-propuestas-futuras.md`, no al alcance de la fase en curso.
+No se empieza a picar código de ninguna fase hasta que los documentos 0-8 y las preguntas abiertas de `00-resumen-ejecutivo.md` estén aprobados. Ninguna fase incluye mejoras funcionales — cualquier idea que surja durante la implementación se añade a `07-propuestas-futuras.md`, no al alcance de la fase en curso. Y ninguna fase empieza sin el checklist aprobado de la anterior (`08-protocolo-validacion.md`).
