@@ -1,46 +1,50 @@
 # 6. Roadmap por fases
 
-Migración por módulos, tal como se pidió: en todo momento hay una aplicación 100% funcional. Cada fase termina con un criterio de salida verificable por comparación directa contra `index.html` (mismos datos, mismo resultado), no por "parece que funciona".
+Migración por módulos: en todo momento la aplicación de producción (`index.html`) está 100% operativa para los usuarios reales, y el sistema nuevo se construye y valida en un entorno de desarrollo completamente separado. Cada fase termina con un criterio de salida verificable **por comparación de comportamiento**, no por "parece que funciona": se replican los mismos escenarios (mismos roles, mismos datos de prueba) en ambos entornos y se comprueba que el resultado es idéntico.
 
-## Estrategia de convivencia (index.html + Next.js compartiendo el mismo Supabase)
+## Estrategia de entornos
 
-Ambos sistemas leen y escriben las mismas tablas del mismo proyecto Supabase — esto es lo que hace posible migrar módulo por módulo sin romper nada: una solicitud creada en el sistema nuevo es una fila normal que `index.html` puede seguir mostrando, y viceversa.
+Dos entornos con **URLs, proyectos Vercel y proyectos Supabase completamente separados** durante toda la migración — ver el análisis y la justificación completa en la conversación de diseño; resumen de las decisiones:
 
-Mecanismo por fase:
-1. El módulo migrado se despliega en Next.js y se verifica en paralelo (mismos datos, mismo resultado que `index.html`).
-2. El nav de `index.html` sustituye el enlace de ese módulo por un enlace al sistema nuevo (misma sesión de Supabase Auth si comparten dominio — ver pregunta abierta 1 de `00-resumen-ejecutivo.md`; si no comparten dominio, se necesita un puente de sesión o un segundo login hasta el cutover).
-3. El resto de módulos sigue funcionando exactamente igual en `index.html`, sin tocarse.
-4. Solo en el cutover final (tras la Fase 5) se retira `index.html` de producción por completo.
+| | Producción | Desarrollo |
+|---|---|---|
+| URL | La actual, estable durante todo el proyecto | Nueva, fija, apunta siempre a la última versión de la rama de migración |
+| Código | `index.html` en la raíz del repo, rama `main` — **no se toca** hasta el cutover | Next.js en `/webapp` del mismo repositorio, rama dedicada a la migración |
+| Proyecto Vercel | El actual, sin cambios de configuración | Uno nuevo, Root Directory `/webapp`, dominio fijado a la rama de migración |
+| Proyecto Supabase | El actual (`paqtohmxagfebeyyurlq.supabase.co`), **sin RLS hasta el cutover** | Uno nuevo: mismo esquema (clonado con `supabase db pull` sobre producción, operación de solo lectura), datos sintéticos, usuarios de prueba propios (nunca credenciales reales) |
+| Storage | Bucket público actual, sin cambios | Bucket propio, vacío o con archivos de prueba |
+| Edge Functions | `create-user` existente, sin tocar | Copia de `create-user` redesplegada en el proyecto de desarrollo |
 
-Esto significa que, por ejemplo, durante la Fase 2 un comercial puede crear y enviar una solicitud desde el sistema nuevo mientras el equipo de diseño la trabaja todavía... no, en este caso concreto Diseño está dentro de la misma Fase 2 (ver alcance abajo), así que el ejemplo real es: durante la Fase 2, todo el ciclo de vida de una solicitud (comercial → diseño → revisión cliente) ya vive en el sistema nuevo, mientras Campañas y Usuarios se siguen gestionando en `index.html`.
+Como cada entorno tiene su propia base de datos, **nada de lo que se haga en desarrollo puede afectar a producción** — no hay filas compartidas, no hay RLS compartida, no hay sesión compartida. Esto es más simple de razonar que una convivencia a nivel de nav/rutas, aunque signifique que la validación de cada fase se hace en desarrollo con datos de prueba representativos, no con el uso real de los usuarios hasta el cutover final.
 
-## Fase 0 — Fundaciones (sin funcionalidad visible)
+## Fase 0 — Fundaciones (sin funcionalidad visible para usuarios reales)
 
-**Objetivo**: esqueleto seguro conectado al Supabase real, sin tocar lo que ve el usuario final.
+**Objetivo**: entorno de desarrollo funcionando de extremo a extremo, sin tocar nada de producción.
 
-- `supabase db pull` y reconciliación con `03-modelo-datos.md` § 3.4 (confirmar tipos exactos, especialmente los marcados "a confirmar").
-- Repositorio Next.js 15 + TypeScript + Tailwind + shadcn/ui, `@supabase/supabase-js` + `@supabase/ssr`.
-- RLS activada tabla por tabla según `03-modelo-datos.md` § 3.5, verificada con un usuario de prueba de cada rol (incluido el caso legacy `responsable` sin canal, que requiere confirmación explícita antes de escribir su policy).
-- CI (lint, typecheck) + despliegue en Vercel en un dominio/subdominio de pruebas.
-- Decisión tomada sobre la pregunta abierta 1 (dominio/sesión compartida) antes de continuar a la Fase 1.
+- `supabase db pull` sobre el proyecto de **producción** (solo lectura) para obtener el esquema real exacto; reconciliar con `03-modelo-datos.md` § 3.4.
+- Crear el proyecto Supabase de **desarrollo**: aplicar ese mismo esquema (DDL), redesplegar la Edge Function `create-user`, crear el bucket `portadas-adjuntos`, crear un usuario de prueba por cada rol (incluidas las variantes legacy) y sembrar datos sintéticos que cubran todos los estados de solicitud, catálogos y casos límite.
+- Repositorio Next.js 15 + TypeScript + Tailwind + shadcn/ui en `/webapp`, con `@supabase/supabase-js` + `@supabase/ssr` apuntando **al proyecto de desarrollo**.
+- Segundo proyecto Vercel (Root Directory `/webapp`) desplegando desde la rama de migración hacia la URL de desarrollo.
+- RLS activada tabla por tabla según `03-modelo-datos.md` § 3.5, verificada contra los usuarios de prueba del proyecto de desarrollo — incluido el caso legacy `responsable` sin canal, que requiere confirmación explícita de su comportamiento actual antes de escribir su policy.
+- CI (lint, typecheck) sobre la rama de migración.
 
-**Criterio de salida**: cada rol de prueba ve en una consulta directa (JWT de ese usuario) exactamente lo mismo que ve hoy a través de `index.html` — ni una fila más, ni una fila menos.
+**Criterio de salida**: cada usuario de prueba, en el entorno de desarrollo, ve exactamente lo que su rol equivalente ve hoy en producción — verificado comparando resultados, no solo revisando el código. La URL de producción no ha cambiado en absoluto.
 
 ## Fase 1 — Login + Layout + Dashboard
 
-**Objetivo**: el usuario puede entrar al sistema nuevo, navegar por el layout con el mismo nav condicionado por rol, y ver el Dashboard con los mismos KPIs y los mismos 7 gráficos.
+**Objetivo**: en la URL de desarrollo, el usuario de prueba puede entrar, navegar por el layout con el mismo nav condicionado por rol, y ver el Dashboard con los mismos KPIs y los mismos 7 gráficos que production muestra para el escenario equivalente.
 
 - Login, recuperación de contraseña, impersonación de rol (admin) — mismas pantallas y mensajes que hoy.
-- Layout autenticado: nav lateral con las mismas páginas visibles por rol que `buildNav()` decide hoy (aunque las páginas de Solicitudes/Campañas/Usuarios/Panel todavía redirijan a `index.html` hasta sus propias fases).
+- Layout autenticado: nav lateral con las mismas páginas visibles por rol que `buildNav()` decide hoy (las páginas de Solicitudes/Campañas/Usuarios/Panel existen como placeholders hasta sus propias fases).
 - Dashboard completo: KPIs de estado/unidades/precios y los 7 gráficos, filtrable por campaña, acotado por canal para `responsable_nacional`/`responsable_exportacion`.
 
-**Criterio de salida**: los números y gráficos del Dashboard nuevo coinciden exactamente con los de `index.html` para la misma campaña, en todo momento (se pueden dejar ambos abiertos lado a lado).
+**Criterio de salida**: para un conjunto de datos de prueba sembrado de forma idéntica en ambos entornos, el Dashboard de desarrollo produce números y gráficos idénticos a los que `index.html` produciría con esos mismos datos.
 
 ## Fase 2 — Solicitudes (incluye diseño, comentarios y notificaciones)
 
-**Objetivo**: el ciclo de vida completo de una solicitud —desde que un comercial la crea hasta que se confirma o archiva— se gestiona en el sistema nuevo sin volver a `index.html` en ningún punto intermedio.
+**Objetivo**: el ciclo de vida completo de una solicitud —desde que un comercial la crea hasta que se confirma o archiva— funciona en el entorno de desarrollo sin ninguna diferencia de comportamiento frente a producción.
 
-Alcance confirmado (una solicitud es una sola entidad; separar su flujo entre dos sistemas obligaría a mantener ambos escribiendo sobre las mismas filas sin necesidad real):
+Alcance confirmado (una solicitud es una sola entidad; separar su flujo en fases distintas no aportaría nada dado que ambos entornos ya están completamente aislados):
 
 - Crear/editar/enviar solicitud, secciones por catálogo, validación de completitud (`missingFields`).
 - Máquina de estados completa: `borrador → enviada → en_revision_marketing → en_diseno ⇄ modificar_diseno → diseno_en_revision_comercial → confirmada/archivada`.
@@ -48,46 +52,47 @@ Alcance confirmado (una solicitud es una sola entidad; separar su flujo entre do
 - Comentarios con `@menciones` y su autocompletado.
 - Notificaciones (in-app, estado de lectura en `localStorage` igual que hoy — no se traslada a base de datos, ver `07-propuestas-futuras.md` § 2).
 
-**Criterio de salida**: una campaña real completa (creación → diseño → confirmación de varias solicitudes) se gestiona de principio a fin en el sistema nuevo, con los mismos comerciales, diseñadores y responsables trabajando sin diferencia perceptible frente a `index.html`.
+**Criterio de salida**: un escenario de prueba completo (varios comerciales, varios diseñadores, varias solicitudes recorriendo toda la máquina de estados) produce en desarrollo el mismo resultado final que el mismo escenario reproducido en producción.
 
 ## Fase 3 — Campañas
 
-**Objetivo**: `admin`/`marketing` crean y gestionan campañas desde el sistema nuevo.
+**Objetivo**: `admin`/`marketing` pueden crear y gestionar campañas desde el entorno de desarrollo con paridad total.
 
 - Listado y ficha de campaña: nombre, descripción, fecha de cierre, catálogos activos.
 - Subida de `covers`/`covers_instrucciones` por catálogo (se mantienen como JSON en la fila de `campanas`, sin tabla nueva).
 - Cálculo de "campaña activa por defecto" igual que hoy.
 
-**Criterio de salida**: crear una campaña nueva en el sistema nuevo produce exactamente el mismo efecto (visible en `index.html` si todavía se usa en paralelo, y en la Fase 2 ya migrada) que crearla en `index.html`.
+**Criterio de salida**: crear la misma campaña (mismos campos) en ambos entornos produce el mismo comportamiento observable en cada uno (catálogos activos, cierre, documentos).
 
 ## Fase 4 — Usuarios
 
-**Objetivo**: `admin`/`marketing` gestionan usuarios desde el sistema nuevo.
+**Objetivo**: `admin`/`marketing` gestionan usuarios desde el entorno de desarrollo con paridad total.
 
-- Alta de usuario (invoca la Edge Function `create-user` existente, sin modificarla).
+- Alta de usuario (invoca la copia de la Edge Function `create-user` desplegada en el proyecto de desarrollo).
 - Edición de datos y alta/baja lógica (`activo`), sin borrado — igual que hoy.
 
-**Criterio de salida**: un usuario dado de alta desde el sistema nuevo puede iniciar sesión y tiene exactamente los permisos que su rol le da hoy en `index.html`.
+**Criterio de salida**: un usuario de prueba dado de alta en desarrollo puede iniciar sesión ahí y tiene exactamente los permisos que ese rol tiene hoy en producción.
 
 ## Fase 5 — Panel global, exportación e importación de Excel
 
-**Objetivo**: `admin`/`marketing` dejan de necesitar `index.html` para la vista global y el intercambio de datos por Excel.
+**Objetivo**: paridad total en la vista global y el intercambio de datos por Excel.
 
 - Panel global: todas las solicitudes de todas las campañas, con los mismos filtros que hoy.
 - Exportación a `.xlsx` de una campaña, con el mismo formato de columnas que genera `exceljs` hoy.
 - Importación masiva de solicitudes desde Excel/CSV, con la misma validación de filas.
 
-**Criterio de salida**: el Excel exportado desde el sistema nuevo es indistinguible (columna por columna) del que genera `index.html` hoy para la misma campaña.
+**Criterio de salida**: exportando el mismo conjunto de datos de prueba desde ambos entornos, los dos `.xlsx` son indistinguibles columna por columna.
 
-## Cutover
+## Cutover — el único momento en que producción se toca
 
-**Objetivo**: apagar `index.html` como sistema en producción.
+**Objetivo**: mover a los usuarios reales al sistema nuevo, con el menor riesgo posible y en pasos independientes y reversibles.
 
-- QA end-to-end con usuarios reales de cada rol, verificando cada módulo migrado contra el criterio de salida de su fase, todos a la vez.
-- Redirección del dominio de producción al sistema nuevo.
-- `index.html` se archiva (no se borra) como referencia histórica, con la fecha de corte documentada.
+1. **QA end-to-end completo** en el entorno de desarrollo: los 6 criterios de salida anteriores verificados a la vez, sobre el conjunto de datos de prueba más completo posible.
+2. **Aplicar RLS al proyecto Supabase de producción** (las mismas políticas ya validadas en desarrollo), con `index.html` todavía siendo lo que ven los usuarios reales. Observar tráfico real durante un periodo sin incidencias — si algo falla, el rollback es el script SQL de reversión (`DROP POLICY`, `DISABLE ROW LEVEL SECURITY`), ya probado en desarrollo, sin ningún despliegue de por medio.
+3. **Solo después**, reasignar el dominio de producción del proyecto Vercel actual al proyecto Vercel del sistema nuevo. Es una operación de segundos en el panel de Vercel, y reversible igual de rápido si aparece cualquier problema: reasignar el dominio de vuelta.
+4. `index.html` se archiva (no se borra) como referencia histórica, con la fecha de corte documentada.
 
-**Criterio de salida**: `index.html` deja de recibir tráfico de producción; todos los roles trabajan exclusivamente en el sistema nuevo, sin ninguna funcionalidad perdida respecto al día anterior al corte.
+**Criterio de salida**: los usuarios reales trabajan en el sistema nuevo sin ninguna funcionalidad perdida respecto al día anterior al corte, y ambos pasos (RLS y cambio de dominio) se verificaron por separado antes de encadenarlos.
 
 ---
 

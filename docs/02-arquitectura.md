@@ -15,7 +15,7 @@ flowchart LR
         RH["Route Handlers /api/export/*"]
     end
 
-    subgraph Supabase["Supabase (proyecto existente)"]
+    subgraph Supabase["Supabase — proyecto de DESARROLLO<br/>(clon del esquema real, datos sintéticos)"]
         PG[(PostgreSQL + RLS)]
         Auth["Auth"]
         Storage["Storage: bucket portadas-adjuntos"]
@@ -35,7 +35,9 @@ flowchart LR
     App --> Storage
 ```
 
-**Decisión clave**: un único repositorio Next.js desplegado en Vercel, conectado al **mismo proyecto Supabase que ya está en producción** — no se crea un backend nuevo ni se migran datos a otro sitio. La diferencia frente a hoy es que **PostgreSQL con RLS pasa a ser la autoridad de seguridad real**, no una promesa implícita: hoy un `if (rol === 'admin')` en el JS decide qué botón se muestra, pero nada impide (verificado o no) que una llamada directa a la REST API con la clave pública salte esa comprobación si las policies no están bien cerradas. Tras la migración, la misma consulta falla en la base de datos si el usuario no tiene permiso, venga de donde venga.
+**Decisión clave**: durante toda la migración (Fases 0-5), el código Next.js (en `/webapp` del mismo repositorio, ver `04-estructura-carpetas.md`) se despliega en un proyecto Vercel propio y se conecta a un **proyecto Supabase de desarrollo**, un clon del esquema real de producción con datos sintéticos — nunca al proyecto de producción. Solo en el Cutover (`06-roadmap.md`) las mismas migraciones validadas se aplican al proyecto Supabase real y el dominio de producción se reasigna al nuevo despliegue. Ver `06-roadmap.md` § "Estrategia de entornos" para la justificación completa.
+
+La diferencia de fondo frente a hoy es que **PostgreSQL con RLS pasa a ser la autoridad de seguridad real**, no una promesa implícita: hoy un `if (rol === 'admin')` en el JS decide qué botón se muestra, pero nada impide (verificado o no) que una llamada directa a la REST API con la clave pública salte esa comprobación si las policies no están bien cerradas. Tras el cutover, la misma consulta falla en la base de datos si el usuario no tiene permiso, venga de donde venga — pero esto se desarrolla y valida por completo contra el clon de desarrollo antes de tocar producción.
 
 ## 2.2 Principios arquitectónicos
 
@@ -108,5 +110,5 @@ flowchart TD
 ## 2.8 Calidad y despliegue
 
 - **Testing**: unitario sobre las reglas de dominio migradas (`missingFields`, `catSummary`, `parseCargaFilename`, la máquina de estados), integración de los repositorios contra una base Supabase local (`supabase start`), end-to-end (Playwright) sobre el flujo crítico: crear solicitud → enviarla → pasar por diseño → confirmar.
-- **CI/CD**: GitHub Actions ejecuta lint + typecheck + tests en cada PR; Vercel genera preview deployment automático por PR; merge a `main` despliega a producción.
-- **Migraciones**: gestionadas con Supabase CLI (`supabase/migrations`), versionadas en el repo — pero **partiendo del esquema real ya existente** (`supabase db pull` como primer paso de la Fase 0, ver `03-modelo-datos.md` § 3.1), no de un esquema vacío.
+- **CI/CD**: GitHub Actions ejecuta lint + typecheck + tests en cada PR contra la rama de migración; el proyecto Vercel de desarrollo despliega automáticamente cada push a esa rama hacia la URL de desarrollo. `main` (y el proyecto Vercel de producción) no se tocan durante las Fases 0-5 — solo en el Cutover, según el mecanismo de `06-roadmap.md`.
+- **Migraciones**: gestionadas con Supabase CLI (`webapp/supabase/migrations`), versionadas en el repo, aplicadas siempre primero contra el proyecto Supabase de **desarrollo** — **partiendo de un clon del esquema real** (`supabase db pull` sobre producción como primer paso de la Fase 0, ver `03-modelo-datos.md` § 3.1). Solo se aplican contra producción como parte del Cutover, nunca antes.

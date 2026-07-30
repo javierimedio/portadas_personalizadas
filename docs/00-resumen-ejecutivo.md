@@ -49,12 +49,16 @@ Fase 5  Panel global, exportación e importación de Excel
 Cutover  Se apaga index.html
 ```
 
-Cada fase deja una aplicación completa y usable en producción — nunca hay un estado intermedio donde algo que funcionaba ayer deja de funcionar. La estrategia de convivencia entre `index.html` y el sistema nuevo durante cada fase se detalla en `06-roadmap.md`.
+Cada fase deja el módulo correspondiente validado al 100% en el **entorno de desarrollo** — nunca se expone a los usuarios reales de forma parcial. La aplicación de producción (`index.html`) permanece intacta y es lo único que usan los usuarios hasta el corte final. La estrategia completa de convivencia se detalla en `06-roadmap.md` § "Estrategia de entornos".
 
-## Preguntas abiertas antes de aprobar el diseño
+## Decisiones de entornos (resueltas)
 
-1. **Dominio/despliegue del sistema nuevo**: ¿en qué dominio o subdominio se despliega el Next.js mientras convive con `index.html`? Afecta a si la sesión de Supabase Auth se puede compartir automáticamente entre ambos (mismo dominio) o si cada fase migrada necesita su propio inicio de sesión hasta el cutover final. Ver `06-roadmap.md` § "Estrategia de convivencia".
-2. **Storage de adjuntos**: hoy las URLs del bucket `portadas-adjuntos` son públicas. Añadir RLS a las tablas no cambia esto — ¿confirmamos que el acceso a Storage se mantiene exactamente igual (público) durante toda la migración, dejando cualquier endurecimiento para `07-propuestas-futuras.md`, incluso sabiendo que es una brecha de seguridad conocida?
-3. **Ventana de convivencia por fase**: ¿cuánto tiempo debe funcionar cada módulo migrado en paralelo al `index.html` antes de retirar esa parte del sistema viejo (o se retira solo al cutover final, fase 6)?
+1. **Dos proyectos Supabase**: producción (el existente, `paqtohmxagfebeyyurlq.supabase.co`, intacto durante toda la migración) y uno nuevo de desarrollo (clon del esquema real vía `supabase db pull`, con datos sintéticos y usuarios de prueba propios — nunca credenciales ni datos reales). Todo el trabajo de las Fases 0-5, incluida la activación de RLS, se hace y se valida contra el proyecto de desarrollo. RLS **no se activa en producción hasta el corte final** — ver `06-roadmap.md` § "Cutover".
+2. **Dos proyectos Vercel sobre el mismo repositorio**: el proyecto actual sigue desplegando `index.html` desde la raíz del repo (rama `main`) hacia la **URL de producción**, sin tocarse. Un segundo proyecto Vercel despliega el código Next.js desde una carpeta nueva (`/webapp`) del mismo repositorio, en una rama dedicada a la migración, hacia la **URL de desarrollo** (dominio fijado a esa rama, estable durante todo el proyecto).
+3. **Corte final en dos pasos independientes y reversibles**: (a) aplicar las políticas RLS —ya validadas en desarrollo— al proyecto Supabase de producción mientras `index.html` sigue siendo lo que ven los usuarios, y observar sin incidencias; (b) solo después, reasignar el dominio de producción del proyecto Vercel antiguo al nuevo. Cada paso es reversible por sí solo sin tocar el otro.
 
-Cuando estas respuestas y los documentos estén aprobados, se empieza a construir por fases.
+## Preguntas abiertas restantes
+
+1. **Storage de adjuntos**: hoy las URLs del bucket `portadas-adjuntos` en producción son públicas. Esta migración no las restringe (ver `07-propuestas-futuras.md` § 6) — ¿confirmamos que se mantienen así incluso sabiendo que es una brecha de seguridad conocida, o se quiere abordar como parte del corte final aunque no sea estrictamente necesario para la migración?
+
+Cuando esta última pregunta se resuelva, se empieza a construir la Fase 0.

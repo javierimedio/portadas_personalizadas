@@ -6,9 +6,11 @@
 
 Antes de escribir la primera migración de la Fase 0:
 
-1. `supabase db pull` contra el proyecto real (`paqtohmxagfebeyyurlq.supabase.co`) para obtener el esquema efectivo exacto: tipos de columna reales, constraints existentes, y si ya hay alguna policy RLS parcial.
-2. Confirmar contra ese resultado los tipos de columna que aquí se describen como "a confirmar" (marcados explícitamente más abajo) — este documento se basa en el comportamiento observado en `index.html`, no en una inspección directa del esquema SQL.
-3. Ninguna migración de esta fase hace `DROP TABLE`, `TRUNCATE`, ni renombra/retipa columnas con datos. Las únicas migraciones previstas son: `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` y `CREATE POLICY`.
+1. `supabase db pull` contra el proyecto **de producción** (`paqtohmxagfebeyyurlq.supabase.co`) para obtener el esquema efectivo exacto: tipos de columna reales, constraints existentes, y si ya hay alguna policy RLS parcial. Esta es una operación de solo lectura, segura de ejecutar contra producción.
+2. Aplicar ese mismo esquema (DDL) a un **proyecto Supabase de desarrollo nuevo**, creado específicamente para esta migración (ver `06-roadmap.md` § "Estrategia de entornos"). Todo lo que sigue en este documento (RLS, policies) se desarrolla y verifica contra ese proyecto de desarrollo, nunca directamente contra producción.
+3. Confirmar contra el resultado de `db pull` los tipos de columna que aquí se describen como "a confirmar" (marcados explícitamente más abajo) — este documento se basa en el comportamiento observado en `index.html`, no en una inspección directa del esquema SQL.
+4. Ninguna migración de esta fase hace `DROP TABLE`, `TRUNCATE`, ni renombra/retipa columnas con datos. Las únicas migraciones previstas son: `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` y `CREATE POLICY`.
+5. Estas migraciones se aplican contra el proyecto de **producción** únicamente como parte del Cutover (`06-roadmap.md`), nunca antes — y solo tras haber sido validadas por completo contra el proyecto de desarrollo durante las Fases 0-5.
 
 ## 3.2 Diagrama entidad-relación (sin cambios respecto al actual)
 
