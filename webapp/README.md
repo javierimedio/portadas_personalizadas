@@ -4,6 +4,11 @@ Este directorio es el proyecto Next.js de la migración descrita en `../docs/`. 
 
 Antes de tocar código, lee `../docs/00-resumen-ejecutivo.md`. El principio inamovible y el protocolo de validación (`../docs/08-protocolo-validacion.md`) aplican a todo lo que se añada aquí.
 
+## Registro de entorno de desarrollo
+
+- **Proyecto Supabase de desarrollo**: `portadas-personalizadas-dev`, Reference ID `xjyftgvyzyzmccobynzt`, región West EU (Ireland). Creado en la Fase 0 (ver `../docs/06-roadmap.md`).
+- **Versión de Supabase CLI usada al preparar este entorno**: `2.111.0-beta.14`. Es una beta reciente y su comportamiento puede diferir de la documentación oficial estable — si algo de lo indicado abajo no coincide con la salida real de tu CLI, repórtalo y se ajusta la instrucción, no al revés. Diferencia ya observada: `supabase projects list` en esta versión **no muestra columna `STATUS`** (`ACTIVE_HEALTHY`/`COMING_UP`); para confirmar que un proyecto está operativo, verifica en el Dashboard o comprueba que los comandos que dependen de él (`link`, `db pull`, `db push`) se ejecutan sin error de conexión.
+
 ## Puesta en marcha (Fase 0) — pasos que requieren tu cuenta
 
 Estos pasos no se pueden automatizar desde aquí porque requieren acceso a tus cuentas de Supabase/Vercel/GitHub:
