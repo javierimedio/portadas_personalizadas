@@ -34,116 +34,150 @@ erDiagram
 
 | | Cambia en esta migración | No cambia (documentado en `07-propuestas-futuras.md` si aplica) |
 |---|---|---|
-| Permisos | Se activa RLS en PostgreSQL replicando cada `if (rol === ...)` del JS actual | Qué ve cada rol — idéntico a hoy |
-| Roles | — | `perfiles.rol` sigue siendo texto libre con los valores legacy (`comercial_nacional`, `comercial_exportacion`, etc.) |
+| Permisos | Se eliminan las políticas `allow_all` existentes en las 7 tablas y se activan políticas reales replicando cada `if (rol === ...)` del JS actual (ver § 3.4.1 — RLS ya estaba "activada" pero neutralizada) | Qué ve cada rol — idéntico a hoy |
+| Roles | — | `perfiles.rol` ya es un enum real (`rol_usuario`) en producción, con los mismos valores legacy documentados (`comercial_nacional`, `comercial_exportacion`, etc.) — no hay que crear el tipo, ya existe |
 | Campañas | — | `covers`/`covers_instrucciones` siguen siendo JSON en la propia fila de `campanas` |
 | Notificaciones | — | Sin columna `read_at`; estado de lectura sigue en `localStorage` del navegador |
 | Logs | — | Sin `REVOKE UPDATE/DELETE` (aunque técnicamente no cambiaría comportamiento visible, no es estrictamente necesario para la migración — ver `07-propuestas-futuras.md` § 6 sobre el criterio usado) |
 | Storage | — | Bucket `portadas-adjuntos` sigue con URLs públicas, sin políticas de acceso nuevas (pregunta abierta en `00-resumen-ejecutivo.md`) |
 
-## 3.4 Tablas tal como existen (a confirmar con `db pull`)
+## 3.4 Tablas tal como existen — verificado contra producción el 2026-07-31
+
+Esquema real, obtenido por consulta directa (SQL Editor, solo lectura) contra el proyecto de producción. Sustituye por completo la versión anterior de esta sección, que eran suposiciones basadas en `index.html` — varias resultaron incorrectas, ver el detalle marcado con **← real** en cada diferencia.
 
 ```sql
--- perfiles: rol es texto libre, no enum. Valores observados en index.html:
---   admin, marketing, comercial_nacional, comercial_exportacion, comercial,
---   responsable_nacional, responsable_exportacion, responsable,
+-- perfiles: "rol" ES un enum real (rol_usuario), no texto libre como se asumía.
+-- Valores confirmados (10, coinciden exactamente con los documentados en 01-analisis-funcional.md):
+--   admin, marketing, comercial, comercial_nacional, comercial_exportacion,
+--   responsable, responsable_nacional, responsable_exportacion,
 --   disenador, responsable_diseno
 create table perfiles (
-    id uuid primary key references auth.users(id), -- a confirmar: on delete cascade/set null
+    id uuid primary key references auth.users(id),
     nombre text not null,
-    email text not null,
-    codigo text not null,
-    rol text not null,
+    email text not null,              -- ← real: SIN unique a nivel de BD (se asumía única)
+    rol rol_usuario not null default 'comercial',  -- ← real: ENUM, no texto libre
+    codigo text,                       -- ← real: nullable, SIN unique (se asumía not null)
     activo boolean not null default true,
-    created_at timestamptz -- a confirmar si existe
-    -- sin columna "canal": el canal está incrustado en el valor de "rol"
+    created_at timestamptz not null default now(),
+    notif_preferencia text default 'ambas'  -- ← real: columna no documentada hasta ahora (ambas/email/herramienta/ninguna, ver NOT-11/NOT-12 de la matriz)
+    -- sin columna "canal": el canal sigue incrustado en el valor de "rol", confirmado
 );
 
 create table campanas (
-    id uuid primary key default gen_random_uuid(),
+    id uuid primary key default uuid_generate_v4(),  -- ← real: uuid_generate_v4(), no gen_random_uuid()
     nombre text not null,
     descripcion text,
-    fecha_cierre date not null,
+    fecha_cierre date,                 -- ← real: nullable (se asumía not null)
     activa boolean not null default true,
-    catalogos text[] not null default '{}', -- a confirmar tipo exacto (array vs jsonb)
-    covers jsonb not null default '{}',              -- {catalogo_key: url_pdf}
-    covers_instrucciones jsonb not null default '{}' -- {catalogo_key: url_pdf}
-    -- a confirmar: created_at/updated_at/creada_por
+    created_at timestamptz not null default now(),
+    catalogos jsonb default '["roly", "roly_wrk", "stamina"]'::jsonb,  -- ← real: JSONB, no array de texto; el default no incluye "xmas" (solo afecta a campañas nuevas sin especificar)
+    covers jsonb default '{}'::jsonb,
+    covers_instrucciones jsonb default '{}'::jsonb
+    -- confirmado: NO existen updated_at ni creada_por
 );
 
 create table solicitudes (
-    id uuid primary key default gen_random_uuid(),
-    campana_id uuid not null references campanas(id),
-    comercial_id uuid not null references perfiles(id),
-    asignado_id uuid references perfiles(id), -- diseñador asignado, null = sin autoasignar
-    canal text not null, -- 'nacional' | 'exportacion' — dato de la solicitud, independiente del texto libre del rol
-    idioma text not null,
+    id uuid primary key default uuid_generate_v4(),
+    campana_id uuid references campanas(id),      -- ← real: nullable (se asumía not null)
+    comercial_id uuid references perfiles(id),      -- ← real: nullable (se asumía not null)
+    asignado_id uuid references perfiles(id),
     cod_sap text not null,
-    nombre_empresa text not null,
+    nombre_empresa text,                             -- ← real: nullable (se asumía not null)
     provincia text,
+    estado estado_solicitud not null default 'borrador',  -- ← real: ENUM, no texto libre — ver hallazgo del valor "diseno_en_revision" más abajo
     comentarios text,
-    estado text not null default 'borrador', -- texto libre, no enum: borrador/enviada/en_revision_marketing/
-                                              -- en_diseno/modificar_diseno/diseno_en_revision_comercial/
-                                              -- confirmada/archivada
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
     enviada_at timestamptz,
-    created_at timestamptz,
-    updated_at timestamptz
-    -- a confirmar: constraint unique(campana_id, cod_sap) — verificar si ya existe o solo se valida en el cliente
+    confirmada_at timestamptz,          -- ← real: columna no documentada hasta ahora
+    idioma text,                         -- ← real: nullable (se asumía not null)
+    canal text                           -- ← real: nullable (se asumía not null)
+    -- confirmado: NO existe constraint unique(campana_id, cod_sap) a nivel de BD —
+    -- la comprobación de duplicados de SOL-11 es puramente del cliente (index.html), no de la base de datos
 );
 
 create table solicitud_catalogos (
-    id uuid primary key default gen_random_uuid(),
+    id uuid primary key default uuid_generate_v4(),
     solicitud_id uuid not null references solicitudes(id),
-    catalogo text not null, -- roly | roly_wrk | stamina | xmas
+    catalogo text not null,
     catalogo_digital boolean,
     catalogo_impreso boolean,
     portada_personalizada boolean,
-    portada_diseno_propio boolean,
-    con_precios boolean,
     portada_opcion_1 text,
     portada_opcion_2 text,
     portada_opcion_3 text,
-    posicion_logo text, -- 'A' | 'B' | 'C'
+    portada_diseno_propio boolean default false,
+    posicion_logo text,
     unidades int,
-    portada_elegida text
+    diseno_url text,        -- ← real: columna no documentada hasta ahora
+    diseno_at timestamptz,  -- ← real: columna no documentada hasta ahora
+    portada_elegida text,
+    con_precios boolean,
+    unique (solicitud_id, catalogo)  -- confirmado que existe, tal como se había documentado
 );
 
 create table adjuntos (
-    id uuid primary key default gen_random_uuid(),
+    id uuid primary key default uuid_generate_v4(),
     solicitud_id uuid not null references solicitudes(id),
-    catalogo text, -- null si es el logo general
-    tipo text not null, -- logo_general | stamina_diseno | diseno_portada | modificacion | ...
-    nombre text,
-    url text not null, -- URL pública de Storage
-    subido_por uuid references perfiles(id),
-    subido_por_nombre text
+    nombre text not null,
+    tipo text not null,
+    url text not null,
+    subido_por uuid references perfiles(id),  -- ← real: nullable (se asumía not null)
+    subido_por_nombre text,                    -- ← real: columna no documentada hasta ahora (snapshot del nombre)
+    created_at timestamptz not null default now(),
+    catalogo text
 );
 
 create table logs (
-    id uuid primary key default gen_random_uuid(),
-    solicitud_id uuid not null references solicitudes(id),
+    id uuid primary key default uuid_generate_v4(),
+    solicitud_id uuid references solicitudes(id),  -- ← real: nullable (se asumía not null)
     usuario_id uuid references perfiles(id),
     usuario_nombre text,
-    accion text not null, -- creacion | edicion | adjunto | asignacion | comentario | cambio_estado
+    accion text not null,
     detalle jsonb,
-    created_at timestamptz
+    created_at timestamptz not null default now()
 );
 
 create table notificaciones (
-    id uuid primary key default gen_random_uuid(),
-    solicitud_id uuid not null references solicitudes(id),
-    destinatario text not null, -- email, no uuid — a confirmar si conviene un FK o se mantiene como email suelto
+    id uuid primary key default uuid_generate_v4(),
+    solicitud_id uuid references solicitudes(id),  -- ← real: nullable (se asumía not null)
+    destinatario text not null,
     asunto text not null,
     cuerpo text not null,
     enviado boolean not null default false,
-    created_at timestamptz
-    -- sin read_at: el estado de lectura vive en localStorage del navegador (portadas_notifs_read)
+    enviado_at timestamptz,   -- ← real: columna no documentada hasta ahora
+    created_at timestamptz not null default now()
+    -- confirmado: sin read_at, el estado de lectura sigue en localStorage
 );
 ```
 
-Nota sobre `notificaciones.destinatario`: hoy es un email en texto libre, no una FK a `perfiles`. Esto se mantiene así — cambiarlo a `destinatario_id uuid references perfiles(id)` sería más correcto relacionalmente, pero no es necesario para que RLS funcione (se puede filtrar por `destinatario = (select email from perfiles where id = auth.uid())`) y por tanto no es "estrictamente necesario"; queda en `07-propuestas-futuras.md` si en algún momento se decide limpiar.
+Nota sobre `notificaciones.destinatario`: confirmado, sigue siendo un email en texto libre, no una FK a `perfiles`. Se mantiene así por lo mismo que ya se explicaba aquí: no es necesario para que RLS funcione, queda en `07-propuestas-futuras.md` si se decide limpiar.
+
+### 3.4.1 Hallazgo crítico: RLS ya existe en producción — pero neutralizada
+
+La premisa de partida de este documento ("hoy no hay RLS en producción, todo lo hace el JS") **era incorrecta en la forma técnica, aunque correcta en el efecto práctico**. La consulta real muestra:
+
+- Las 7 tablas tienen `RLS habilitada` (`rowsecurity = true`).
+- Cada una de las 7 tiene una política llamada `allow_all`: `USING (true)`, `WITH CHECK (true)`, aplicable a todos los comandos (`ALL`).
+- `solicitudes` tiene además una segunda política, `comercial_solo_sus_solicitudes`, con una condición real y razonable (`rol <> 'comercial' OR comercial_id = auth.uid()`).
+
+En PostgreSQL, las políticas permisivas (el tipo por defecto, y no hay ninguna marcada como `RESTRICTIVE` aquí) se combinan con **OR**. Como `allow_all` es literalmente `true`, el resultado de `true OR <cualquier otra condición>` es siempre `true` — **`comercial_solo_sus_solicitudes` no está teniendo ningún efecto real**, y las 7 tablas están, en la práctica, completamente abiertas a nivel de base de datos, igual que si RLS no existiera. Esto confirma (por una vía distinta a la que asumíamos) que la única protección real hoy es la de `index.html` en el cliente.
+
+Hipótesis razonable, no confirmada: alguien empezó a implementar RLS de verdad (`comercial_solo_sus_solicitudes`), esa política por sí sola rompía el acceso de admin/marketing/diseño/responsables (no los menciona), y se añadió `allow_all` como parche para no bloquear la aplicación, sin volver a completar el diseño.
+
+**Consecuencia para el Paso 4 y para `03-modelo-datos.md` § 3.5**: nuestra migración de RLS no puede limitarse a añadir políticas nuevas — tiene que **eliminar explícitamente las políticas `allow_all`** de las 7 tablas, o las políticas restrictivas que preparamos quedarán igual de neutralizadas. Pendiente de decidir qué hacer con `comercial_solo_sus_solicitudes`: sustituirla por nuestra `solicitudes_select`/`solicitudes_update` (que cubre los mismos casos y además el resto de roles), o conservarla y completarla. La sección § 3.5 se actualiza en el siguiente paso, una vez resuelto el hallazgo de la siguiente sección.
+
+### 3.4.2 Hallazgo a verificar: un valor de estado no documentado
+
+El enum `estado_solicitud` tiene **9 valores**, no 8:
+
+`borrador`, `enviada`, `en_revision_marketing`, `en_diseno`, **`diseno_en_revision`**, `modificar_diseno`, `confirmada`, `diseno_en_revision_comercial`, `archivada`.
+
+`diseno_en_revision` (sin el sufijo `_comercial`) no aparece en ninguno de los análisis previos de `index.html` (`01-analisis-funcional.md`, `05-flujo-navegacion.md`, `09-matriz-paridad-funcional.md` EST-01) — toda la máquina de estados documentada usa `diseno_en_revision_comercial`. Por el principio de "no replicar bugs a ciegas" (`00-resumen-ejecutivo.md`), no se puede asumir ni que es un valor vivo que falta documentar, ni que es un resto histórico sin uso — hace falta comprobarlo antes de decidir cómo tratarlo en las políticas RLS del disenador (que filtran explícitamente por lista de estados). Ver la consulta de verificación al final de esta sección.
 
 ## 3.5 RLS objetivo — contra el esquema exactamente como es
+
+> **Pendiente de actualizar.** Esta sección todavía no incorpora los dos hallazgos de § 3.4.1 y § 3.4.2: (a) hay que añadir `DROP POLICY allow_all` en las 7 tablas antes de crear las políticas de abajo, y (b) la lista de estados visibles para `disenador`/`responsable_diseno` puede necesitar incluir `diseno_en_revision` si resulta ser un estado en uso real — pendiente de la consulta de verificación de § 3.4.2. No aplicar este SQL a ningún proyecto hasta resolver ambos puntos.
 
 ```sql
 create or replace function rol_actual()
