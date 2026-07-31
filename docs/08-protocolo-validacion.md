@@ -43,6 +43,11 @@ Cualquier discrepancia observada entre ambos entornos, aunque no afecte a la fun
 Subconjunto de las diferencias anteriores que sí implican pérdida de funcionalidad respecto a `index.html` — ver definición en § 8.4. Si hay alguna, esta fase **no puede aprobarse** hasta corregirla.
 - <regresión> — Estado: corregida / pendiente de corregir
 
+## Comportamientos dudosos de index.html detectados (posibles bugs heredados)
+Distinto de una regresión: aquí no es que el sistema nuevo se comporte peor, es que el comportamiento de `index.html` en sí mismo parece incorrecto. Ver § 8.7. Ninguno de estos se implementa en el sistema nuevo sin una decisión explícita registrada.
+- <ID de la matriz> — Comportamiento actual: <...> — Por qué se sospecha bug: <...> — Decisión: pendiente / replicar tal cual / corregir / posponer a 07-propuestas-futuras.md
+- (si no hay ninguno nuevo en esta fase, indicar "Ninguno nuevo — los ya registrados en 09-matriz-paridad-funcional.md siguen con su decisión vigente")
+
 ## Resultado de las pruebas
 - Tests unitarios: <X/Y pasan>
 - Tests de integración (RLS incluida): <X/Y pasan>
@@ -62,6 +67,19 @@ Aprobado por: <nombre> — Fecha: <AAAA-MM-DD>
 - **Diferencia**: cualquier discrepancia observada entre `index.html` y el sistema nuevo para el mismo escenario, sea o no relevante para el usuario. Se documenta siempre, incluso si es cosmética.
 - **Regresión**: una diferencia que supone que algo deja de funcionar, funciona distinto de forma perceptible por el usuario, o deja de estar disponible para un rol que antes lo tenía. Por el principio inamovible (`00-resumen-ejecutivo.md`), **ninguna regresión es aceptable** — no hay una categoría de "regresión menor tolerable". Si aparece una, bloquea el veredicto de la fase.
 - Una diferencia que no es regresión (p. ej. una animación de carga distinta, un identificador interno de componente) no bloquea el veredicto, pero se documenta igualmente para que no se pierda el rastro de qué cambió y por qué.
+- **Comportamiento dudoso / posible bug heredado**: una categoría distinta de las dos anteriores — no compara `index.html` contra el sistema nuevo, cuestiona si el propio comportamiento de `index.html` es el que se debería migrar. Ver § 8.7.
+
+## 8.7 Comportamientos dudosos de `index.html` (posibles bugs heredados)
+
+"Paridad funcional al 100%" no equivale a "replicar cualquier cosa sin cuestionarla". Cuando durante la implementación de una fase aparece un comportamiento de `index.html` que parece incorrecto, incompleto o no intencionado (el ejemplo ya detectado: la importación de usuarios llamando a un endpoint que exige `service_role` con la clave pública, `09-matriz-paridad-funcional.md` USR-15), el procedimiento es siempre:
+
+1. **Documentar el comportamiento actual tal cual es**, con referencia a la línea de `index.html` — sin interpretarlo todavía.
+2. **Explicar por qué se sospecha que es un bug**: qué evidencia concreta lo sugiere (un endpoint que requiere permisos que el código no tiene, una condición que nunca se cumple, un cálculo que usa la variable equivocada, una inconsistencia entre dos partes del propio código que hacen lo mismo de forma distinta) — no basta con "esto me parece raro".
+3. **Pedir una decisión explícita antes de escribir ningún código** que dependa de la respuesta. Nunca corregirlo por iniciativa propia, y nunca migrarlo asumiendo en silencio que es correcto — ambas son decisiones, y las decisiones sobre alcance las tomas tú.
+
+Las opciones de decisión son siempre tres: **replicar tal cual** (incluido el defecto, porque el principio de paridad así lo exige salvo que se diga lo contrario), **corregir explícitamente** (se documenta como una excepción consciente al principio inamovible, con su motivo), o **posponer** (se traslada a `07-propuestas-futuras.md` y mientras tanto se replica tal cual). No hay una cuarta opción de "decidir no decidir": una fase no se cierra con un hallazgo de este tipo sin decisión registrada en su checklist.
+
+Todo hallazgo nuevo se añade a `09-matriz-paridad-funcional.md` § "Hallazgos a verificar" en cuanto se detecta, no se espera al cierre de la fase para documentarlo.
 
 ## 8.5 Aprobación
 

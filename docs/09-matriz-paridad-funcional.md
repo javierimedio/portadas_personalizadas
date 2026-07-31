@@ -336,15 +336,44 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 ---
 
-## Hallazgos a verificar antes de dar por buena la paridad (no son parte del roadmap, son avisos)
+## Hallazgos a verificar — posibles bugs heredados (protocolo en `08-protocolo-validacion.md` § 8.7)
 
-Estos puntos no son funcionalidades a migrar sino **comportamientos actuales de dudosa corrección** que esta matriz señala para que la decisión de "replicar tal cual" o "corregir explícitamente" se tome con conocimiento, nunca por omisión:
+Registro vivo de comportamientos de `index.html` que parecen incorrectos, incompletos o no intencionados. Ninguno se implementa en el sistema nuevo (ni "tal cual" ni "corregido") sin que la fila tenga una **Decisión** distinta de "Pendiente". Se amplía según aparezcan nuevos durante la implementación de cualquier fase, no solo durante el diseño.
 
-1. **USR-15**: la importación masiva de usuarios podría no estar funcionando hoy en producción (endpoint de administración llamado con la clave equivocada). Verificar antes de invertir tiempo en migrarla "funcionando".
-2. **PAN-11**: la hoja "Resumen" del Excel exportado no está filtrada por campaña, a diferencia de la hoja principal.
-3. **NOT-12**: la preferencia de notificación del usuario no filtra ningún envío real — es un control que hoy no hace nada.
-4. **NAV-13**: Escape no cierra los modales creados dinámicamente (canal, diseñador, carga masiva).
-5. **AUT-14**: un fallo en `initApp` tras el login no muestra ningún error visible al usuario.
-6. **USR-13**: los roles aceptados en la importación masiva no cubren todos los roles reales del sistema.
+### H-01 (USR-15) — Importación masiva de usuarios podría no funcionar hoy
 
-Cada uno de estos puntos debe resolverse explícitamente (con tu decisión) antes del checklist de la fase correspondiente — "no decidir" equivale a replicarlo tal cual, por el principio inamovible.
+- **Comportamiento actual**: `confirmImport` (~5732) llama a `POST {SUPA_URL}/auth/v1/admin/users` usando como `Authorization` el `access_token` de la sesión del usuario, o la clave pública (`SUPA_KEY`) como fallback si no hay sesión.
+- **Por qué se sospecha bug**: `/auth/v1/admin/users` es un endpoint administrativo de Supabase que normalmente exige la `service_role` key; ni el JWT de un usuario normal ni la clave `anon`/pública deberían tener permiso para usarlo. Si es así, cada llamada debería fallar con 401/403, y la función nunca habría creado usuarios correctamente en producción.
+- **Decisión**: Pendiente — requiere verificación directa en producción (probar la importación con un archivo de prueba y observar si realmente crea usuarios) antes de decidir si se migra "funcionando" o se migra "tal cual, fallando".
+
+### H-02 (PAN-11) — Hoja "Resumen" del Excel no está filtrada por campaña
+
+- **Comportamiento actual**: en `exportExcel` (~3989-3999), las métricas de la hoja "Resumen" (total, completas, incompletas, confirmadas) se calculan sobre `allSolicitudes` (todas las campañas), mientras que la hoja principal "Portadas" usa `exportSols`, ya filtrado por la campaña seleccionada en el export.
+- **Por qué se sospecha bug**: son dos fuentes de datos distintas dentro del mismo archivo exportado para la misma acción del usuario ("exportar esta campaña") — lo esperable es que ambas hojas describan el mismo conjunto de datos.
+- **Decisión**: Pendiente.
+
+### H-03 (NOT-12) — La preferencia de notificación no filtra ningún envío
+
+- **Comportamiento actual**: `notif_preferencia` (ambas/email/herramienta/ninguna) se guarda por usuario y se muestra en la UI, pero `enviarNotificacion` inserta la notificación igual para todos los destinatarios sin consultar esa preferencia.
+- **Por qué se sospecha bug**: existe un control de UI completo (selector, guardado, sincronización entre dos pantallas) para una preferencia que no tiene ningún efecto observable — sugiere una funcionalidad a medio implementar, no una decisión de diseño deliberada.
+- **Decisión**: Pendiente.
+
+### H-04 (NAV-13) — Escape no cierra los modales creados dinámicamente
+
+- **Comportamiento actual**: el listener de Escape (~4020-4028) solo conoce una lista fija de IDs de modal predefinidos en el HTML; los modales creados por JS en tiempo de ejecución (asignar canal, asignar diseñador, carga masiva) no están en esa lista y Escape no los cierra.
+- **Por qué se sospecha bug**: es más probable que sea un descuido al añadir esos modales dinámicos después de escribir el listener, que una decisión deliberada de que esos tres modales concretos se comporten distinto al resto.
+- **Decisión**: Pendiente.
+
+### H-05 (AUT-14) — Fallo silencioso de `initApp` tras el login
+
+- **Comportamiento actual**: si `initApp()` lanza una excepción tras un login correcto, el código solo oculta el loader y hace `console.error`, sin mostrar ningún mensaje al usuario — la app podría quedarse en un estado inconsistente sin que la persona sepa por qué.
+- **Por qué se sospecha bug**: cualquier otro error de la app (login, guardado, subida de archivo) sí muestra un toast o alerta; que este en concreto no lo haga rompe el patrón del resto del código.
+- **Decisión**: Pendiente.
+
+### H-06 (USR-13) — Roles aceptados en la importación no cubren todos los roles reales
+
+- **Comportamiento actual**: `processImportFile` (~5695) solo acepta `comercial, marketing, disenador, admin` como roles válidos; no incluye `comercial_nacional`, `comercial_exportacion`, `responsable_nacional`, `responsable_exportacion` ni `responsable_diseno`, que sí existen y se usan en el resto de la aplicación.
+- **Por qué se sospecha bug**: parece una lista de roles desactualizada (probablemente escrita antes de que se introdujeran las variantes de canal), no una restricción intencionada de qué roles se pueden crear por Excel.
+- **Decisión**: Pendiente.
+
+Ninguna fase que module estas funcionalidades (Fase 4 para H-01/H-06, Fase 5 para H-02, Fase 2 para H-03, Fase 1 para H-04/H-05) cierra su checklist mientras su hallazgo correspondiente siga con Decisión "Pendiente".

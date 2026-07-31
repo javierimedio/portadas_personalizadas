@@ -13,6 +13,16 @@ Cualquier oportunidad de mejora funcional o de UX detectada durante el diseño o
 
 Corolario operativo: **ninguna fase del roadmap empieza sin que la anterior tenga paridad funcional validada y aprobada explícitamente**, mediante el checklist descrito en `08-protocolo-validacion.md`. No es una fase de QA opcional al final — es la condición para avanzar.
 
+## Principio complementario: no replicar bugs a ciegas
+
+"Paridad funcional al 100%" no significa "copiar cualquier comportamiento sin cuestionarlo". Si durante la implementación se detecta que algo de `index.html` parece incorrecto, incompleto o potencialmente defectuoso (como la importación de usuarios de `09-matriz-paridad-funcional.md`, que podría no funcionar hoy en producción), el procedimiento es siempre el mismo, sin excepción:
+
+1. **Documentar el comportamiento actual** tal como es, con referencia a la línea de `index.html`.
+2. **Explicar por qué se sospecha que es un bug** o un comportamiento no intencionado, no solo "esto se ve raro".
+3. **Pedir una decisión explícita antes de implementar nada** — nunca corregirlo por iniciativa propia, y nunca migrarlo asumiendo silenciosamente que es correcto.
+
+El registro vivo de estos casos está en `09-matriz-paridad-funcional.md` § "Hallazgos a verificar" (que se amplía según aparezcan nuevos durante la implementación) y el procedimiento formal en `08-protocolo-validacion.md` § 8.7. Ninguna fase se da por completa mientras tenga un hallazgo de este tipo sin una decisión registrada — ni "sin decidir" ni "decidido por defecto a favor de replicarlo" son válidos; hace falta una respuesta explícita.
+
 ## Índice de documentos
 
 | # | Documento | Contenido |
