@@ -163,9 +163,34 @@ La premisa de partida de este documento ("hoy no hay RLS en producción, todo lo
 
 En PostgreSQL, las políticas permisivas (el tipo por defecto, y no hay ninguna marcada como `RESTRICTIVE` aquí) se combinan con **OR**. Como `allow_all` es literalmente `true`, el resultado de `true OR <cualquier otra condición>` es siempre `true` — **`comercial_solo_sus_solicitudes` no está teniendo ningún efecto real**, y las 7 tablas están, en la práctica, completamente abiertas a nivel de base de datos, igual que si RLS no existiera. Confirmado además que las políticas aplican al rol `public` (verificado por consulta adicional a `pg_policies.roles`) — es decir, esta apertura no se limita a usuarios autenticados: una petición con solo la clave anónima, sin ningún login, podría leer/escribir las 7 tablas igual. Esto confirma (por una vía distinta a la que asumíamos) que la única protección real hoy es la de `index.html` en el cliente.
 
-Hipótesis razonable, no confirmada: alguien empezó a implementar RLS de verdad (`comercial_solo_sus_solicitudes`), esa política por sí sola rompía el acceso de admin/marketing/diseño/responsables (no los menciona), y se añadió `allow_all` como parche para no bloquear la aplicación, sin volver a completar el diseño.
+**Consecuencia para `03-modelo-datos.md` § 3.5**: nuestra migración de RLS no puede limitarse a añadir políticas nuevas — tiene que **eliminar explícitamente las políticas `allow_all`** de las 7 tablas.
 
-**Consecuencia para `03-modelo-datos.md` § 3.5**: nuestra migración de RLS no puede limitarse a añadir políticas nuevas — tiene que **eliminar explícitamente las políticas `allow_all`** de las 7 tablas. Decisión tomada sobre `comercial_solo_sus_solicitudes`: se sustituye por `solicitudes_select`/`solicitudes_update` (§ 3.5), que cubre el mismo caso y además el resto de roles — mantener las dos sería redundante y una fuente de confusión futura sobre cuál es la política "de verdad".
+#### Comparación explícita: `comercial_solo_sus_solicitudes` (original) vs `solicitudes_select`/`solicitudes_update` (sustituta)
+
+Se documenta este reemplazo con detalle, para que quede clara la decisión ante una futura auditoría — no es una sustitución "porque sí", hay una razón funcional concreta.
+
+**Qué hacía la política original**, aislada (es decir, si `allow_all` no existiera):
+```sql
+using (((select rol from perfiles where id = auth.uid()) <> 'comercial'::rol_usuario) or (comercial_id = auth.uid()))
+```
+Es una política `FOR ALL` sin `WITH CHECK` propio (reutiliza el `USING` también para insert/update). Su lógica: *"si tu rol no es exactamente el valor de enum `comercial`, tienes acceso total; si lo es, solo a tus propias solicitudes."*
+
+Aplicada rol por rol, sin `allow_all` al lado:
+
+| Rol | Efecto de la política original, aislada | ¿Coincide con el comportamiento real de `index.html`? |
+|---|---|---|
+| `admin`, `marketing` | Acceso total | Sí |
+| `comercial` (legado genérico) | Solo sus propias solicitudes | Sí |
+| `responsable` (legado genérico) | Acceso total | Sin verificar (mismo TODO ya conocido, no cambia con este análisis) |
+| `comercial_nacional`, `comercial_exportacion` | **Acceso total a las solicitudes de cualquier comercial** — ninguno de estos dos valores es literalmente igual a `'comercial'`, así que la condición los trata como "no comercial" | **No** — `index.html` sí les filtra "mis solicitudes" a `comercial_id = usuario actual`, igual que al legado `comercial` |
+| `responsable_nacional`, `responsable_exportacion` | Acceso total a todos los canales, sin distinguir el propio | **No** — `index.html` los limita a los comerciales de su canal |
+| `disenador`, `responsable_diseno` | Acceso total a solicitudes en cualquier estado | **No** — `index.html` solo muestra en la cola de diseño los estados `en_diseno`/`modificar_diseno`/`diseno_en_revision_comercial`/`confirmada` |
+
+**Qué hace la política nueva**: reproduce, rol por rol, el mismo filtro que aplica hoy `index.html` (`renderComercialTable`, `renderDisenoTable`, el filtro de canal de `responsable_*`) — incluyendo a `comercial_nacional`/`comercial_exportacion`, que la original no distinguía del resto de roles.
+
+**¿Se pierde algo?** No. Como ambas políticas están hoy neutralizadas por `allow_all` (esta misma sección), ningún usuario real ha experimentado nunca la restricción de la política original — lo único que decide el comportamiento hoy es el JS del cliente. La comparación que importa no es "original vs nueva", es "cada una vs el comportamiento real ya documentado en `01-analisis-funcional.md`/`09-matriz-paridad-funcional.md`": la nueva coincide con ese comportamiento para los 10 roles; la original, aislada, solo coincidía para 3 (`admin`, `marketing`, `comercial` legado) y habría sido **más permisiva de lo debido** para los otros 7 si alguna vez hubiera sido la única barrera activa. Sustituirla no quita ninguna restricción real existente — la sustituye por la única que coincide con la autoridad de comportamiento que de verdad existe en producción hoy: el JS del cliente.
+
+**Corrección a la hipótesis inicial de esta sección**: la primera versión de este análisis especulaba que `comercial_solo_sus_solicitudes` "rompía el acceso de admin/marketing/diseño/responsables" y que `allow_all` se añadió como parche por eso. La tabla de arriba muestra que es al revés: esa política, aislada, no restringe a esos roles — les da acceso total. La hipótesis más plausible ahora es que se escribió cuando solo existía el rol genérico `comercial` (antes de introducirse las variantes `_nacional`/`_exportacion` documentadas en `01-analisis-funcional.md` § 1.3), y nunca se actualizó al añadirse esas variantes ni los roles de diseño — quedó desatendida por falta de mantenimiento, no por un conflicto activo que alguien tuviera que parchear. Se corrige aquí en vez de dejar la hipótesis original sin marcar, precisamente para que el historial del proyecto refleje el razonamiento correcto, no el primero que se nos ocurrió.
 
 ### 3.4.2 Resuelto: `diseno_en_revision` es un valor de enum sin uso
 
