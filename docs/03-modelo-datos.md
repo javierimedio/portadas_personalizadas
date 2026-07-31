@@ -264,31 +264,71 @@ using (
     or (rol_actual() = 'responsable_exportacion' and canal = 'exportacion')
     or (rol_actual() in ('disenador', 'responsable_diseno') and estado in ('en_diseno', 'modificar_diseno'))
 );
+
+create policy solicitudes_delete on solicitudes for delete
+using (
+    rol_actual() in ('admin', 'marketing') -- admin/marketing: cualquier estado (eliminarSolicitud con rol=admin, y eliminarCampana que borra en cascada sin filtrar por estado — solo accesible desde la página de Campañas, admin/marketing)
+    or (
+        estado = 'borrador' -- el resto de roles solo puede borrar mientras esté en borrador (botón "Eliminar" de renderDetalle, línea 3365-3367), y solo si además pueden ver la fila
+        and (
+            comercial_id = auth.uid()
+            or (rol_actual() = 'responsable_nacional' and canal = 'nacional')
+            or (rol_actual() = 'responsable_exportacion' and canal = 'exportacion')
+            or rol_actual() = 'responsable'
+        )
+    )
+);
 ```
 
 > **Nota de verificación obligatoria pendiente**: la condición para el rol legacy `responsable` (sin canal explícito) no se pudo determinar con certeza solo leyendo `index.html` — antes de activar esta policy en producción, verificar contra el código actual (o contra un usuario de prueba con ese rol) si ve todas las solicitudes, ninguna, o si ese valor de rol ya no está en uso.
 
-**`solicitud_catalogos`, `adjuntos` y `logs`** heredan la visibilidad de su `solicitud_id` — mismo `DROP` del `allow_all` de cada una y una policy que delega en la de `solicitudes`:
+**`solicitud_catalogos`, `adjuntos` y `logs`** heredan la visibilidad de su `solicitud_id`. **Corrección importante respecto a una versión anterior de esta sección**: `solicitud_catalogos` no puede tener una única política `FOR ALL` con la condición de `select` — eso permitiría borrar sus filas con solo poder *ver* la solicitud padre, sin exigir `borrador`/admin/marketing, replicando el mismo error de diseño que ya corregimos en `allow_all` (una política demasiado permisiva neutralizando la restricción real). Se separa en 4 políticas, una por comando:
 
 ```sql
 drop policy if exists allow_all on solicitud_catalogos;
-create policy solicitud_catalogos_all on solicitud_catalogos for all
+
+create policy solicitud_catalogos_select on solicitud_catalogos for select
 using (exists (select 1 from solicitudes s where s.id = solicitud_catalogos.solicitud_id));
+
+create policy solicitud_catalogos_insert on solicitud_catalogos for insert
+with check (exists (select 1 from solicitudes s where s.id = solicitud_catalogos.solicitud_id));
+
+create policy solicitud_catalogos_update on solicitud_catalogos for update
+using (exists (select 1 from solicitudes s where s.id = solicitud_catalogos.solicitud_id));
+
+create policy solicitud_catalogos_delete on solicitud_catalogos for delete
+using (exists (
+    select 1 from solicitudes s
+    where s.id = solicitud_catalogos.solicitud_id
+      and (s.estado = 'borrador' or rol_actual() in ('admin', 'marketing'))
+));
 
 drop policy if exists allow_all on adjuntos;
 create policy adjuntos_select on adjuntos for select
 using (exists (select 1 from solicitudes s where s.id = adjuntos.solicitud_id));
 create policy adjuntos_insert on adjuntos for insert
 with check (exists (select 1 from solicitudes s where s.id = adjuntos.solicitud_id));
+create policy adjuntos_delete on adjuntos for delete
+using (exists (
+    select 1 from solicitudes s
+    where s.id = adjuntos.solicitud_id
+      and (s.estado = 'borrador' or rol_actual() in ('admin', 'marketing'))
+));
 
 drop policy if exists allow_all on logs;
 create policy logs_select on logs for select
 using (exists (select 1 from solicitudes s where s.id = logs.solicitud_id));
 create policy logs_insert on logs for insert
 with check (exists (select 1 from solicitudes s where s.id = logs.solicitud_id));
+create policy logs_delete on logs for delete
+using (exists (
+    select 1 from solicitudes s
+    where s.id = logs.solicitud_id
+      and (s.estado = 'borrador' or rol_actual() in ('admin', 'marketing'))
+));
 ```
 
-**Notificaciones** — filtradas por email, igual que hoy:
+**Notificaciones** — filtradas por email, igual que hoy; el `DELETE` se necesita porque `eliminarSolicitud`/`eliminarCampana` también borran las notificaciones de la solicitud:
 
 ```sql
 drop policy if exists allow_all on notificaciones;
@@ -299,9 +339,16 @@ using (destinatario = email_actual());
 create policy notificaciones_update on notificaciones for update
 using (destinatario = email_actual())
 with check (destinatario = email_actual());
+
+create policy notificaciones_delete on notificaciones for delete
+using (exists (
+    select 1 from solicitudes s
+    where s.id = notificaciones.solicitud_id
+      and (s.estado = 'borrador' or rol_actual() in ('admin', 'marketing'))
+));
 ```
 
-**Perfiles** — lectura abierta a cualquier autenticado (se necesita para asignar comerciales/diseñadores, menciones, etc., igual que hoy); escritura solo `admin`/`marketing` o el propio usuario sobre su fila:
+**Perfiles** — lectura abierta a cualquier autenticado (se necesita para asignar comerciales/diseñadores, menciones, etc., igual que hoy); escritura solo `admin`/`marketing` o el propio usuario sobre su fila. **Sin política de `DELETE`, a propósito**: confirmado por lectura de `index.html` que nunca se borra un usuario — `toggleUser` solo cambia `activo`, nunca hay un `.from('perfiles').delete()` en todo el archivo:
 
 ```sql
 drop policy if exists allow_all on perfiles;
@@ -313,7 +360,7 @@ using (rol_actual() in ('admin', 'marketing') or id = auth.uid())
 with check (rol_actual() in ('admin', 'marketing') or id = auth.uid());
 ```
 
-**Campañas**: lectura abierta a cualquier autenticado (igual que hoy, todos necesitan ver campañas activas); escritura solo `admin`/`marketing`:
+**Campañas**: lectura abierta a cualquier autenticado (igual que hoy, todos necesitan ver campañas activas); escritura solo `admin`/`marketing` — `eliminarCampana` (línea 5076) solo es alcanzable desde la página de Campañas, que ya está restringida a estos dos roles:
 
 ```sql
 drop policy if exists allow_all on campanas;
@@ -321,6 +368,7 @@ drop policy if exists allow_all on campanas;
 create policy campanas_select on campanas for select using (true);
 create policy campanas_insert on campanas for insert with check (rol_actual() in ('admin', 'marketing'));
 create policy campanas_update on campanas for update using (rol_actual() in ('admin', 'marketing'));
+create policy campanas_delete on campanas for delete using (rol_actual() in ('admin', 'marketing'));
 ```
 
 ## 3.6 Storage
