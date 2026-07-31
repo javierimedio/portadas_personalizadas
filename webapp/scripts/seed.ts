@@ -1,11 +1,15 @@
-// Siembra datos sintéticos en el proyecto Supabase de DESARROLLO (Fase 0,
-// docs/06-roadmap.md). NUNCA ejecutar contra producción — este script usa la
-// service_role key para saltarse RLS al insertar los datos de partida.
+// Referencia/automatización futura (p. ej. fixtures de tests end-to-end en
+// CI) — NO es el flujo manual de la Fase 0. Desde el acuerdo de "Dashboard
+// primero" (docs/00-resumen-ejecutivo.md § "Principio de trabajo"), los
+// usuarios y la campaña de prueba se crean manualmente desde el Dashboard
+// (ver webapp/README.md), no ejecutando este script en tu máquina.
+//
+// Si en el futuro hace falta ejecutarlo (por ejemplo, desde un runner de
+// CI para regenerar fixtures automáticamente), sigue aplicando lo mismo:
+// NUNCA contra producción — usa la service_role key para saltarse RLS al
+// insertar los datos de partida.
 //
 // Uso: SUPABASE_SERVICE_ROLE_KEY=... NEXT_PUBLIC_SUPABASE_URL=... npx tsx scripts/seed.ts
-//
-// Antes de ejecutar, confirmar que NEXT_PUBLIC_SUPABASE_URL apunta al
-// proyecto de DESARROLLO (nunca a paqtohmxagfebeyyurlq.supabase.co).
 
 import { createClient } from "@supabase/supabase-js";
 

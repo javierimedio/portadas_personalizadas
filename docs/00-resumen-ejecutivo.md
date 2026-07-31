@@ -23,6 +23,16 @@ Corolario operativo: **ninguna fase del roadmap empieza sin que la anterior teng
 
 El registro vivo de estos casos está en `09-matriz-paridad-funcional.md` § "Hallazgos a verificar" (que se amplía según aparezcan nuevos durante la implementación) y el procedimiento formal en `08-protocolo-validacion.md` § 8.7. Ninguna fase se da por completa mientras tenga un hallazgo de este tipo sin una decisión registrada — ni "sin decidir" ni "decidido por defecto a favor de replicarlo" son válidos; hace falta una respuesta explícita.
 
+## Principio de trabajo: navegador primero, terminal solo si es imprescindible
+
+Toda tarea que requiera acceso a un servicio externo (GitHub, Supabase, Vercel) la ejecuta siempre el usuario, nunca Claude directamente (ver acuerdo de la Fase 0). Dentro de eso, el criterio para decidir cómo se le pide es:
+
+1. **Por defecto, GitHub (web), Supabase Dashboard y Vercel Dashboard** — incluido el SQL Editor de Supabase para leer o aplicar esquema, que cuenta como "Dashboard" a estos efectos (es solo lectura/escritura de SQL desde el navegador, sin instalar nada).
+2. **Terminal o herramientas locales (CLI, `pg_dump`, clientes de Postgres, etc.) solo cuando no exista una alternativa razonable desde el navegador** — y en ese caso, antes de pedirlo se explica por qué ese caso concreto lo requiere y qué se pierde si no se usa.
+3. Si en algún punto la vía elegida se complica más de lo que el resultado justifica, se plantea al usuario y se reevalúa la estrategia antes de seguir adelante — no se persiste en un camino complejo por inercia.
+
+Esto no aplica al propio desarrollo del código de Next.js: cuando Claude escribe, instala dependencias o ejecuta `npm run build`/`test` en sus propias sesiones de trabajo sobre el repositorio, sigue usando herramientas locales con normalidad — el principio es sobre qué se le pide hacer al usuario en su máquina, no sobre cómo Claude trabaja el código.
+
 ## Índice de documentos
 
 | # | Documento | Contenido |
@@ -43,7 +53,7 @@ Esto **no es un rediseño de producto**, ni siquiera un "rediseño técnico opor
 
 ## Punto de partida — esto no es greenfield
 
-Ya existe un proyecto Supabase en producción (`paqtohmxagfebeyyurlq.supabase.co`) con datos reales: `perfiles`, `solicitudes`, `solicitud_catalogos`, `campanas`, `logs`, `notificaciones`, `adjuntos`, y la Edge Function `create-user`. La Fase 0 del roadmap empieza auditando ese esquema real (`supabase db pull`) y las migraciones son incrementales sobre él. Ver `03-modelo-datos.md` § 3.1.
+Ya existe un proyecto Supabase en producción (`paqtohmxagfebeyyurlq.supabase.co`) con datos reales: `perfiles`, `solicitudes`, `solicitud_catalogos`, `campanas`, `logs`, `notificaciones`, `adjuntos`, y la Edge Function `create-user`. La Fase 0 del roadmap empieza auditando ese esquema real desde el SQL Editor del Dashboard (consultas de solo lectura, sin CLI) y las migraciones son incrementales sobre él. Ver `03-modelo-datos.md` § 3.1.
 
 ## Migración por módulos (resumen — detalle completo en `06-roadmap.md`)
 
@@ -69,7 +79,7 @@ Cada fase deja el módulo correspondiente validado al 100% en el **entorno de de
 
 ## Decisiones de entornos (resueltas)
 
-1. **Dos proyectos Supabase**: producción (el existente, `paqtohmxagfebeyyurlq.supabase.co`, intacto durante toda la migración) y uno nuevo de desarrollo (clon del esquema real vía `supabase db pull`, con datos sintéticos y usuarios de prueba propios — nunca credenciales ni datos reales). Todo el trabajo de las Fases 0-5, incluida la activación de RLS, se hace y se valida contra el proyecto de desarrollo. RLS **no se activa en producción hasta el corte final** — ver `06-roadmap.md` § "Cutover".
+1. **Dos proyectos Supabase**: producción (el existente, `paqtohmxagfebeyyurlq.supabase.co`, intacto durante toda la migración) y uno nuevo de desarrollo (`portadas-personalizadas-dev`, Reference ID `xjyftgvyzyzmccobynzt`, creado desde el Dashboard — clon del esquema real obtenido y aplicado vía SQL Editor, con datos sintéticos y usuarios de prueba propios — nunca credenciales ni datos reales). Todo el trabajo de las Fases 0-5, incluida la activación de RLS, se hace y se valida contra el proyecto de desarrollo. RLS **no se activa en producción hasta el corte final** — ver `06-roadmap.md` § "Cutover".
 2. **Dos proyectos Vercel sobre el mismo repositorio**: el proyecto actual sigue desplegando `index.html` desde la raíz del repo (rama `main`) hacia la **URL de producción**, sin tocarse. Un segundo proyecto Vercel despliega el código Next.js desde una carpeta nueva (`/webapp`) del mismo repositorio, en una rama dedicada a la migración, hacia la **URL de desarrollo** (dominio fijado a esa rama, estable durante todo el proyecto).
 3. **Corte final en dos pasos independientes y reversibles**: (a) aplicar las políticas RLS —ya validadas en desarrollo— al proyecto Supabase de producción mientras `index.html` sigue siendo lo que ven los usuarios, y observar sin incidencias; (b) solo después, reasignar el dominio de producción del proyecto Vercel antiguo al nuevo. Cada paso es reversible por sí solo sin tocar el otro.
 

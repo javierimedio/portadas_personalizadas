@@ -6,22 +6,26 @@ Antes de tocar código, lee `../docs/00-resumen-ejecutivo.md`. El principio inam
 
 ## Registro de entorno de desarrollo
 
-- **Proyecto Supabase de desarrollo**: `portadas-personalizadas-dev`, Reference ID `xjyftgvyzyzmccobynzt`, región West EU (Ireland). Creado en la Fase 0 (ver `../docs/06-roadmap.md`).
-- **Versión de Supabase CLI usada al preparar este entorno**: `2.111.0-beta.14`. Es una beta reciente y su comportamiento puede diferir de la documentación oficial estable — si algo de lo indicado abajo no coincide con la salida real de tu CLI, repórtalo y se ajusta la instrucción, no al revés. Diferencia ya observada: `supabase projects list` en esta versión **no muestra columna `STATUS`** (`ACTIVE_HEALTHY`/`COMING_UP`); para confirmar que un proyecto está operativo, verifica en el Dashboard o comprueba que los comandos que dependen de él (`link`, `db pull`, `db push`) se ejecutan sin error de conexión.
+- **Proyecto Supabase de desarrollo**: `portadas-personalizadas-dev`, Reference ID `xjyftgvyzyzmccobynzt`, región West EU (Ireland). Creado desde el Dashboard en la Fase 0 (ver `../docs/06-roadmap.md`).
+
+## Método de trabajo: Dashboard primero, terminal solo si es imprescindible
+
+Desde la Fase 0 (ver `../docs/00-resumen-ejecutivo.md` § "Principio de trabajo"), la preparación de este entorno se hace por defecto desde **GitHub (web), Supabase Dashboard y Vercel Dashboard**, incluido el SQL Editor de Supabase para leer o aplicar esquema. Se evita pedir instalación de CLI, `pg_dump` u otras herramientas locales salvo que no exista alternativa razonable desde el navegador — y en ese caso se explica antes por qué ese caso concreto lo requiere.
 
 ## Puesta en marcha (Fase 0) — pasos que requieren tu cuenta
 
-Estos pasos no se pueden automatizar desde aquí porque requieren acceso a tus cuentas de Supabase/Vercel/GitHub:
+Ninguno de estos pasos necesita terminal ni instalar nada; todos se hacen desde el navegador. El único momento en que se toca una terminal es cuando Claude trabaja el código de `webapp/` en sus propias sesiones (build, tests) — no en tu máquina.
 
-1. **Crear el proyecto Supabase de desarrollo** (nuevo, distinto del de producción `paqtohmxagfebeyyurlq.supabase.co`).
-2. **Clonar el esquema real**: `supabase login`, `supabase link --project-ref <ref-de-producción>`, `supabase db pull` (operación de solo lectura sobre producción). Revisar el resultado contra `../docs/03-modelo-datos.md` § 3.4 y corregir donde difiera.
-3. **Aplicar el esquema clonado al proyecto de desarrollo**: `supabase link --project-ref <ref-de-desarrollo>` y `supabase db push`.
-4. **Aplicar la migración de RLS** (`supabase/migrations/20260731000100_enable_rls_and_policies.sql`) al proyecto de desarrollo — revisar antes el TODO marcado sobre el rol legacy `responsable`.
-5. **Desplegar la Edge Function** `create-user` al proyecto de desarrollo (`supabase functions deploy create-user`) — revisar antes el TODO marcado en `supabase/functions/create-user/index.ts`: es un placeholder, no una copia verificada del original.
-6. **Crear el bucket** `portadas-adjuntos` en el proyecto de desarrollo (vacío por ahora, ver `../docs/06-roadmap.md` § "Fase 5.5" para cuándo se llena con datos realistas).
-7. **Copiar `.env.example` a `.env.local`** y rellenar con las claves del proyecto de desarrollo.
-8. **Sembrar datos de prueba**: `npm install && npm run seed` (crea un usuario de prueba por cada rol y una campaña de ejemplo — ver `scripts/seed.ts`).
-9. **Crear el segundo proyecto Vercel**: mismo repositorio, Root Directory `webapp`, rama de despliegue la rama de migración (no `main`), variables de entorno del paso 7. Fijar el dominio de desarrollo a esa rama.
+1. ~~Crear el proyecto Supabase de desarrollo~~ — hecho (ver "Registro de entorno" arriba).
+2. **Leer el esquema real de producción**: consultas de solo lectura en el SQL Editor del Dashboard de producción. Revisar el resultado contra `../docs/03-modelo-datos.md` § 3.4 y corregir donde difiera.
+3. **Aplicar el esquema al proyecto de desarrollo**: pegar el SQL correspondiente en el SQL Editor de `portadas-personalizadas-dev`.
+4. **Aplicar la migración de RLS** (`supabase/migrations/20260731000100_enable_rls_and_policies.sql`) pegándola en el mismo SQL Editor de desarrollo — revisar antes el TODO marcado sobre el rol legacy `responsable`.
+5. **Desplegar la Edge Function** `create-user` desde el editor de Edge Functions del Dashboard de desarrollo (copiar el contenido de `supabase/functions/create-user/index.ts`) — revisar antes el TODO marcado ahí: es un placeholder, no una copia verificada del original.
+6. **Crear el bucket** `portadas-adjuntos` desde Dashboard → Storage → New bucket (vacío por ahora, ver `../docs/06-roadmap.md` § "Fase 5.5" para cuándo se llena con datos realistas).
+7. **Crear los usuarios de prueba** desde Dashboard → Authentication → Add user (uno por cada rol real, incluidas las variantes legacy) y sus filas correspondientes en `perfiles` desde Dashboard → Table Editor o pegando un `INSERT` en el SQL Editor.
+8. **Crear el segundo proyecto Vercel**: Vercel Dashboard → New Project → mismo repositorio → Root Directory `webapp` → rama de despliegue la rama de migración (no `main`) → variables de entorno (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` del proyecto de desarrollo, desde su Dashboard → Project Settings → API) → fijar el dominio de desarrollo a esa rama.
+
+`scripts/seed.ts` y `.env.example` quedan en el repo como referencia/automatización futura (por ejemplo, para tests end-to-end en CI), no como parte del flujo manual de puesta en marcha.
 
 ## Comandos locales
 

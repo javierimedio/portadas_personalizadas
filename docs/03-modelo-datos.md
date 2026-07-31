@@ -4,13 +4,14 @@
 
 ## 3.1 Punto de partida: esto ya existe en producción
 
-Antes de escribir la primera migración de la Fase 0:
+Antes de escribir la primera migración de la Fase 0 (método vigente — ver decisión de la Fase 0 de priorizar Dashboard sobre CLI, `00-resumen-ejecutivo.md` § "Principio de trabajo"):
 
-1. `supabase db pull` contra el proyecto **de producción** (`paqtohmxagfebeyyurlq.supabase.co`) para obtener el esquema efectivo exacto: tipos de columna reales, constraints existentes, y si ya hay alguna policy RLS parcial. Esta es una operación de solo lectura, segura de ejecutar contra producción.
-2. Aplicar ese mismo esquema (DDL) a un **proyecto Supabase de desarrollo nuevo**, creado específicamente para esta migración (ver `06-roadmap.md` § "Estrategia de entornos"). Todo lo que sigue en este documento (RLS, policies) se desarrolla y verifica contra ese proyecto de desarrollo, nunca directamente contra producción.
-3. Confirmar contra el resultado de `db pull` los tipos de columna que aquí se describen como "a confirmar" (marcados explícitamente más abajo) — este documento se basa en el comportamiento observado en `index.html`, no en una inspección directa del esquema SQL.
+1. Consultas de **solo lectura** en el **SQL Editor** del Dashboard del proyecto de producción (`paqtohmxagfebeyyurlq.supabase.co`) contra `information_schema` y `pg_policies` para obtener el esquema efectivo exacto: columnas y tipos reales, constraints existentes, y si ya hay alguna policy RLS parcial. Sin CLI, sin conexión directa a Postgres desde ninguna máquina — solo el navegador. (Se descartó explícitamente `supabase db pull`/`pg_dump`: exigían herramientas locales sin aportar ninguna garantía de seguridad adicional frente al SQL Editor para este caso.)
+2. Aplicar ese mismo esquema (DDL) al **proyecto Supabase de desarrollo** (`portadas-personalizadas-dev`, Reference ID `xjyftgvyzyzmccobynzt`) pegando el SQL correspondiente en **su propio** SQL Editor. Todo lo que sigue en este documento (RLS, policies) se desarrolla y verifica contra ese proyecto de desarrollo, nunca directamente contra producción.
+3. Confirmar contra el resultado de esas consultas los tipos de columna que aquí se describen como "a confirmar" (marcados explícitamente más abajo) — este documento se basa en el comportamiento observado en `index.html`, no en una inspección directa del esquema SQL.
 4. Ninguna migración de esta fase hace `DROP TABLE`, `TRUNCATE`, ni renombra/retipa columnas con datos. Las únicas migraciones previstas son: `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` y `CREATE POLICY`.
-5. Estas migraciones se aplican contra el proyecto de **producción** únicamente como parte del Cutover (`06-roadmap.md`), nunca antes — y solo tras haber sido validadas por completo contra el proyecto de desarrollo durante las Fases 0-5.
+5. Estas migraciones se aplican contra el proyecto de **producción** únicamente como parte del Cutover (`06-roadmap.md`), pegadas en su SQL Editor, nunca antes — y solo tras haber sido validadas por completo contra el proyecto de desarrollo durante las Fases 0-5.
+6. Cada SQL ejecutado en cualquiera de los dos SQL Editor se guarda también como archivo en `webapp/supabase/migrations/` (subido vía GitHub) para mantener el historial versionado en el repositorio — no depende de la CLI para existir, solo de copiar el SQL ya ejecutado.
 
 ## 3.2 Diagrama entidad-relación (sin cambios respecto al actual)
 

@@ -13,7 +13,7 @@ Dos entornos con **URLs, proyectos Vercel y proyectos Supabase completamente sep
 | URL | La actual, estable durante todo el proyecto | Nueva, fija, apunta siempre a la última versión de la rama de migración |
 | Código | `index.html` en la raíz del repo, rama `main` — **no se toca** hasta el cutover | Next.js en `/webapp` del mismo repositorio, rama dedicada a la migración |
 | Proyecto Vercel | El actual, sin cambios de configuración | Uno nuevo, Root Directory `/webapp`, dominio fijado a la rama de migración |
-| Proyecto Supabase | El actual (`paqtohmxagfebeyyurlq.supabase.co`), **sin RLS hasta el cutover** | Uno nuevo: mismo esquema (clonado con `supabase db pull` sobre producción, operación de solo lectura), datos sintéticos, usuarios de prueba propios (nunca credenciales reales) |
+| Proyecto Supabase | El actual (`paqtohmxagfebeyyurlq.supabase.co`), **sin RLS hasta el cutover** | `portadas-personalizadas-dev` (Reference ID `xjyftgvyzyzmccobynzt`): mismo esquema, obtenido y aplicado vía SQL Editor del Dashboard (sin CLI, ver `00-resumen-ejecutivo.md` § "Principio de trabajo"), datos sintéticos, usuarios de prueba propios (nunca credenciales reales) |
 | Storage | Bucket público actual, sin cambios | Bucket propio con archivos de prueba en las Fases 0-4; snapshot de solo lectura de archivos reales en la Fase 5.5 (ver más abajo) |
 | Edge Functions | `create-user` existente, sin tocar | Copia de `create-user` redesplegada en el proyecto de desarrollo |
 
@@ -23,8 +23,8 @@ Como cada entorno tiene su propia base de datos, **nada de lo que se haga en des
 
 **Objetivo**: entorno de desarrollo funcionando de extremo a extremo, sin tocar nada de producción.
 
-- `supabase db pull` sobre el proyecto de **producción** (solo lectura) para obtener el esquema real exacto; reconciliar con `03-modelo-datos.md` § 3.4.
-- Crear el proyecto Supabase de **desarrollo**: aplicar ese mismo esquema (DDL), redesplegar la Edge Function `create-user`, crear el bucket `portadas-adjuntos`, crear un usuario de prueba por cada rol (incluidas las variantes legacy) y sembrar datos sintéticos que cubran todos los estados de solicitud, catálogos y casos límite.
+- SQL Editor del Dashboard de **producción** (solo lectura, sin CLI) para obtener el esquema real exacto; reconciliar con `03-modelo-datos.md` § 3.4.
+- Proyecto Supabase de **desarrollo** creado desde el Dashboard (`portadas-personalizadas-dev`): aplicar ese mismo esquema (DDL) pegándolo en su SQL Editor, desplegar la Edge Function `create-user` desde el editor de Edge Functions del Dashboard, crear el bucket `portadas-adjuntos` desde Dashboard → Storage, crear un usuario de prueba por cada rol (incluidas las variantes legacy) desde Dashboard → Authentication y sembrar datos sintéticos que cubran todos los estados de solicitud, catálogos y casos límite.
 - Repositorio Next.js 15 + TypeScript + Tailwind + shadcn/ui en `/webapp`, con `@supabase/supabase-js` + `@supabase/ssr` apuntando **al proyecto de desarrollo**.
 - Segundo proyecto Vercel (Root Directory `/webapp`) desplegando desde la rama de migración hacia la URL de desarrollo.
 - RLS activada tabla por tabla según `03-modelo-datos.md` § 3.5, verificada contra los usuarios de prueba del proyecto de desarrollo — incluido el caso legacy `responsable` sin canal, que requiere confirmación explícita de su comportamiento actual antes de escribir su policy.
@@ -118,7 +118,7 @@ Alcance confirmado (una solicitud es una sola entidad; separar su flujo en fases
 **Objetivo**: mover a los usuarios reales al sistema nuevo, con el menor riesgo posible y en pasos independientes y reversibles.
 
 1. **QA end-to-end completo** en el entorno de desarrollo: los criterios de salida de todas las fases anteriores (0 a 5.5), cada uno con su checklist ya aprobado, verificados de nuevo a la vez sobre el conjunto de datos de prueba más completo posible — incluida la muestra realista de la Fase 5.5.
-2. **Aplicar RLS al proyecto Supabase de producción** (las mismas políticas ya validadas en desarrollo), con `index.html` todavía siendo lo que ven los usuarios reales. Observar tráfico real durante un periodo sin incidencias — si algo falla, el rollback es el script SQL de reversión (`DROP POLICY`, `DISABLE ROW LEVEL SECURITY`), ya probado en desarrollo, sin ningún despliegue de por medio.
+2. **Aplicar RLS al proyecto Supabase de producción** pegando en su SQL Editor las mismas políticas ya validadas en desarrollo, con `index.html` todavía siendo lo que ven los usuarios reales. Observar tráfico real durante un periodo sin incidencias — si algo falla, el rollback es pegar en el mismo SQL Editor el script de reversión (`DROP POLICY`, `DISABLE ROW LEVEL SECURITY`), ya probado en desarrollo, sin ningún despliegue de por medio.
 3. **Solo después**, reasignar el dominio de producción del proyecto Vercel actual al proyecto Vercel del sistema nuevo. Es una operación de segundos en el panel de Vercel, y reversible igual de rápido si aparece cualquier problema: reasignar el dominio de vuelta.
 4. `index.html` se archiva (no se borra) como referencia histórica, con la fecha de corte documentada.
 

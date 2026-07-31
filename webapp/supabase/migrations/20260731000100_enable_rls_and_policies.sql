@@ -7,10 +7,11 @@
 --    reconstruido a partir del comportamiento observado en index.html, NO de
 --    una inspección directa del esquema SQL real. Antes de aplicar esta
 --    migración al proyecto Supabase de DESARROLLO, hay que:
---      a) ejecutar `supabase db pull` contra el proyecto de PRODUCCIÓN
---         (solo lectura, seguro);
+--      a) leer el esquema real desde el SQL Editor del Dashboard del
+--         proyecto de PRODUCCIÓN (consultas de solo lectura, sin CLI —
+--         ver docs/00-resumen-ejecutivo.md § "Principio de trabajo");
 --      b) cargar ese esquema real como línea base en el proyecto de
---         desarrollo;
+--         desarrollo, pegándolo en su propio SQL Editor;
 --      c) contrastar los nombres/tipos de columna reales contra lo asumido
 --         aquí y corregir esta migración si difieren (especialmente:
 --         ¿"rol" y "estado" son TEXT o ya son un tipo enumerado?, ¿existe de

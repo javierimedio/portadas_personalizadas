@@ -1,12 +1,16 @@
 // Copia para el proyecto Supabase de DESARROLLO de la Edge Function
-// `create-user` existente en producción. Usa la service_role key propia de
-// este proyecto (gestionada por Supabase, `supabase secrets set` — nunca en
-// el .env de la app Next.js). Ver docs/03-modelo-datos.md § 2.5/USR-08 y
+// `create-user` existente en producción. Se despliega copiando este código
+// en el editor de Edge Functions del Dashboard de desarrollo (Dashboard →
+// Edge Functions → Create a new function) — sin CLI, ver
+// docs/00-resumen-ejecutivo.md § "Principio de trabajo". Usa la
+// service_role key propia de este proyecto, gestionada por Supabase
+// (Dashboard → Edge Functions → Secrets) — nunca en el .env de la app
+// Next.js. Ver docs/03-modelo-datos.md § 2.5/USR-08 y
 // docs/09-matriz-paridad-funcional.md.
 //
 // TODO antes de dar esto por terminado en la Fase 0: obtener el código REAL
-// de la función `create-user` de producción (`supabase functions download
-// create-user` o copiarlo desde el dashboard) — este archivo es un
+// de la función `create-user` de producción (Dashboard de producción →
+// Edge Functions → create-user → ver código) — este archivo es un
 // placeholder que reproduce el comportamiento documentado (alta de usuario
 // vía Auth Admin API + insert en `perfiles`), NO una copia verificada línea
 // a línea del original. No desplegar sin confirmar que coincide.
