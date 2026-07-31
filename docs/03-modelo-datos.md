@@ -161,29 +161,41 @@ La premisa de partida de este documento ("hoy no hay RLS en producción, todo lo
 - Cada una de las 7 tiene una política llamada `allow_all`: `USING (true)`, `WITH CHECK (true)`, aplicable a todos los comandos (`ALL`).
 - `solicitudes` tiene además una segunda política, `comercial_solo_sus_solicitudes`, con una condición real y razonable (`rol <> 'comercial' OR comercial_id = auth.uid()`).
 
-En PostgreSQL, las políticas permisivas (el tipo por defecto, y no hay ninguna marcada como `RESTRICTIVE` aquí) se combinan con **OR**. Como `allow_all` es literalmente `true`, el resultado de `true OR <cualquier otra condición>` es siempre `true` — **`comercial_solo_sus_solicitudes` no está teniendo ningún efecto real**, y las 7 tablas están, en la práctica, completamente abiertas a nivel de base de datos, igual que si RLS no existiera. Esto confirma (por una vía distinta a la que asumíamos) que la única protección real hoy es la de `index.html` en el cliente.
+En PostgreSQL, las políticas permisivas (el tipo por defecto, y no hay ninguna marcada como `RESTRICTIVE` aquí) se combinan con **OR**. Como `allow_all` es literalmente `true`, el resultado de `true OR <cualquier otra condición>` es siempre `true` — **`comercial_solo_sus_solicitudes` no está teniendo ningún efecto real**, y las 7 tablas están, en la práctica, completamente abiertas a nivel de base de datos, igual que si RLS no existiera. Confirmado además que las políticas aplican al rol `public` (verificado por consulta adicional a `pg_policies.roles`) — es decir, esta apertura no se limita a usuarios autenticados: una petición con solo la clave anónima, sin ningún login, podría leer/escribir las 7 tablas igual. Esto confirma (por una vía distinta a la que asumíamos) que la única protección real hoy es la de `index.html` en el cliente.
 
 Hipótesis razonable, no confirmada: alguien empezó a implementar RLS de verdad (`comercial_solo_sus_solicitudes`), esa política por sí sola rompía el acceso de admin/marketing/diseño/responsables (no los menciona), y se añadió `allow_all` como parche para no bloquear la aplicación, sin volver a completar el diseño.
 
-**Consecuencia para el Paso 4 y para `03-modelo-datos.md` § 3.5**: nuestra migración de RLS no puede limitarse a añadir políticas nuevas — tiene que **eliminar explícitamente las políticas `allow_all`** de las 7 tablas, o las políticas restrictivas que preparamos quedarán igual de neutralizadas. Pendiente de decidir qué hacer con `comercial_solo_sus_solicitudes`: sustituirla por nuestra `solicitudes_select`/`solicitudes_update` (que cubre los mismos casos y además el resto de roles), o conservarla y completarla. La sección § 3.5 se actualiza en el siguiente paso, una vez resuelto el hallazgo de la siguiente sección.
+**Consecuencia para `03-modelo-datos.md` § 3.5**: nuestra migración de RLS no puede limitarse a añadir políticas nuevas — tiene que **eliminar explícitamente las políticas `allow_all`** de las 7 tablas. Decisión tomada sobre `comercial_solo_sus_solicitudes`: se sustituye por `solicitudes_select`/`solicitudes_update` (§ 3.5), que cubre el mismo caso y además el resto de roles — mantener las dos sería redundante y una fuente de confusión futura sobre cuál es la política "de verdad".
 
-### 3.4.2 Hallazgo a verificar: un valor de estado no documentado
+### 3.4.2 Resuelto: `diseno_en_revision` es un valor de enum sin uso
 
-El enum `estado_solicitud` tiene **9 valores**, no 8:
+El enum `estado_solicitud` tiene 9 valores en vez de los 8 documentados hasta ahora, con uno adicional: `diseno_en_revision` (sin el sufijo `_comercial`). La base de datos de producción está vacía (se purgaron las solicitudes de prueba antes del lanzamiento), así que no se pudo verificar por datos — se verificó **leyendo el código de `index.html` directamente**, tal como pidió el usuario en vez de inferir de una base de datos sin filas:
 
-`borrador`, `enviada`, `en_revision_marketing`, `en_diseno`, **`diseno_en_revision`**, `modificar_diseno`, `confirmada`, `diseno_en_revision_comercial`, `archivada`.
+- Ninguna asignación de estado en todo el archivo (`cambiarEstadoDirecto`, `marcarDisenoListo`, `enviarADiseno`, etc.) escribe el valor `diseno_en_revision` — todas usan `diseno_en_revision_comercial`.
+- `ESTADO_LABEL` (línea 1657) no tiene entrada para `diseno_en_revision` — si apareciera, se mostraría el valor crudo sin traducir.
+- `estadoOrder` (dashboard) y los datasets de gráficos tampoco lo incluyen.
+- Solo hay un resto: una regla CSS (`.s-diseno_en_revision`, línea 156) que definiría el color de un badge si ese valor apareciera — pero como nada lo escribe nunca, no se llega a aplicar.
 
-`diseno_en_revision` (sin el sufijo `_comercial`) no aparece en ninguno de los análisis previos de `index.html` (`01-analisis-funcional.md`, `05-flujo-navegacion.md`, `09-matriz-paridad-funcional.md` EST-01) — toda la máquina de estados documentada usa `diseno_en_revision_comercial`. Por el principio de "no replicar bugs a ciegas" (`00-resumen-ejecutivo.md`), no se puede asumir ni que es un valor vivo que falta documentar, ni que es un resto histórico sin uso — hace falta comprobarlo antes de decidir cómo tratarlo en las políticas RLS del disenador (que filtran explícitamente por lista de estados). Ver la consulta de verificación al final de esta sección.
+**Conclusión**: es un valor de enum inerte, casi con toda seguridad un resto de una versión anterior del esquema. No se incluye en ninguna política RLS ni en ningún flujo de la migración — no se puede eliminar de un enum de Postgres sin recrear el tipo, y no es necesario para la migración (principio inamovible: no tocar el esquema más de lo estrictamente necesario).
 
-## 3.5 RLS objetivo — contra el esquema exactamente como es
+### 3.4.3 Resuelto: columnas existentes sin ningún uso en el cliente
 
-> **Pendiente de actualizar.** Esta sección todavía no incorpora los dos hallazgos de § 3.4.1 y § 3.4.2: (a) hay que añadir `DROP POLICY allow_all` en las 7 tablas antes de crear las políticas de abajo, y (b) la lista de estados visibles para `disenador`/`responsable_diseno` puede necesitar incluir `diseno_en_revision` si resulta ser un estado en uso real — pendiente de la consulta de verificación de § 3.4.2. No aplicar este SQL a ningún proyecto hasta resolver ambos puntos.
+Mismo método (lectura de `index.html`, no de datos) para las columnas que la base de datos vacía no podía confirmar:
+
+- **`solicitudes.confirmada_at`, `solicitud_catalogos.diseno_url`, `solicitud_catalogos.diseno_at`**: cero referencias en todo `index.html`. Inertes — ninguna funcionalidad actual depende de ellas.
+- **`notificaciones.enviado_at`** (y `enviado`): sí se escriben, en `enviarNotificacion` (~línea 5643), como `n.solo_herramienta ? true/now() : false/null`. Pero la función `push()` que construye cada notificación (~línea 5581) **nunca asigna `solo_herramienta`** — la condición es siempre falsa. En la práctica, `enviado` se guarda siempre como `false` y `enviado_at` siempre como `null`, para todas las notificaciones, siempre. Esto no es un hallazgo nuevo independiente: es la causa técnica exacta de H-03 (`09-matriz-paridad-funcional.md`, antes descrito de forma más genérica como "la preferencia de notificación no filtra el envío") — se amplía esa entrada con este detalle.
+
+Ninguna de estas columnas se toca en la migración (se conservan, con su comportamiento inerte replicado tal cual) — cambiarlas sería una mejora funcional fuera de alcance, ver `07-propuestas-futuras.md`.
+
+## 3.5 RLS objetivo — versión definitiva, reconciliada contra producción
+
+RLS ya está habilitada en las 7 tablas (§ 3.4.1) — no hace falta `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, aunque se deja en el script por ser idempotente y no depender de ese hecho. El paso que sí es obligatorio y nuevo respecto a la versión anterior de esta sección es el `DROP POLICY allow_all` en cada tabla, **antes** de crear las políticas reales — si no, siguen sin tener ningún efecto (§ 3.4.1).
 
 ```sql
 create or replace function rol_actual()
-returns text
+returns text  -- cast automático desde el enum rol_usuario (Postgres genera el cast de asignación al crear el tipo)
 language sql stable security definer as $$
-    select rol from perfiles where id = auth.uid()
+    select rol::text from perfiles where id = auth.uid()
 $$;
 
 create or replace function email_actual()
@@ -193,10 +205,11 @@ language sql stable security definer as $$
 $$;
 ```
 
-**Solicitudes** — cada condición es literalmente la misma que hoy decide una fila visible en `renderComercialTable`/`renderDisenoTable`, incluidas las variantes legacy de rol:
+**Solicitudes** — se elimina `allow_all` y se sustituye `comercial_solo_sus_solicitudes` por una política equivalente pero completa (la original solo cubría el caso `comercial`; esta cubre también admin/marketing/responsables/diseño, que sin `allow_all` se habrían quedado sin acceso):
 
 ```sql
-alter table solicitudes enable row level security;
+drop policy if exists allow_all on solicitudes;
+drop policy if exists comercial_solo_sus_solicitudes on solicitudes;
 
 create policy solicitudes_select on solicitudes for select
 using (
@@ -208,6 +221,7 @@ using (
     or (
         rol_actual() in ('disenador', 'responsable_diseno')
         and estado in ('en_diseno', 'modificar_diseno', 'diseno_en_revision_comercial', 'confirmada')
+        -- NO se incluye 'diseno_en_revision' (sin sufijo): confirmado valor de enum inerte, ver § 3.4.2
     )
 );
 
@@ -227,25 +241,60 @@ using (
 );
 ```
 
-> **Nota de verificación obligatoria**: la condición para el rol legacy `responsable` (sin canal explícito) no se pudo determinar con certeza solo leyendo `index.html` — antes de activar esta policy en producción, verificar contra el código actual (o contra un usuario de prueba con ese rol) si ve todas las solicitudes, ninguna, o si ese valor de rol ya no está en uso. Esto es exactamente el tipo de comprobación que exige el principio de paridad: no se puede "decidir" el comportamiento de un rol legacy, hay que confirmarlo.
+> **Nota de verificación obligatoria pendiente**: la condición para el rol legacy `responsable` (sin canal explícito) no se pudo determinar con certeza solo leyendo `index.html` — antes de activar esta policy en producción, verificar contra el código actual (o contra un usuario de prueba con ese rol) si ve todas las solicitudes, ninguna, o si ese valor de rol ya no está en uso.
 
-`solicitud_catalogos`, `adjuntos` y `logs` heredan la visibilidad de su `solicitud_id` con el mismo patrón (`exists (select 1 from solicitudes s where s.id = solicitud_id and <condición de arriba>)`).
+**`solicitud_catalogos`, `adjuntos` y `logs`** heredan la visibilidad de su `solicitud_id` — mismo `DROP` del `allow_all` de cada una y una policy que delega en la de `solicitudes`:
+
+```sql
+drop policy if exists allow_all on solicitud_catalogos;
+create policy solicitud_catalogos_all on solicitud_catalogos for all
+using (exists (select 1 from solicitudes s where s.id = solicitud_catalogos.solicitud_id));
+
+drop policy if exists allow_all on adjuntos;
+create policy adjuntos_select on adjuntos for select
+using (exists (select 1 from solicitudes s where s.id = adjuntos.solicitud_id));
+create policy adjuntos_insert on adjuntos for insert
+with check (exists (select 1 from solicitudes s where s.id = adjuntos.solicitud_id));
+
+drop policy if exists allow_all on logs;
+create policy logs_select on logs for select
+using (exists (select 1 from solicitudes s where s.id = logs.solicitud_id));
+create policy logs_insert on logs for insert
+with check (exists (select 1 from solicitudes s where s.id = logs.solicitud_id));
+```
 
 **Notificaciones** — filtradas por email, igual que hoy:
 
 ```sql
-alter table notificaciones enable row level security;
+drop policy if exists allow_all on notificaciones;
 
 create policy notificaciones_select on notificaciones for select
 using (destinatario = email_actual());
+
+create policy notificaciones_update on notificaciones for update
+using (destinatario = email_actual())
+with check (destinatario = email_actual());
 ```
 
-**Campañas y usuarios**: lectura abierta a cualquier autenticado (igual que hoy, todos necesitan ver campañas activas); escritura solo `admin`/`marketing`:
+**Perfiles** — lectura abierta a cualquier autenticado (se necesita para asignar comerciales/diseñadores, menciones, etc., igual que hoy); escritura solo `admin`/`marketing` o el propio usuario sobre su fila:
 
 ```sql
-alter table campanas enable row level security;
+drop policy if exists allow_all on perfiles;
+
+create policy perfiles_select on perfiles for select using (true);
+
+create policy perfiles_update on perfiles for update
+using (rol_actual() in ('admin', 'marketing') or id = auth.uid())
+with check (rol_actual() in ('admin', 'marketing') or id = auth.uid());
+```
+
+**Campañas**: lectura abierta a cualquier autenticado (igual que hoy, todos necesitan ver campañas activas); escritura solo `admin`/`marketing`:
+
+```sql
+drop policy if exists allow_all on campanas;
+
 create policy campanas_select on campanas for select using (true);
-create policy campanas_write on campanas for insert with check (rol_actual() in ('admin', 'marketing'));
+create policy campanas_insert on campanas for insert with check (rol_actual() in ('admin', 'marketing'));
 create policy campanas_update on campanas for update using (rol_actual() in ('admin', 'marketing'));
 ```
 

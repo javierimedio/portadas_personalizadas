@@ -354,8 +354,8 @@ Registro vivo de comportamientos de `index.html` que parecen incorrectos, incomp
 
 ### H-03 (NOT-12) — La preferencia de notificación no filtra ningún envío
 
-- **Comportamiento actual**: `notif_preferencia` (ambas/email/herramienta/ninguna) se guarda por usuario y se muestra en la UI, pero `enviarNotificacion` inserta la notificación igual para todos los destinatarios sin consultar esa preferencia.
-- **Por qué se sospecha bug**: existe un control de UI completo (selector, guardado, sincronización entre dos pantallas) para una preferencia que no tiene ningún efecto observable — sugiere una funcionalidad a medio implementar, no una decisión de diseño deliberada.
+- **Comportamiento actual**: `notif_preferencia` (ambas/email/herramienta/ninguna) se guarda por usuario y se muestra en la UI, pero `enviarNotificacion` inserta la notificación igual para todos los destinatarios sin consultar esa preferencia. **Detalle exacto confirmado durante la reconciliación del esquema (`03-modelo-datos.md` § 3.4.3)**: `enviarNotificacion` escribe `enviado`/`enviado_at` como `n.solo_herramienta ? true/now() : false/null`, pero la función `push()` que construye cada notificación nunca asigna la propiedad `solo_herramienta` — la condición es siempre falsa, así que `enviado` es siempre `false` y `enviado_at` siempre `null`, para toda notificación, sin excepción.
+- **Por qué se sospecha bug**: existe un control de UI completo (selector, guardado, sincronización entre dos pantallas) y hasta la lógica de escritura condicional en el backend (`solo_herramienta ? ... : ...`) para una preferencia que nunca llega a tener ningún efecto observable — todo el cableado está a medio hacer, falta exactamente el paso que asignaría `solo_herramienta` a partir de `notif_preferencia` del destinatario. No parece una decisión de diseño deliberada.
 - **Decisión**: Pendiente.
 
 ### H-04 (NAV-13) — Escape no cierra los modales creados dinámicamente

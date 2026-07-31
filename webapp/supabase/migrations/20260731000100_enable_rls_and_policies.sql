@@ -1,41 +1,48 @@
 -- ============================================================================
 -- RLS y políticas — Fase 0 (docs/06-roadmap.md, docs/03-modelo-datos.md § 3.5)
+-- Versión reconciliada contra el esquema real de producción (verificado por
+-- SQL Editor el 2026-07-31, ver docs/03-modelo-datos.md § 3.4-3.5).
 -- ============================================================================
--- IMPORTANTE — leer antes de aplicar esta migración a ningún proyecto:
+-- Hallazgos que motivan la forma de este archivo (detalle completo en
+-- docs/03-modelo-datos.md § 3.4.1):
 --
--- 1. Este archivo asume el esquema descrito en docs/03-modelo-datos.md § 3.4,
---    reconstruido a partir del comportamiento observado en index.html, NO de
---    una inspección directa del esquema SQL real. Antes de aplicar esta
---    migración al proyecto Supabase de DESARROLLO, hay que:
---      a) leer el esquema real desde el SQL Editor del Dashboard del
---         proyecto de PRODUCCIÓN (consultas de solo lectura, sin CLI —
---         ver docs/00-resumen-ejecutivo.md § "Principio de trabajo");
---      b) cargar ese esquema real como línea base en el proyecto de
---         desarrollo, pegándolo en su propio SQL Editor;
---      c) contrastar los nombres/tipos de columna reales contra lo asumido
---         aquí y corregir esta migración si difieren (especialmente:
---         ¿"rol" y "estado" son TEXT o ya son un tipo enumerado?, ¿existe de
---         verdad `solicitudes.canal` como columna propia?).
---    Ver docs/03-modelo-datos.md § 3.1 — ninguna migración de este archivo
---    debe ejecutarse contra producción antes del Cutover (docs/06-roadmap.md).
+-- 1. RLS YA ESTÁ HABILITADA en las 7 tablas en producción, pero cada una
+--    tiene una política `allow_all` (USING true, aplicable al rol `public`
+--    — incluye peticiones sin login) que neutraliza cualquier otra política
+--    permisiva por el OR con el que Postgres las combina. Por eso este
+--    archivo empieza cada bloque con `DROP POLICY IF EXISTS allow_all` —
+--    sin eso, todo lo que sigue no tendría ningún efecto real.
+-- 2. `solicitudes` tiene además una política real, `comercial_solo_sus_solicitudes`,
+--    que solo cubre el caso del rol comercial (sin admin/marketing/diseño/
+--    responsables). Se elimina y se sustituye por `solicitudes_select`/
+--    `solicitudes_update`, que cubre el mismo caso y el resto de roles.
+-- 3. `rol` (perfiles) y `estado` (solicitudes) son enums reales
+--    (`rol_usuario`, `estado_solicitud`) en producción, no texto libre como
+--    se asumió en el diseño inicial — no cambia la lógica de las policies
+--    (el cast enum→text es automático), solo se documenta aquí para que no
+--    sorprenda.
+-- 4. El enum `estado_solicitud` tiene un valor adicional, `diseno_en_revision`
+--    (sin sufijo `_comercial`), confirmado como inerte por lectura directa
+--    de index.html (docs/03-modelo-datos.md § 3.4.2) — no se incluye en
+--    ninguna condición de este archivo a propósito.
 --
--- 2. El comportamiento del rol legacy `responsable` (sin canal explícito) NO
---    se pudo determinar con certeza solo leyendo index.html — está marcado
---    más abajo como TODO. Verificarlo contra producción antes de habilitar
---    esta policy tal cual.
+-- El comportamiento del rol legacy `responsable` (sin canal explícito) NO se
+-- pudo determinar con certeza solo leyendo index.html — sigue pendiente de
+-- verificación antes de aplicar esta migración a ningún proyecto (ver TODO
+-- más abajo).
 --
--- 3. Por el principio inamovible (docs/00-resumen-ejecutivo.md), esta
---    migración solo añade RLS — no crea tablas, no renombra columnas, no
---    normaliza roles. Cualquier mejora de esquema identificada está en
---    docs/07-propuestas-futuras.md, no aquí.
+-- Por el principio inamovible (docs/00-resumen-ejecutivo.md), esta migración
+-- solo añade/corrige RLS — no crea tablas, no renombra columnas, no
+-- normaliza roles. Cualquier mejora de esquema identificada está en
+-- docs/07-propuestas-futuras.md, no aquí.
 -- ============================================================================
 
 -- Funciones auxiliares (docs/03-modelo-datos.md § 3.5)
 
 create or replace function rol_actual()
-returns text
+returns text  -- cast automático desde el enum rol_usuario
 language sql stable security definer as $$
-    select rol from perfiles where id = auth.uid()
+    select rol::text from perfiles where id = auth.uid()
 $$;
 
 create or replace function email_actual()
@@ -46,7 +53,8 @@ $$;
 
 -- ── solicitudes ──────────────────────────────────────────────────────────
 
-alter table solicitudes enable row level security;
+drop policy if exists allow_all on solicitudes;
+drop policy if exists comercial_solo_sus_solicitudes on solicitudes;
 
 create policy solicitudes_select on solicitudes for select
 using (
@@ -59,6 +67,7 @@ using (
     or (
         rol_actual() in ('disenador', 'responsable_diseno')
         and estado in ('en_diseno', 'modificar_diseno', 'diseno_en_revision_comercial', 'confirmada')
+        -- NO se incluye 'diseno_en_revision' (sin sufijo): valor de enum inerte, ver cabecera.
     )
 );
 
@@ -79,19 +88,14 @@ using (
 
 -- ── solicitud_catalogos, adjuntos, logs: heredan la visibilidad de su solicitud ──
 
-alter table solicitud_catalogos enable row level security;
+drop policy if exists allow_all on solicitud_catalogos;
 
-create policy solicitud_catalogos_select on solicitud_catalogos for select
+create policy solicitud_catalogos_all on solicitud_catalogos for all
 using (exists (
     select 1 from solicitudes s where s.id = solicitud_catalogos.solicitud_id
 ));
 
-create policy solicitud_catalogos_write on solicitud_catalogos for all
-using (exists (
-    select 1 from solicitudes s where s.id = solicitud_catalogos.solicitud_id
-));
-
-alter table adjuntos enable row level security;
+drop policy if exists allow_all on adjuntos;
 
 create policy adjuntos_select on adjuntos for select
 using (exists (
@@ -103,7 +107,7 @@ with check (exists (
     select 1 from solicitudes s where s.id = adjuntos.solicitud_id
 ));
 
-alter table logs enable row level security;
+drop policy if exists allow_all on logs;
 
 create policy logs_select on logs for select
 using (exists (
@@ -117,7 +121,7 @@ with check (exists (
 
 -- ── notificaciones ───────────────────────────────────────────────────────
 
-alter table notificaciones enable row level security;
+drop policy if exists allow_all on notificaciones;
 
 create policy notificaciones_select on notificaciones for select
 using (destinatario = email_actual());
@@ -128,7 +132,7 @@ with check (destinatario = email_actual());
 
 -- ── campanas: lectura abierta a cualquier autenticado, escritura solo admin/marketing ──
 
-alter table campanas enable row level security;
+drop policy if exists allow_all on campanas;
 
 create policy campanas_select on campanas for select using (true);
 
@@ -141,7 +145,7 @@ using (rol_actual() in ('admin', 'marketing'));
 -- ── perfiles: lectura abierta a cualquier autenticado (se necesita para asignar
 --    comerciales/diseñadores, menciones, etc.); escritura solo admin/marketing ──
 
-alter table perfiles enable row level security;
+drop policy if exists allow_all on perfiles;
 
 create policy perfiles_select on perfiles for select using (true);
 
