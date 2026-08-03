@@ -61,23 +61,11 @@ export function AppShell({
           <span className="hidden items-center gap-2 opacity-60 md:flex">
             <span className="mx-1 text-white/35">|</span>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="https://static.gorfactory.es/images/header/logo_Roly_2025.svg"
-              alt="Roly"
-              className="h-3.5 brightness-0 invert"
-            />
+            <img src="/images/logo_Roly_2025.svg" alt="Roly" className="h-3.5 brightness-0 invert" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="https://static.gorfactory.es/images/home/Logo_WRK_color.svg"
-              alt="Roly WRK"
-              className="h-3.5 brightness-0 invert"
-            />
+            <img src="/images/Logo_WRK_color.svg" alt="Roly WRK" className="h-3.5 brightness-0 invert" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="https://static.gorfactory.es/images/header/logo-stm-small.svg"
-              alt="Stamina"
-              className="h-3.5 brightness-0 invert"
-            />
+            <img src="/images/logo-stm-small.svg" alt="Stamina" className="h-3.5 brightness-0 invert" />
           </span>
         </div>
 
