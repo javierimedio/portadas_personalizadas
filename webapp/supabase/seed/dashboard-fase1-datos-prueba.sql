@@ -45,9 +45,9 @@ delete from campanas    where nombre like 'TEST - %';
 -- 1. Perfiles de prueba (upsert — no se borran, ya existen sus usuarios) ----
 insert into perfiles (id, nombre, email, rol, activo)
 values
-  ('<uuid_comercial_nacional>',    'Comercial Prueba Nacional',     'comercial.nacional.test@gorfactory.es',    'comercial_nacional',    true),
-  ('<uuid_comercial_exportacion>', 'Comercial Prueba Exportación',  'comercial.exportacion.test@gorfactory.es', 'comercial_exportacion', true),
-  ('<uuid_disenador>',             'Diseñador Prueba',              'disenador.test@gorfactory.es',             'disenador',             true)
+  ('1a55dad1-2ef1-40e0-b853-08bca0debd86',    'Comercial Prueba Nacional',     'comercial.nacional.test@gorfactory.es',    'comercial_nacional',    true),
+  ('e4ccba66-b052-46e5-9fae-417616f35add', 'Comercial Prueba Exportación',  'comercial.exportacion.test@gorfactory.es', 'comercial_exportacion', true),
+  ('247a4324-ffa5-4a13-8552-547e10ac51b1',             'Diseñador Prueba',              'disenador.test@gorfactory.es',             'disenador',             true)
 on conflict (id) do update set
   nombre = excluded.nombre,
   email  = excluded.email,
