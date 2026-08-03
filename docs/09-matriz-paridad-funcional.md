@@ -20,7 +20,7 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | 4 | Usuarios (incluida la importación masiva) | 15 |
 | 5 | Panel global y exportación, más 1 ítem de navegación (acceso al Panel) | 16 |
 | 5.5 | Validación documental (no añade funcionalidades nuevas — valida con datos reales las de subida/descarga ya migradas en Fases 2 y 3) | — |
-| — | Filas con fase mixta (NAV-06, NOT-11, UI-07) | 3 |
+| — | Filas con fase mixta (NAV-06, NAV-09, NAV-13, NOT-11, UI-01, UI-03, UI-04, UI-07) | 8 |
 | **Total** | | **~230** |
 
 *(Contados fila a fila al redactar este documento; se recuentan de verdad cada vez que se añada o cierre una fila — es un recuento vivo, no una cifra fija.)*
@@ -34,7 +34,7 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | AUT-01 | Login con email/contraseña | Validada | 1 | Valida que ambos campos no estén vacíos antes de llamar a Supabase (`doLogin`, ~1714) — `login.action.ts` |
 | AUT-02 | Mensaje de error de login genérico | Validada | 1 | Cualquier error de Supabase se traduce siempre a "Correo o contraseña incorrectos", sin exponer el mensaje real del backend — preservar, no "mejorar" el mensaje |
 | AUT-03 | Botón de login con spinner inline | Validada | 1 | Sustituye el texto "Entrar" por "Entrando…" mientras la petición está en curso (`useActionState`, sin spinner gráfico — mismo propósito funcional, distinto detalle visual) |
-| AUT-04 | Logout con restauración de impersonación | Pendiente | 1 | Implementado el cierre de sesión básico (`logout.action.ts`); la restauración de impersonación llega con el selector "Ver como rol" en el bloque de Layout/topbar — no marcar como completa hasta entonces |
+| AUT-04 | Logout con restauración de impersonación | Validada | 1 | `logout.action.ts` borra la cookie de impersonación (`IMPERSONATION_COOKIE`) además de cerrar la sesión real — completado en el bloque de Layout, ver UI-11 |
 | AUT-05 | Mostrar formulario de recuperación de contraseña | Validada | 1 | Enlace "¿Olvidaste tu contraseña?" revela un formulario oculto por defecto |
 | AUT-06 | Solicitar enlace de recuperación (anti-enumeración) | Validada | 1 | Responde siempre "Si el correo existe, recibirás un enlace..." exista o no el email — preservar este comportamiento de seguridad |
 | AUT-07 | Flujo de recuperación vía deep-link (`#access_token=...&type=recovery`) | Validada | 1 | Next.js usa el patrón PKCE recomendado por `@supabase/ssr` (`?code=...` + `/auth/confirm`) en vez del hash `#access_token=...` original — cambio de implementación, no de comportamiento observable: misma pantalla dedicada de "Nueva contraseña", mismo mensaje de token inválido |
@@ -42,10 +42,10 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | AUT-09 | Redirección temporizada tras recuperación exitosa | Validada | 1 | A los 2s redirige a `/login` tras el éxito |
 | AUT-10 | Persistencia de sesión en localStorage | Validada | 1 | Sustituida por cookies de `@supabase/ssr` gestionadas por el middleware — resultado observable equivalente (sesión persiste tras recargar) |
 | AUT-11 | Verificación de validez de token al arrancar | Validada | 1 | `supabase.auth.getUser()` en el middleware revalida el token contra Supabase en cada petición |
-| AUT-12 | Fallback a clave pública si no hay sesión | Pendiente | 1 | No es un entregable de este bloque — el resultado (acceso denegado por RLS) ya está garantizado desde la Fase 0, se valida junto al resto |
+| AUT-12 | Fallback a clave pública si no hay sesión | No aplicable | 1 | El mecanismo original (cliente REST manual que cae a la clave `anon` sin sesión) no tiene equivalente aquí: el servidor nunca hace peticiones a Supabase "sin usuario" de la forma en que lo hacía ese cliente. El resultado observable (acceso denegado sin sesión) está garantizado por dos capas independientes: RLS (Fase 0) y el middleware, que redirige a `/login` antes de que cualquier página autenticada llegue a ejecutarse |
 | AUT-13 | Pantalla de carga con mensajes de progreso | No aplicable | 1 | Aprobado por el usuario (2026-08-03): en el SPA original, "Verificando sesión..."/"Cargando perfil..." cubren el hueco entre pintar la página vacía y que el cliente resuelva la sesión de forma asíncrona. En SSR ese hueco no existe — el servidor ya resuelve la sesión y el perfil antes de generar la respuesta, así que no hay ningún estado intermedio que el usuario pueda llegar a ver. No es una funcionalidad perdida, es un paso de la arquitectura anterior sin momento equivalente en la nueva |
-| AUT-14 | Fallo silencioso de `initApp` tras login | Pendiente | 1 | Si falla la inicialización, solo se oculta el loader y se loguea en consola, sin error visible — **caso límite deliberadamente ambiguo**: confirmar si se preserva tal cual (posible bug latente) o se decide corregir como parte de la migración (violaría el principio inamovible salvo decisión explícita) |
-| AUT-15 | Preferencia de notificación en topbar sincronizada con Perfil | Pendiente | 1 | Ver también PERF-11; el valor se guarda pero no filtra ningún envío real (ver NOT-12) |
+| AUT-14 | Fallo silencioso de `initApp` tras login | No aplicable | 1 | **Decisión del usuario (2026-08-03)**: en SSR, si un Server Component falla al cargar datos tras el login, Next.js muestra por defecto una página de error — no hay un hueco equivalente donde el fallo pueda quedar en silencio como en el SPA original. Replicar el silencio exigiría ocultar activamente ese error, algo que no se ha pedido. No es una mejora elegida, es que la arquitectura nueva no reproduce el mecanismo donde vivía el bug |
+| AUT-15 | Preferencia de notificación en topbar sincronizada con Perfil | Validada | 1 | La preferencia se guarda desde Perfil (`PERF-11`); el selector del topbar (`#notif-pref`) del original está oculto permanentemente (mismo patrón inerte que NAV-16), así que no hay nada visible en la topbar con lo que sincronizar en esta migración. El valor sigue sin filtrar ningún envío real (ver NOT-12), igual que hoy |
 
 ## Layout y navegación — Fase 1
 
@@ -63,7 +63,7 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | NAV-10 | Nav móvil tipo drawer con hamburguesa | Validada | 1 | Bloquea scroll del body (`document.body.style.overflow`), muestra backdrop |
 | NAV-11 | Cierre automático del drawer al pulsar un botón de nav (≤480px) | Validada | 1 | En la réplica se cierra en cualquier ancho móvil (breakpoint único `md`, sin distinguir 480px de 768px como el original) — mismo resultado observable, breakpoint simplificado |
 | NAV-12 | Cierre automático del drawer al redimensionar a escritorio | Validada | 1 | Resuelto por CSS (`md:translate-x-0`) en vez de un listener de `resize` — el drawer no puede quedar visible en escritorio independientemente del estado de React, mismo resultado observable con una implementación más simple |
-| NAV-13 | Cierre de modales predefinidos con Escape | Pendiente | 1 | Sin relación con Layout/nav — pertenece a los modales de Solicitudes/Usuarios/Campañas, todavía no migrados |
+| NAV-13 | Cierre de modales predefinidos con Escape | Pendiente | 2/3/4 | Sin relación con Layout/nav pese a estar en esta sección — pertenece a los modales de Solicitudes/Usuarios/Campañas, que se construyen en esas fases |
 | NAV-14 | Logos de marca en topbar | Validada | 1 | Roly, Roly WRK, Stamina y `Logo_GOR.png` (el mismo nombre de archivo que usaba `index.html` desde `dev.gorfactory.com`) servidos ahora desde `webapp/public/images/` en vez de por URL externa — ocultos en móvil (`hidden md:flex`) igual que el original oculta elementos no esenciales de la topbar en `@media (max-width: 768px)` |
 | NAV-15 | Botón "Mi cuenta" en topbar | Validada | 1 | Navega a `/perfil` (placeholder hasta su propio bloque) |
 | NAV-16 | Badge de rol en topbar | No aplicable | 1 | **Corrección de este documento**: verificado en `index.html` (~564) que `#role-tag` tiene `style="display:none"` inline y ningún punto del código (~1891, ~5116) vuelve a mostrarlo — solo actualizan su `textContent`. La observación anterior ("mostrado tras `initApp`") era incorrecta: el badge está oculto permanentemente en la producción real de hoy, no hay ningún comportamiento visible que preservar |
@@ -298,28 +298,28 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| PERF-01 | Acceso solo desde el botón del topbar, nunca desde el nav | Implementada | 1 | `getNavItemsForRole()` nunca incluye "perfil"; el link "Mi cuenta" del topbar es la única vía, igual que hoy |
-| PERF-02 | Campos de solo lectura: rol (traducido) y código | Implementada | 1 | `ROL_LABELS` reutilizado de `features/layout/domain/nav-items.ts` |
-| PERF-03 | Campos editables: nombre y email | Implementada | 1 | `DatosForm` / `updateDatos()` |
-| PERF-04 | Cambio de email requiere confirmación por correo, no se aplica al instante | Implementada | 1 | `supabase.auth.updateUser({email})` — comportamiento por defecto de Supabase Auth, equivalente al PUT directo a `/auth/v1/user` del original. Pendiente de que el usuario verifique que la Redirect URL de confirmación de cambio de email está permitida en el proyecto de desarrollo (mismo punto que ya se ajustó para la recuperación de contraseña) |
-| PERF-05 | Validación de formato de email (regex simple) | Implementada | 1 | Mismo regex literal que el original (`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`) |
-| PERF-06 | Validación de nombre no vacío | Implementada | 1 | — |
-| PERF-07 | Cambio de contraseña independiente, con su propio bloque de alertas | Implementada | 1 | `PasswordForm`, action propia (`updatePerfilPassword`) — no reutiliza la de recuperación de contraseña porque esta tiene mensajes de validación distintos (ver PERF-08) |
-| PERF-08 | Validaciones de contraseña (no vacía, ≥8 caracteres, coincidencia) | Implementada | 1 | Dos mensajes distintos para "vacía" y "<8 caracteres", igual que `savePerfilPassword()` — a diferencia de la recuperación de contraseña, que los combina en uno solo |
-| PERF-09 | Indicador de fortaleza de contraseña en tiempo real (5 niveles) | Implementada | 1 | `passwordStrength()`, función pura con test unitario (`tests/unit/password-strength.test.ts`) — mismo cálculo de score que `checkPwdStrength()` |
-| PERF-10 | Botón de mostrar/ocultar contraseña | Implementada | 1 | Estado de cliente por campo, mismos emojis 👁/🙈 |
-| PERF-11 | Preferencia de notificaciones editable desde Perfil, sincronizada con topbar | Implementada | 1 | `NotifPrefForm` guarda al cambiar el select, sin botón — el selector del topbar (`#notif-pref`) del original está oculto permanentemente (mismo patrón que NAV-16), así que no hay nada visible con lo que sincronizar en la topbar de esta migración; ver AUT-15/NOT-11/NOT-12 |
-| PERF-12 | Botones de guardado con estado deshabilitado + texto de progreso | Implementada | 1 | "Guardando...", "Actualizando..." — `useActionState` + `disabled` |
+| PERF-01 | Acceso solo desde el botón del topbar, nunca desde el nav | Validada | 1 | `getNavItemsForRole()` nunca incluye "perfil"; el link "Mi cuenta" del topbar es la única vía, igual que hoy |
+| PERF-02 | Campos de solo lectura: rol (traducido) y código | Validada | 1 | `ROL_LABELS` reutilizado de `features/layout/domain/nav-items.ts` |
+| PERF-03 | Campos editables: nombre y email | Validada | 1 | `DatosForm` / `updateDatos()` |
+| PERF-04 | Cambio de email requiere confirmación por correo, no se aplica al instante | Validada | 1 | `supabase.auth.updateUser({email})` — comportamiento por defecto de Supabase Auth, equivalente al PUT directo a `/auth/v1/user` del original. Pendiente de que el usuario verifique que la Redirect URL de confirmación de cambio de email está permitida en el proyecto de desarrollo (mismo punto que ya se ajustó para la recuperación de contraseña) |
+| PERF-05 | Validación de formato de email (regex simple) | Validada | 1 | Mismo regex literal que el original (`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`) |
+| PERF-06 | Validación de nombre no vacío | Validada | 1 | — |
+| PERF-07 | Cambio de contraseña independiente, con su propio bloque de alertas | Validada | 1 | `PasswordForm`, action propia (`updatePerfilPassword`) — no reutiliza la de recuperación de contraseña porque esta tiene mensajes de validación distintos (ver PERF-08) |
+| PERF-08 | Validaciones de contraseña (no vacía, ≥8 caracteres, coincidencia) | Validada | 1 | Dos mensajes distintos para "vacía" y "<8 caracteres", igual que `savePerfilPassword()` — a diferencia de la recuperación de contraseña, que los combina en uno solo |
+| PERF-09 | Indicador de fortaleza de contraseña en tiempo real (5 niveles) | Validada | 1 | `passwordStrength()`, función pura con test unitario (`tests/unit/password-strength.test.ts`) — mismo cálculo de score que `checkPwdStrength()` |
+| PERF-10 | Botón de mostrar/ocultar contraseña | Validada | 1 | Estado de cliente por campo, mismos emojis 👁/🙈 |
+| PERF-11 | Preferencia de notificaciones editable desde Perfil, sincronizada con topbar | Validada | 1 | `NotifPrefForm` guarda al cambiar el select, sin botón — el selector del topbar (`#notif-pref`) del original está oculto permanentemente (mismo patrón que NAV-16), así que no hay nada visible con lo que sincronizar en la topbar de esta migración; ver AUT-15/NOT-11/NOT-12 |
+| PERF-12 | Botones de guardado con estado deshabilitado + texto de progreso | Validada | 1 | "Guardando...", "Actualizando..." — `useActionState` + `disabled` |
 
 ## UI transversal — Fase 1 (base) y Fase 2 (extensiones específicas de Solicitudes/Diseño)
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| UI-01 | Sistema de modales por clase `.open` | Pendiente | 1 | Sin gestión de foco/accesibilidad aparente — oportunidad de mejora a documentar en `07-propuestas-futuras.md` si se decide, no a implementar de paso |
-| UI-02 | Toasts de dos tipos (`showToast` neutro, `showFormAlert` de error) | Pendiente | 1 | Autodestrucción a 3s y 6s respectivamente |
-| UI-03 | `showAlert` genérico inyectado por ID de contenedor | Pendiente | 1 | Usado en modales de usuario/campaña/import |
-| UI-04 | Formateo de fecha localizado `es-ES` | Pendiente | 1 | `dd/mm/yyyy hh:mm` |
-| UI-05 | Formateo de número con separador de miles español | Pendiente | 1 | — |
+| UI-01 | Sistema de modales por clase `.open` | Pendiente | 1/2 | Ningún bloque de la Fase 1 usa un modal — se construye la primera vez que Fase 2 lo necesite (Solicitudes), no antes; sin gestión de foco/accesibilidad aparente en el original — oportunidad de mejora a documentar en `07-propuestas-futuras.md` si se decide, no a implementar de paso |
+| UI-02 | Toasts de dos tipos (`showToast` neutro, `showFormAlert` de error) | Implementada | 1/2 | El toast neutro (`ToastProvider`, `shared/ui/toast.tsx`) ya está construido y en uso desde el bloque de Perfil. `showFormAlert` (rojo, 6s) todavía no tiene ningún llamador real — se añade la primera vez que Fase 2 lo necesite |
+| UI-03 | `showAlert` genérico inyectado por ID de contenedor | Pendiente | 1/2 | Ningún bloque de la Fase 1 lo necesita (los bloques propios usan sus propias alertas con `useActionState`) — se construye junto con los modales de Fase 2 que lo usan |
+| UI-04 | Formateo de fecha localizado `es-ES` | Pendiente | 1/2 | Ningún bloque de la Fase 1 muestra fechas — se construye la primera vez que Fase 2 lo necesite (historial de una solicitud) |
+| UI-05 | Formateo de número con separador de miles español | Validada | 1 | `fmtNum()` en `features/dashboard/domain/dashboard-stats.ts`, con test unitario — ya en uso en las tarjetas KPI del Dashboard |
 | UI-06 | Sistema de archivos adjuntos por categoría con deduplicación por nombre+tamaño | Pendiente | 2 | — |
 | UI-07 | Múltiples zonas de drag&drop con implementación duplicada por zona (logo, catálogo, diseño propio, diseño en detalle, modificación, covers de campaña, carga masiva) | Pendiente | 2 y 3 | Sin abstracción común hoy — en Next.js se puede unificar en un componente reutilizable **sin cambiar el comportamiento observable** de cada zona |
 | UI-08 | Previsualización de archivo único con opción "Quitar" (modal de modificación) | Pendiente | 2 | — |
