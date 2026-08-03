@@ -69,7 +69,10 @@ async function seedUsers() {
   return ids;
 }
 
-async function seedCampana(creadaPor: string) {
+async function seedCampana() {
+  // `campanas` no tiene columna `creada_por` en el esquema real (confirmado
+  // en docs/03-modelo-datos.md § 3.4) — el parámetro que este script tenía
+  // antes no correspondía a ninguna columna existente.
   const { data, error } = await admin
     .from("campanas")
     .insert({
@@ -78,7 +81,6 @@ async function seedCampana(creadaPor: string) {
       fecha_cierre: "2099-12-31",
       activa: true,
       catalogos: ["roly", "roly_wrk", "stamina", "xmas"],
-      creada_por: creadaPor,
     })
     .select()
     .single();
@@ -89,10 +91,8 @@ async function seedCampana(creadaPor: string) {
 
 async function main() {
   console.log(`Sembrando datos sintéticos en ${SUPABASE_URL} ...`);
-  const ids = await seedUsers();
-  const adminId = ids["admin"];
-  if (!adminId) throw new Error("No se creó el usuario admin de prueba.");
-  await seedCampana(adminId);
+  await seedUsers();
+  await seedCampana();
   console.log("\nListo. Credenciales de todos los usuarios de prueba: contraseña", TEST_PASSWORD);
 }
 
