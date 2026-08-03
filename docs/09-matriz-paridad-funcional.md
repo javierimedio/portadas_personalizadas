@@ -95,14 +95,14 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | SOL-01 | Código SAP obligatorio, normalizado a mayúsculas | Implementada | 2 | Bloque 1 |
 | SOL-02 | Nombre de empresa normalizado a mayúsculas | Implementada | 2 | Bloque 1 |
 | SOL-03 | Idioma obligatorio (24 opciones fijas) | Implementada | 2 | Español + 23 idiomas europeos. Bloque 1 |
-| SOL-04 | Provincia condicional al idioma | Implementada | 2 | Select de 52 provincias/países si idioma=Español (obligatorio); texto libre y opcional para el resto. Bloque 1. **Hallazgo replicado tal cual, pendiente de decisión**: al reeditar, `provincia` se guarda en mayúsculas (`PROVINCIA.toUpperCase()`) pero el `<select>` compara por valor exacto contra las opciones capitalizadas (`"Madrid"`) — el desplegable aparece vacío al editar un borrador en español aunque el dato siga ahí; el input de texto libre (idioma≠Español) no tiene este problema. Replicado sin corregir, a decidir |
+| SOL-04 | Provincia condicional al idioma | Implementada | 2 | Select de 52 provincias/países si idioma=Español (obligatorio); texto libre y opcional para el resto. Corregido (H-08): al reeditar, la provincia guardada en mayúsculas se busca sin distinguir mayúsculas/minúsculas para preseleccionar la opción correcta |
 | SOL-05 | Normalización de idioma capitalizado al reeditar | Implementada | 2 | Bloque 1 (`capitalizeIdioma()`) |
 | SOL-06 | Comentarios generales opcionales | Implementada | 2 | Bloque 1 |
 | SOL-07 | Selector de campaña en el formulario (solo activas o la propia si está cerrada) | Implementada | 2 | Marca "(cerrada)" si aplica. Bloque 1 |
 | SOL-08 | Recalculo de catálogos al cambiar de campaña en el formulario | Implementada | 2 | **Caso límite** replicado tal cual: pierde datos no guardados de catálogos ya rellenados si se cambia de campaña a mitad de formulario. Bloque 1 |
 | SOL-09 | Bloqueo de creación en campaña cerrada | Pendiente | 2 | El guard del botón "+ Nueva solicitud" (`checkCampanaAndOpen()`, toast + redirección a Campañas) se difiere — la comprobación real ya existe en el guardado (SOL-10), este es solo un aviso temprano de UX |
 | SOL-10 | Revalidación de cierre de campaña al guardar | Implementada | 2 | Doble check por si la campaña cerró entre apertura del formulario y el guardado. Bloque 1 |
-| SOL-11 | Detección de código SAP duplicado en la misma campaña | Implementada | 2 | Solo al crear, no al editar. Bloque 1. **Hallazgo replicado tal cual, pendiente de decisión**: la comparación usa el código tal como se escribió (sin mayusculizar) contra los ya guardados (que sí se guardan en mayúsculas) — sensible a mayúsculas, en la práctica solo protege SAPs numéricos. Replicado sin corregir, a decidir |
+| SOL-11 | Detección de código SAP duplicado en la misma campaña | Implementada | 2 | Solo al crear, no al editar. Corregido (H-09): la comparación normaliza a mayúsculas en ambos lados, ya no depende de cómo se haya escrito el código |
 | SOL-12 | Campo canal+comercial asignado solo visible para admin/marketing | Implementada | 2 | Para el resto de roles, `comercial_id` se autoasigna al usuario actual. Bloque 1 |
 | SOL-13 | Cascada canal → lista de comerciales asignables | Implementada | 2 | Filtra por rol de canal, solo activos, orden alfabético. Bloque 1 |
 | SOL-14 | Mensaje de error acumulado truncado a 3 + "N más" | Implementada | 2 | Bloque 1 |
@@ -127,13 +127,13 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | CAT-03 | Toggle maestro "Portada personalizada" con cascada de visibilidad | Implementada | 2 | Réplica exacta, incluido que ocultar no limpia los valores ya introducidos (~2578-2604, quedan en el estado de React aunque no se muestren, igual que en el DOM original) |
 | CAT-04 | Toggle "Catálogo impreso" revela campo Unidades obligatorio | Implementada | 2 | `min=1` |
 | CAT-05 | Fila "Con precios" solo visible si idioma=Español y catálogo tiene diseño propio | Implementada | 2 | Oculta para Roly/Roly WRK y para cualquier idioma no español |
-| CAT-06 | Toggle "Diseño 100% propio" oculta preferencias y posición de logo | Implementada | 2 | Ver H-10: en el original solo se aplica literalmente a Stamina, nunca a XMAS — replicado tal cual |
-| CAT-07 | Enlaces "Ver portadas disponibles"/"Ver instrucciones" por catálogo | Implementada | 2 | Ver H-11: usan la campaña activa por defecto, no la seleccionada en el formulario — replicado tal cual. "Ver instrucciones" además ahora depende del idioma elegido (cambio funcional solicitado) |
+| CAT-06 | Toggle "Diseño 100% propio" oculta preferencias y posición de logo | Implementada | 2 | Corregido (H-10): independiente por catálogo, ya no solo Stamina |
+| CAT-07 | Enlaces "Ver portadas disponibles"/"Ver instrucciones" por catálogo | Implementada | 2 | Corregido (H-11): usan la campaña seleccionada en el formulario. "Ver instrucciones" además depende del idioma elegido (cambio funcional solicitado) |
 | CAT-08 | Expandir/contraer secciones de catálogo (solo en memoria) | Implementada | 2 | Contraídas por defecto al crear, expandidas al editar |
 | CAT-09 | Radios custom (no `<input type=radio>` real) | Implementada | 2 | Migrado a `<input type=radio>` real y accesible — decisión ya sancionada, comportamiento observable idéntico |
 | CAT-10 | 3 preferencias de portada por catálogo (1ª obligatoria) | Implementada | 2 | — |
 | CAT-11 | Posición de logo (A/B/C), obligatoria si aplica | Implementada | 2 | — |
-| CAT-12 | Zona de subida de diseño propio Stamina (`.pdf,.ai,.eps`) | Implementada | 2 | Solo Stamina — para XMAS es funcionalidad muerta en el original, ver H-10 |
+| CAT-12 | Zona de subida de diseño propio (`.pdf,.ai,.eps`) | Implementada | 2 | Corregido (H-10): funcional para Stamina y XMAS, no solo Stamina |
 | CAT-13 | Reset completo de secciones al abrir "nueva solicitud" | Implementada | 2 | — |
 | CAT-14 | Restauración completa de catálogos al editar | Implementada | 2 | Expande automáticamente las secciones con datos |
 | CAT-15 | Guardado usa catálogos de la campaña del formulario, no la global activa | Implementada | 2 | Evita guardar catálogos de otra campaña |
@@ -245,7 +245,7 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | CAMP-05 | Botón "Usar como activa" solo si `activa=true` y no es ya la seleccionada | Pendiente | 3 | — |
 | CAMP-06 | Selector de catálogos por checkbox sincroniza filas de subida de PDFs | Implementada | 3 | Adelanto acotado — ver nota de sección |
 | CAMP-07 | Validación obligatoria de PDFs por catálogo seleccionado | Implementada | 3 | Adaptada al cambio funcional: portadas sigue exigiendo 1 PDF; instrucciones ahora exige al menos 1 idioma con PDF (no los 24) |
-| CAMP-08 | Zonas de subida por catálogo, solo aceptan `.pdf` | Implementada | 3 | Ya no son 8 fijas: portadas (1 por catálogo) + instrucciones (hasta 24 por catálogo, una sección expandible por idioma) — cambio funcional solicitado |
+| CAMP-08 | Zonas de subida por catálogo, solo aceptan `.pdf` | Implementada | 3 | Ya no son 8 fijas: portadas (1 por catálogo) + instrucciones (una por idioma, cantidad abierta — se puede añadir cualquier idioma por nombre libre, sin lista cerrada en código) — cambio funcional solicitado |
 | CAMP-09 | Reutilización de archivos existentes al editar (enlace "Ver" + "sube otro para reemplazar") | Implementada | 3 | Adelanto acotado |
 | CAMP-10 | Nombre de archivo determinista al subir PDFs | Implementada | 3 | `covers/{campanaId}/{key}_{timestamp}.pdf`, `instrucciones/{campanaId}/{key}_{idioma}_{timestamp}.pdf`. Sin el ID temporal del original (`new_{timestamp}`) — aquí la campaña se crea primero y se sube después con su ID real, evitando esa carpeta huérfana |
 | CAMP-11 | Selector radio custom Activa/Inactiva (flag `activa`) | Implementada | 3 | Migrado a `<input type=radio>` real, mismo criterio que CAT-09 |
@@ -253,7 +253,7 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | CAMP-13 | Eliminación de campaña en cascada con aviso del nº exacto de solicitudes afectadas | Pendiente | 3 | Borra manualmente catálogos, adjuntos, logs, notificaciones y solicitudes de cada una |
 | CAMP-14 | `activeCampana` se limpia a `null` si se elimina la campaña activa | Pendiente | 3 | — |
 | CAMP-15 | 4 selectores de campaña sincronizados en toda la app | Pendiente | 3 | Panel global, dashboard, diseño, comercial — un único punto de repoblación |
-| CAMP-16 | **[Cambio funcional solicitado, no existe en `index.html`]** PDF de instrucciones por catálogo y por idioma | Implementada | 3 | `campanas.covers_instrucciones` pasa de `{ [catalogo]: url }` a `{ [catalogo]: { [idioma]: url } }`. En Solicitudes, "Ver instrucciones" solo se muestra si existe PDF para el idioma elegido (se oculta si no, nunca muestra uno incorrecto) |
+| CAMP-16 | **[Cambio funcional solicitado, no existe en `index.html`]** PDF de instrucciones por catálogo y por idioma, sin lista de idiomas fija en código | Implementada | 3 | `campanas.covers_instrucciones` pasa de `{ [catalogo]: url }` a `{ [catalogo]: { [idioma]: url } }`. El conjunto de idiomas se descubre en tiempo de ejecución a partir de lo que Marketing escriba/suba — añadir un idioma nuevo no requiere ningún cambio de código. En Solicitudes, "Ver instrucciones" solo se muestra si existe PDF para el idioma elegido (se oculta si no, nunca muestra uno incorrecto) |
 
 ## Usuarios — Fase 4
 
@@ -389,24 +389,24 @@ Registro vivo de comportamientos de `index.html` que parecen incorrectos, incomp
 
 - **Comportamiento actual**: `provincia` se guarda en mayúsculas (`PROVINCIA.toUpperCase()`, ~2934) pero `openFormModal()` asigna ese valor tal cual a `f-provincia-select.value` (~2744) — un `<select>` no selecciona ninguna opción si el valor no coincide EXACTAMENTE con `value` de una `<option>` (`"MADRID"` no es `"Madrid"`). El input de texto libre (idioma≠Español) no tiene este problema porque acepta cualquier valor.
 - **Por qué se sospecha bug**: es casi con certeza un descuido de mayúsculas/minúsculas, no una decisión de diseño — el dato sigue guardado correctamente, solo su representación visual al reeditar se pierde.
-- **Decisión**: Replicar tal cual (2026-08-03) — no se corrige en esta fase; revisar en la fase de refactorización.
+- **Decisión**: Corregido (2026-08-03) — cambio de criterio del usuario: a partir de esta fecha los defectos objetivos detectados se corrigen directamente en vez de replicarse (ya no aplica el principio de la sección anterior a los hallazgos ya identificados). El formulario ahora busca la opción real de la lista sin distinguir mayúsculas/minúsculas antes de preseleccionarla.
 
 ### H-09 (SOL-11) — Detección de SAP duplicado sensible a mayúsculas
 
 - **Comportamiento actual**: la comparación de duplicados (~2913-2922) usa el código tal como se escribió (sin mayusculizar) contra los ya guardados (que sí se guardan en mayúsculas, ~2932) — solo protege de duplicados cuando el SAP es puramente numérico.
 - **Por qué se sospecha bug**: la normalización a mayúsculas se aplica de forma consistente en el resto de `saveSolicitud()`; que la comparación de duplicados sea la única que no la usa parece un descuido, no una decisión deliberada.
-- **Decisión**: Replicar tal cual (2026-08-03) — no se corrige en esta fase; revisar en la fase de refactorización.
+- **Decisión**: Corregido (2026-08-03) — la comprobación de duplicados ahora compara en mayúsculas en ambos lados.
 
 ### H-10 (CAT-08) — "Diseño 100% propio" está cableado al catálogo 'stamina', incluso pintado en la sección de XMAS
 
 - **Comportamiento actual**: en `buildCatSections()` (~2506-2513), el radio "Diseño 100% propio" tiene `data-cat="stamina"` literal (no `${cat.key}`) para CUALQUIER catálogo con `hasDisenoProp` (Stamina y XMAS), igual que `toggleDisenoPropio('stamina', ...)` en sus `onclick`, el `id="diseno-propio-upload-stamina"` de la zona de subida, y el `handleDrop(event,'stamina_diseno')` de su `ondrop`. Efecto: al rellenar la sección de XMAS, "Diseño 100% propio" en realidad lee/escribe el valor de **Stamina** — nunca el de XMAS, que se guarda siempre como `false` (`getRadioVal('xmas','portada_diseno_propio')` nunca encuentra su propio radio). La zona de subida de diseño propio de XMAS (`diseno-propio-upload-xmas`, con id correcto) nunca se revela porque nada la referencia por su id real, y el archivo asociado (`catFiles.xmas_diseno`) tampoco se incluye en la lista de subida final (~2982-2988) — funcionalidad muerta por dos vías independientes.
 - **Por qué se sospecha bug**: `con_precios`, en la misma plantilla y a un par de líneas de distancia, sí usa `${cat.key}` correctamente — el contraste sugiere que "Diseño 100% propio" se escribió cuando solo Stamina tenía `hasDisenoProp: true`, y no se actualizó al añadirse XMAS a esa lista.
-- **Decisión**: Replicar tal cual (2026-08-03) — no se corrige en esta fase; revisar en la fase de refactorización. Migrado como un único estado compartido entre las secciones de Stamina y XMAS del formulario (ver `features/solicitudes/ui/solicitud-form.tsx`).
+- **Decisión**: Corregido (2026-08-03) — "Diseño 100% propio" es ahora un campo independiente por catálogo; Stamina y XMAS ya no comparten estado, y ambos tienen su propia zona de subida de diseño propio funcional.
 
-### H-11 (SOL-07/CAT-01) — Los enlaces "Ver portadas"/"Ver instrucciones" del formulario ignoran la campaña seleccionada en ese mismo formulario
+### H-11 (SOL-07/CAT-01) — Los enlaces "Ver portadas"/"Ver instrucciones" del formulario ignoraban la campaña seleccionada en ese mismo formulario
 
-- **Comportamiento actual**: `buildCatSections()` (~2429-2440) lee `activeCampana?.covers`/`activeCampana?.covers_instrucciones` — la campaña activa GLOBAL de la app — no la campaña que el usuario tiene seleccionada en el propio `<select id="f-campana">` del formulario (`onFormCampanaChange()` solo actualiza `CATS`, nunca `activeCampana`). Si un comercial cambia de campaña dentro del formulario, los enlaces de portadas/instrucciones no se actualizan y pueden corresponder a una campaña distinta de la que está rellenando.
+- **Comportamiento actual**: `buildCatSections()` (~2429-2440) lee `activeCampana?.covers`/`activeCampana?.covers_instrucciones` — la campaña activa GLOBAL de la app — no la campaña que el usuario tiene seleccionada en el propio `<select id="f-campana">` del formulario (`onFormCampanaChange()` solo actualiza `CATS`, nunca `activeCampana`). Si un comercial cambia de campaña dentro del formulario, los enlaces de portadas/instrucciones no se actualizaban y podían corresponder a una campaña distinta de la que está rellenando.
 - **Por qué se sospecha bug**: no hay ninguna razón funcional para que estos enlaces dependan de una campaña distinta a la que se está rellenando; parece un descuido al no propagar la campaña seleccionada del formulario a esta sección.
-- **Decisión**: Replicar tal cual (2026-08-03) — no se corrige en esta fase; revisar en la fase de refactorización. Migrado usando la campaña activa por defecto (`getDefaultCampanaId`) en vez de la campaña seleccionada en el formulario.
+- **Decisión**: Corregido (2026-08-03) — los enlaces usan ahora la campaña realmente seleccionada en el formulario (`selectedCampana`), no la activa por defecto.
 
-Ninguna fase que module estas funcionalidades (Fase 4 para H-01/H-06, Fase 5 para H-02, Fase 2 para H-03/H-08/H-09/H-10/H-11, Fase 1 para H-04/H-05/H-07) cierra su checklist mientras su hallazgo correspondiente siga con Decisión "Pendiente". H-08 a H-11 ya tienen decisión ("replicar tal cual") y no bloquean, pero quedan registrados para la fase de refactorización.
+Ninguna fase que module estas funcionalidades (Fase 4 para H-01/H-06, Fase 5 para H-02, Fase 2 para H-03, Fase 1 para H-04/H-05/H-07) cierra su checklist mientras su hallazgo correspondiente siga con Decisión "Pendiente". H-08 a H-11 ya están corregidos y no bloquean ninguna fase.

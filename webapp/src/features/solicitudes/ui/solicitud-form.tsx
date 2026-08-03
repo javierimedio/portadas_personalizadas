@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/shared/ui/toast";
 import { catalogosDeCampana, type CatalogoDef } from "@/shared/domain/catalogos";
+import { matchOptionCaseInsensitive } from "@/shared/domain/format";
 import { IDIOMAS, POSICIONES_LOGO, PROVINCIAS, ROLES_POR_CANAL } from "../domain/constants";
 import { saveSolicitud, type SaveSolicitudState } from "../application/save-solicitud.action";
 import type { ExistingSolicitud, FormCampana, FormPerfil } from "../domain/types";
@@ -15,6 +16,7 @@ type CatFieldState = {
   impreso: Tri;
   unidades: string;
   conPrecios: Tri;
+  disenoPropio: Tri;
   opcion1: string;
   opcion2: string;
   opcion3: string;
@@ -27,6 +29,7 @@ const BLANK_CAT: CatFieldState = {
   impreso: "",
   unidades: "",
   conPrecios: "",
+  disenoPropio: "",
   opcion1: "",
   opcion2: "",
   opcion3: "",
@@ -47,6 +50,7 @@ function buildInitialCatState(cats: CatalogoDef[], solicitud: ExistingSolicitud 
       impreso: tri(row.catalogo_impreso),
       unidades: row.unidades != null ? String(row.unidades) : "",
       conPrecios: tri(row.con_precios),
+      disenoPropio: tri(row.portada_diseno_propio),
       opcion1: row.portada_opcion_1 ?? "",
       opcion2: row.portada_opcion_2 ?? "",
       opcion3: row.portada_opcion_3 ?? "",
@@ -56,30 +60,15 @@ function buildInitialCatState(cats: CatalogoDef[], solicitud: ExistingSolicitud 
   return initial;
 }
 
-// Réplica de "ESPAÑOL" (mayúsculas, tal como se guarda, ~2931) → "Español"
-// (como aparece en el <select>, ~2740).
-function capitalizeIdioma(stored: string): string {
-  return stored.charAt(0).toUpperCase() + stored.slice(1).toLowerCase();
-}
-
-// Réplica exacta del modal "Nueva/Editar solicitud" (index.html ~1017-1196,
-// buildCatSections() ~2418-2560, openFormModal() ~2675-2808, saveSolicitud()
-// ~2816-3057). Incluye dos comportamientos replicados tal cual, no
-// corregidos (decisión explícita — ver conversación):
-//
-// 1. "Diseño 100% propio" está cableado en el original al catálogo
-//    'stamina' literalmente (data-cat="stamina" fijo en la plantilla,
-//    incluso al pintar la sección de XMAS) — por eso aquí es un único
-//    estado `disenoPropioStamina` compartido entre las secciones de
-//    Stamina y XMAS, en vez de un campo por catálogo. Para XMAS, activar
-//    "Diseño propio" no oculta sus propios campos de selección/posición
-//    (togglePortadaFields solo comprueba `key === 'stamina'` para eso) ni
-//    revela una zona de subida propia (la única zona de subida real,
-//    "Subir diseño de portada propio", solo es alcanzable para 'stamina').
-// 2. Los enlaces "Ver portadas disponibles"/"Ver instrucciones" usan
-//    siempre la campaña activa por defecto (`activeCampana` en el
-//    original), NO la campaña seleccionada en este formulario — así que si
-//    cambias de campaña en el propio formulario, los enlaces no cambian.
+// Réplica funcional del modal "Nueva/Editar solicitud" (index.html
+// ~1017-1196, buildCatSections() ~2418-2560, openFormModal() ~2675-2808,
+// saveSolicitud() ~2816-3057), corrigiendo los defectos detectados en el
+// original en vez de reproducirlos (docs/09-matriz-paridad-funcional.md §
+// H-08 a H-11): idioma/provincia se preseleccionan correctamente al
+// reeditar sin distinguir mayúsculas/minúsculas, "Diseño 100% propio" es
+// independiente por catálogo (Stamina y XMAS ya no comparten estado), y
+// los enlaces "Ver portadas"/"Ver instrucciones" usan la campaña
+// realmente seleccionada en el formulario.
 export function SolicitudForm({
   campanas,
   perfiles,
@@ -102,7 +91,8 @@ export function SolicitudForm({
 
   const esGestor = rol === "admin" || rol === "marketing";
 
-  const [idioma, setIdioma] = useState(solicitud?.idioma ? capitalizeIdioma(solicitud.idioma) : "");
+  const [idioma, setIdioma] = useState(matchOptionCaseInsensitive(IDIOMAS, solicitud?.idioma));
+  const [provincia, setProvincia] = useState(matchOptionCaseInsensitive(PROVINCIAS, solicitud?.provincia));
   const [campanaId, setCampanaId] = useState(solicitud?.campana_id ?? defaultCampanaId);
   const [canal, setCanal] = useState(solicitud?.canal ?? "");
   const [comercialAsignado, setComercialAsignado] = useState(solicitud?.comercial_id ?? "");
@@ -114,14 +104,8 @@ export function SolicitudForm({
   );
   const selectedCampana = campanas.find((c) => c.id === campanaId) ?? null;
   const cats = useMemo(() => catalogosDeCampana(selectedCampana?.catalogos ?? null), [selectedCampana]);
-  // Réplica del bug nº 2 de la cabecera: los enlaces de portadas/instrucciones
-  // siempre miran a la campaña activa por defecto, no a `selectedCampana`.
-  const campanaActiva = campanas.find((c) => c.id === defaultCampanaId) ?? null;
 
   const [catState, setCatState] = useState<Record<string, CatFieldState>>(() => buildInitialCatState(cats, solicitud));
-  const [disenoPropioStamina, setDisenoPropioStamina] = useState<Tri>(
-    tri(solicitud?.solicitud_catalogos.find((c) => c.catalogo === "stamina")?.portada_diseno_propio ?? null)
-  );
   // Réplica de toggleCat()/openFormModal() (~2561-2566, ~2719-2727,
   // ~2768-2786): al crear, las secciones de catálogo empiezan contraídas;
   // al editar, empiezan expandidas (el original llama a toggleCat() una
@@ -135,7 +119,6 @@ export function SolicitudForm({
     if (prevCampanaId.current === campanaId) return;
     prevCampanaId.current = campanaId;
     setCatState(buildInitialCatState(cats, null));
-    setDisenoPropioStamina("");
     setExpandedCats(Object.fromEntries(cats.map((c) => [c.key, false])));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campanaId]);
@@ -144,12 +127,8 @@ export function SolicitudForm({
     () => (solicitud?.adjuntos ?? []).filter((a) => a.tipo === "logo_general"),
     [solicitud]
   );
-  const existingStaminaDisenoFiles = useMemo(
-    () => (solicitud?.adjuntos ?? []).filter((a) => a.tipo === "stamina_diseno"),
-    [solicitud]
-  );
   const [logoFiles, setLogoFiles] = useState<File[]>([]);
-  const [staminaDisenoFiles, setStaminaDisenoFiles] = useState<File[]>([]);
+  const [disenoFiles, setDisenoFiles] = useState<Record<string, File[]>>({});
 
   const comercialesDelCanal = useMemo(() => {
     if (!canal) return [];
@@ -176,7 +155,6 @@ export function SolicitudForm({
   return (
     <form action={formAction}>
       {solicitud && <input type="hidden" name="solicitudId" value={solicitud.id} />}
-      <input type="hidden" name="disenoPropioStamina" value={disenoPropioStamina} />
 
       <div className="card-title">Datos del cliente</div>
       <div className="form-grid" style={{ marginBottom: "1rem" }}>
@@ -206,7 +184,7 @@ export function SolicitudForm({
         <div className="form-group">
           <label>Provincia / País {isEspanol && <span className="req">*</span>}</label>
           {isEspanol ? (
-            <select name="provinciaSelect" defaultValue={solicitud?.provincia ?? ""}>
+            <select name="provinciaSelect" value={provincia} onChange={(e) => setProvincia(e.target.value)}>
               <option value="">— selecciona provincia —</option>
               {PROVINCIAS.map((p) => (
                 <option key={p} value={p}>
@@ -281,13 +259,11 @@ export function SolicitudForm({
       {cats.map((cat) => {
         const c = catState[cat.key] ?? BLANK_CAT;
         const personalizada = c.portadaPersonalizada === "si";
-        // Bug replicado (ver cabecera del componente): el ocultamiento de
-        // "selección de portadas"/"posición logo" por diseño propio solo se
-        // aplica literalmente al catálogo 'stamina'.
-        const ocultaPorDisenoPropio = cat.key === "stamina" && disenoPropioStamina === "si";
-        const coversUrl = campanaActiva?.covers?.[cat.key];
-        const instruccionesUrl = idioma ? campanaActiva?.coversInstrucciones?.[cat.key]?.[idioma] : undefined;
+        const ocultaPorDisenoPropio = c.disenoPropio === "si";
+        const coversUrl = selectedCampana?.covers?.[cat.key];
+        const instruccionesUrl = idioma ? selectedCampana?.coversInstrucciones?.[cat.key]?.[idioma] : undefined;
         const expanded = expandedCats[cat.key] ?? false;
+        const existingDisenoFiles = (solicitud?.adjuntos ?? []).filter((a) => a.tipo === `${cat.key}_diseno`);
 
         return (
           <div className={`cat-section cat-${cat.key}`} key={cat.key}>
@@ -479,29 +455,23 @@ export function SolicitudForm({
                   <div className="toggle-row" style={{ marginBottom: ".75rem" }}>
                     <span className="toggle-label">Diseño 100% propio</span>
                     <div className="radio-group">
-                      {/* name único por sección (no "disenoPropioStamina"): con el
-                          mismo name en dos grupos de radios distintos, el navegador
-                          fuerza selección única entre los CUATRO inputs (los de
-                          Stamina y los de XMAS), rompiendo la sincronía visual del
-                          estado compartido. El valor real que se envía va por el
-                          input hidden de más abajo. */}
                       <label>
                         <input
                           type="radio"
-                          name={`disenoPropioStamina_${cat.key}`}
+                          name={`cat_${cat.key}_disenoPropio`}
                           value="si"
-                          checked={disenoPropioStamina === "si"}
-                          onChange={() => setDisenoPropioStamina("si")}
+                          checked={c.disenoPropio === "si"}
+                          onChange={() => setCatField(cat.key, "disenoPropio", "si")}
                         />{" "}
                         Sí
                       </label>
                       <label>
                         <input
                           type="radio"
-                          name={`disenoPropioStamina_${cat.key}`}
+                          name={`cat_${cat.key}_disenoPropio`}
                           value="no"
-                          checked={disenoPropioStamina === "no"}
-                          onChange={() => setDisenoPropioStamina("no")}
+                          checked={c.disenoPropio === "no"}
+                          onChange={() => setCatField(cat.key, "disenoPropio", "no")}
                         />{" "}
                         No
                       </label>
@@ -570,16 +540,16 @@ export function SolicitudForm({
                   </div>
                 </div>
 
-                {cat.key === "stamina" && (
-                  <div style={{ display: disenoPropioStamina === "si" ? "block" : "none" }}>
+                {cat.hasDisenoProp && (
+                  <div style={{ display: ocultaPorDisenoPropio ? "block" : "none" }}>
                     <div className="form-group" style={{ marginBottom: ".5rem" }}>
-                      <label>Subir diseño de portada propio (Stamina)</label>
+                      <label>Subir diseño de portada propio ({cat.label})</label>
                       <FileDropZone
-                        name="staminaDisenoFiles"
+                        name={`cat_${cat.key}_disenoFiles`}
                         accept=".pdf,.ai,.eps"
-                        files={staminaDisenoFiles}
-                        onFilesChange={setStaminaDisenoFiles}
-                        existingFiles={existingStaminaDisenoFiles}
+                        files={disenoFiles[cat.key] ?? []}
+                        onFilesChange={(files) => setDisenoFiles((prev) => ({ ...prev, [cat.key]: files }))}
+                        existingFiles={existingDisenoFiles}
                         hint="PDF · 300 dpi · textos trazados"
                         icon="🎨"
                       />

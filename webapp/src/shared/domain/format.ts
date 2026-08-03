@@ -8,3 +8,13 @@ export function fmtDate(ts: string | null | undefined): string {
   const hora = d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
   return `${fecha} ${hora}`;
 }
+
+// Varios campos (idioma, provincia) se guardan en mayúsculas por
+// normalización de negocio; al reeditar hay que encontrar la opción real
+// de la lista (con su capitalización original) sin distinguir
+// mayúsculas/minúsculas para poder preseleccionarla en un <select>
+// (docs/09-matriz-paridad-funcional.md § H-08).
+export function matchOptionCaseInsensitive(list: readonly string[], stored: string | null | undefined): string {
+  if (!stored) return "";
+  return list.find((o) => o.toLowerCase() === stored.toLowerCase()) ?? stored;
+}

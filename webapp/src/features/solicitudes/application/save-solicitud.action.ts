@@ -9,11 +9,13 @@ import {
   type CatalogoFormInput,
 } from "../domain/validation";
 
-// Réplica de saveSolicitud() en index.html (~2816-3057) — SOL-01/02/11,
-// CAT-01 a CAT-12, EST-01 (transición borrador→enviada). El resto de
-// transiciones de estado (marketing, diseño, confirmar, archivar) se dejan
-// para el bloque 3; enviarNotificacion() (~3045-3047) sigue diferido al
-// módulo de Notificaciones.
+// Réplica funcional de saveSolicitud() en index.html (~2816-3057) —
+// SOL-01/02/11, CAT-01 a CAT-16, EST-01 (transición borrador→enviada), con
+// las correcciones de docs/09-matriz-paridad-funcional.md § H-09/H-10: el
+// SAP duplicado se compara sin distinguir mayúsculas, y "Diseño 100%
+// propio" es independiente por catálogo (Stamina y XMAS ya no comparten
+// estado). El resto de transiciones de estado se dejan para el bloque 3;
+// enviarNotificacion() sigue diferido al módulo de Notificaciones.
 export type SaveSolicitudState = { error?: string; success?: string; solicitudId?: string } | null;
 
 const STORAGE_BUCKET = "portadas-adjuntos";
@@ -60,13 +62,6 @@ export async function saveSolicitud(_prev: SaveSolicitudState, formData: FormDat
     : { data: null };
   const cats = catalogosDeCampana(campana?.catalogos ?? null);
 
-  // Réplica de togglePortadaFields()/toggleDisenoPropio() (~2578-2614): "Diseño
-  // 100% propio" está cableado literalmente al catálogo 'stamina' en el
-  // original (data-cat="stamina" fijo, sea el bloque de Stamina o el de
-  // XMAS) — para XMAS este control real nunca escribe en su propio
-  // catálogo. Replicado tal cual (decisión explícita, no se corrige aquí).
-  const disenoPropioStamina = triState(formData.get("disenoPropioStamina")) === true;
-
   function readCat(cat: (typeof cats)[number]) {
     return {
       portadaPersonalizada: triState(formData.get(`cat_${cat.key}_portadaPersonalizada`)),
@@ -74,7 +69,7 @@ export async function saveSolicitud(_prev: SaveSolicitudState, formData: FormDat
       impreso: triState(formData.get(`cat_${cat.key}_impreso`)),
       unidades: Number(formData.get(`cat_${cat.key}_unidades`)) || null,
       conPrecios: cat.hasDisenoProp ? triState(formData.get(`cat_${cat.key}_conPrecios`)) : null,
-      disenoPropio: cat.key === "stamina" ? disenoPropioStamina : false,
+      disenoPropio: cat.hasDisenoProp ? triState(formData.get(`cat_${cat.key}_disenoPropio`)) === true : false,
       opcion1: String(formData.get(`cat_${cat.key}_opcion1`) ?? "") || null,
       opcion2: String(formData.get(`cat_${cat.key}_opcion2`) ?? "") || null,
       opcion3: String(formData.get(`cat_${cat.key}_opcion3`) ?? "") || null,
@@ -103,16 +98,17 @@ export async function saveSolicitud(_prev: SaveSolicitudState, formData: FormDat
   }
 
   if (!solicitudId) {
-    // Réplica exacta de la comprobación de duplicados (~2913-2922): compara
-    // el código tal como se escribió (sin mayusculizar) contra los ya
-    // guardados (que SÍ se guardan en mayúsculas, ~2932) — comprobación
-    // sensible a mayúsculas que en la práctica solo protege SAPs numéricos.
-    // Replicado tal cual (decisión explícita, no se corrige aquí).
+    // Comprobación de duplicados (~2913-2922) comparando en mayúsculas en
+    // ambos lados — el original comparaba el código sin mayusculizar
+    // contra los ya guardados (que sí se guardan en mayúsculas), lo que en
+    // la práctica solo protegía SAPs numéricos (docs/09-matriz-paridad-
+    // funcional.md § H-09, corregido).
+    const codSapUpper = codSap.toUpperCase();
     const { data: dup } = await supabase
       .from("solicitudes")
       .select("id")
       .eq("campana_id", campanaId)
-      .eq("cod_sap", codSap)
+      .eq("cod_sap", codSapUpper)
       .maybeSingle();
     if (dup) {
       return { error: `El cliente ${codSap} ya tiene una solicitud en la campaña ${campana?.nombre ?? ""}. No se pueden crear duplicados.` };
@@ -173,12 +169,15 @@ export async function saveSolicitud(_prev: SaveSolicitudState, formData: FormDat
     detalle: { estado: intent, cod_sap: codSap },
   });
 
-  // Subida de adjuntos (~2981-3042): logo del cliente (siempre) y diseño de
-  // portada propio (solo alcanzable para 'stamina' — para 'xmas' este
-  // control nunca llega a subir nada, ver disenoPropioStamina más arriba).
+  // Subida de adjuntos (~2981-3042): logo del cliente y diseño de portada
+  // propio — ahora simétrico para cualquier catálogo con `hasDisenoProp`
+  // (Stamina y XMAS), no solo Stamina (docs/09-matriz-paridad-funcional.md
+  // § H-10, corregido).
   const filesToUpload: { file: File; tipo: string }[] = [
     ...filesFrom(formData, "logoGeneralFiles").map((file) => ({ file, tipo: "logo_general" })),
-    ...filesFrom(formData, "staminaDisenoFiles").map((file) => ({ file, tipo: "stamina_diseno" })),
+    ...cats
+      .filter((cat) => cat.hasDisenoProp)
+      .flatMap((cat) => filesFrom(formData, `cat_${cat.key}_disenoFiles`).map((file) => ({ file, tipo: `${cat.key}_diseno` }))),
   ];
 
   for (const entry of filesToUpload) {

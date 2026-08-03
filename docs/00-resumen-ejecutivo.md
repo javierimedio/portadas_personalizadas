@@ -15,13 +15,13 @@ Corolario operativo: **ninguna fase del roadmap empieza sin que la anterior teng
 
 ## Principio complementario: no replicar bugs a ciegas
 
-"Paridad funcional al 100%" no significa "copiar cualquier comportamiento sin cuestionarlo". Si durante la implementación se detecta que algo de `index.html` parece incorrecto, incompleto o potencialmente defectuoso (como la importación de usuarios de `09-matriz-paridad-funcional.md`, que podría no funcionar hoy en producción), el procedimiento es siempre el mismo, sin excepción:
+"Paridad funcional al 100%" no significa "copiar cualquier comportamiento sin cuestionarlo". Si durante la implementación se detecta que algo de `index.html` parece incorrecto, incompleto o potencialmente defectuoso, el procedimiento depende de qué tan objetivo sea el fallo:
 
-1. **Documentar el comportamiento actual** tal como es, con referencia a la línea de `index.html`.
-2. **Explicar por qué se sospecha que es un bug** o un comportamiento no intencionado, no solo "esto se ve raro".
-3. **Pedir una decisión explícita antes de implementar nada** — nunca corregirlo por iniciativa propia, y nunca migrarlo asumiendo silenciosamente que es correcto.
+1. **Documentar siempre el comportamiento actual**, con referencia a la línea de `index.html`, y explicar por qué se sospecha que es un bug — en `09-matriz-paridad-funcional.md` § "Hallazgos a verificar", que se amplía según aparezcan nuevos.
+2. **Si es un fallo objetivo** (el código hace algo que ninguna lógica de negocio razonable explicaría — un `id`/`data-cat` mal copiado, una comparación que ignora una normalización que se aplica en todos los demás sitios, un `<select>` que no puede preseleccionar su propio valor guardado, etc.): **se corrige directamente**, sin esperar aprobación previa. Se mantiene la lógica de negocio real, no los errores históricos de implementación. Así se decidió a partir del 2026-08-03 (ver hallazgos H-08 a H-11, primeros corregidos bajo este criterio) — sustituye la exigencia anterior de pedir decisión explícita para cualquier hallazgo.
+3. **Si es ambiguo** (podría ser una decisión de negocio real aunque parezca extraña, o no hay forma de confirmarlo solo leyendo el código — como si la importación masiva de usuarios llega a funcionar hoy en producción): se sigue pidiendo una decisión explícita antes de implementar nada, exactamente como antes.
 
-El registro vivo de estos casos está en `09-matriz-paridad-funcional.md` § "Hallazgos a verificar" (que se amplía según aparezcan nuevos durante la implementación) y el procedimiento formal en `08-protocolo-validacion.md` § 8.7. Ninguna fase se da por completa mientras tenga un hallazgo de este tipo sin una decisión registrada — ni "sin decidir" ni "decidido por defecto a favor de replicarlo" son válidos; hace falta una respuesta explícita.
+El procedimiento formal está en `08-protocolo-validacion.md` § 8.7. Ninguna fase se da por completa mientras tenga un hallazgo ambiguo (categoría 3) sin una decisión registrada; los hallazgos objetivos (categoría 2) se registran ya como corregidos, no como pendientes de decisión.
 
 ## Principio de trabajo: navegador primero, terminal solo si es imprescindible
 
