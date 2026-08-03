@@ -8,6 +8,7 @@ function sol(overrides: Partial<SolicitudListItem> = {}): SolicitudListItem {
     nombre_empresa: "ACME",
     provincia: "Madrid",
     idioma: "Español",
+    comentarios: null,
     canal: null,
     comercial_id: "u1",
     campana_id: "c1",

@@ -1,12 +1,11 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useToast } from "@/shared/ui/toast";
 import { catalogosDeCampana, type CatalogoDef } from "@/shared/domain/catalogos";
 import { IDIOMAS, PROVINCIAS, ROLES_POR_CANAL } from "../domain/constants";
 import { saveSolicitud, type SaveSolicitudState } from "../application/save-solicitud.action";
-import type { ExistingSolicitud, FormCampana, FormPerfil } from "../application/get-solicitud-form-data";
+import type { ExistingSolicitud, FormCampana, FormPerfil } from "../domain/types";
 
 type CatFieldState = { digital: "" | "si" | "no"; impreso: "" | "si" | "no"; unidades: string };
 
@@ -30,16 +29,19 @@ export function SolicitudForm({
   defaultCampanaId,
   rol,
   solicitud,
+  onCancel,
+  onSaved,
 }: {
   campanas: FormCampana[];
   perfiles: FormPerfil[];
   defaultCampanaId: string;
   rol: string | null | undefined;
   solicitud: ExistingSolicitud | null;
+  onCancel: () => void;
+  onSaved: () => void;
 }) {
   const [state, formAction, pending] = useActionState<SaveSolicitudState, FormData>(saveSolicitud, null);
   const { toast, formAlert } = useToast();
-  const router = useRouter();
 
   const esGestor = rol === "admin" || rol === "marketing";
 
@@ -85,7 +87,7 @@ export function SolicitudForm({
     if (state?.error) formAlert(state.error);
     if (state?.success) {
       toast(state.success);
-      router.push("/solicitudes");
+      onSaved();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
@@ -266,6 +268,9 @@ export function SolicitudForm({
       </div>
 
       <div className="btn-row">
+        <button type="button" onClick={onCancel} className="btn btn-outline">
+          Cancelar
+        </button>
         <button type="submit" name="intent" value="borrador" disabled={pending} className="btn btn-outline">
           Guardar borrador
         </button>

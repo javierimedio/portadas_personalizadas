@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { fmtDate } from "@/shared/domain/format";
 import { ALL_CATALOGOS } from "@/shared/domain/catalogos";
 import { ESTADO_LABEL } from "@/shared/domain/estados";
@@ -18,11 +17,15 @@ export function SolicitudesTable({
   campanas,
   defaultCampanaId,
   rol,
+  onNueva,
+  onEditar,
 }: {
   rows: SolicitudListItem[];
   campanas: { id: string; nombre: string; activa: boolean }[];
   defaultCampanaId: string;
   rol: string | null | undefined;
+  onNueva: () => void;
+  onEditar: (solicitud: SolicitudListItem) => void;
 }) {
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState("");
@@ -60,9 +63,9 @@ export function SolicitudesTable({
               </option>
             ))}
         </select>
-        <Link href="/solicitudes/nueva" className="btn btn-amber">
+        <button type="button" onClick={onNueva} className="btn btn-amber">
           + Nueva solicitud
-        </Link>
+        </button>
         <input
           type="text"
           value={q}
@@ -170,9 +173,9 @@ export function SolicitudesTable({
                     <td className="text-mid text-sm">{fmtDate(s.updated_at)}</td>
                     <td>
                       {s.estado === "borrador" && (
-                        <Link href={`/solicitudes/${s.id}/editar`} className="btn btn-sm btn-outline">
+                        <button type="button" onClick={() => onEditar(s)} className="btn btn-sm btn-outline">
                           Editar
-                        </Link>
+                        </button>
                       )}
                     </td>
                   </tr>

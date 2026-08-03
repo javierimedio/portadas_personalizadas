@@ -315,7 +315,7 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| UI-01 | Sistema de modales por clase `.open` | Pendiente | 1/2 | Ningún bloque de la Fase 1 usa un modal — se construye la primera vez que Fase 2 lo necesite (Solicitudes), no antes; sin gestión de foco/accesibilidad aparente en el original — oportunidad de mejora a documentar en `07-propuestas-futuras.md` si se decide, no a implementar de paso |
+| UI-01 | Sistema de modales por clase `.open` | Implementada | 1/2 | `.modal-bg`/`.modal`/`.modal-header`/`.modal-body` en `globals.css`, montado condicionalmente en vez de por clase — mismo resultado visual. Primer uso real: el modal de Nueva/Editar solicitud (Bloque 1, decisión explícita de mantener modal en vez de ruta propia). Sin gestión de foco/accesibilidad, igual que el original — oportunidad de mejora a documentar en `07-propuestas-futuras.md`, no a implementar de paso |
 | UI-02 | Toasts de dos tipos (`showToast` neutro, `showFormAlert` de error) | Implementada | 1/2 | El toast neutro (`ToastProvider`, `shared/ui/toast.tsx`) en uso desde Perfil. `showFormAlert` (rojo, 6s) ya tiene su primer llamador real: el formulario de Solicitudes (Bloque 1) |
 | UI-03 | `showAlert` genérico inyectado por ID de contenedor | Pendiente | 1/2 | Ningún bloque construido hasta ahora lo necesita (los formularios propios usan sus propias alertas con `useActionState`) — se construye junto con los modales de Fase 2 que lo usan |
 | UI-04 | Formateo de fecha localizado `es-ES` | Implementada | 1/2 | `fmtDate()` en `shared/domain/format.ts`, con test unitario — en uso en la tabla "Mis solicitudes" (Bloque 1) |

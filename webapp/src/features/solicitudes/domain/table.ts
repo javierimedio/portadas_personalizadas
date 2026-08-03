@@ -18,6 +18,7 @@ export type SolicitudListItem = {
   nombre_empresa: string | null;
   provincia: string | null;
   idioma: string | null;
+  comentarios: string | null;
   canal: string | null;
   comercial_id: string | null;
   campana_id: string | null;
