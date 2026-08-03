@@ -51,21 +51,21 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| NAV-01 | Nav construido dinámicamente según rol | Implementada | 1 | `getNavItemsForRole()` réplica de `buildNav`; "Perfil" no está en el nav, solo en el header. Incluye a propósito el hueco de H-07 (roles legacy genéricos) |
-| NAV-02 | Acceso a Dashboard: admin, marketing, responsable_nacional, responsable_exportacion | Implementada | 1 | Cubierto por `getNavItemsForRole()`, con test unitario (`tests/unit/nav-items.test.ts`) |
-| NAV-03 | Acceso a Solicitudes: admin, marketing, comerciales y responsables | Implementada | 2 | `requireRouteAccess()` bloquea `/solicitudes` a cualquier otro rol (redirige a `/`), no solo lo oculta del nav — necesario porque en Next.js la ruta es directamente navegable, a diferencia del SPA original sin URLs propias. Contenido real pendiente de la Fase 2 |
-| NAV-04 | Acceso a Panel global: solo admin/marketing | Implementada | 5 | Mismo guard de servidor sobre `/panel`. Contenido real pendiente de la Fase 5 |
-| NAV-05 | Acceso a Diseño: admin, marketing, disenador, responsable_diseno | Implementada | 2 | Mismo guard de servidor sobre `/diseno`. Contenido real pendiente de la Fase 2 |
-| NAV-06 | Acceso a Campañas/Usuarios: solo admin/marketing | Implementada | 3/4 | Mismo guard de servidor sobre `/campanas` y `/usuarios`. Contenido real pendiente de sus fases |
-| NAV-07 | Activación automática de la primera pestaña visible | Implementada | 1 | `/` redirige al primer item visible para ese rol (equivalente por rutas reales, en vez de `showPage` sobre un DOM ya cargado) |
-| NAV-08 | Cambio de página sin recarga (`showPage`) | Implementada | 1 | Sustituido por navegación de cliente de `next/link` + estado activo vía `usePathname()` — mismo resultado observable |
+| NAV-01 | Nav construido dinámicamente según rol | Validada | 1 | `getNavItemsForRole()` réplica de `buildNav`; "Perfil" no está en el nav, solo en el header. Incluye a propósito el hueco de H-07 (roles legacy genéricos) |
+| NAV-02 | Acceso a Dashboard: admin, marketing, responsable_nacional, responsable_exportacion | Validada | 1 | Cubierto por `getNavItemsForRole()`, con test unitario (`tests/unit/nav-items.test.ts`) |
+| NAV-03 | Acceso a Solicitudes: admin, marketing, comerciales y responsables | Validada | 2 | `requireRouteAccess()` bloquea `/solicitudes` a cualquier otro rol (redirige a `/`), no solo lo oculta del nav — necesario porque en Next.js la ruta es directamente navegable, a diferencia del SPA original sin URLs propias. Contenido real pendiente de la Fase 2 |
+| NAV-04 | Acceso a Panel global: solo admin/marketing | Validada | 5 | Mismo guard de servidor sobre `/panel`. Contenido real pendiente de la Fase 5 |
+| NAV-05 | Acceso a Diseño: admin, marketing, disenador, responsable_diseno | Validada | 2 | Mismo guard de servidor sobre `/diseno`. Contenido real pendiente de la Fase 2 |
+| NAV-06 | Acceso a Campañas/Usuarios: solo admin/marketing | Validada | 3/4 | Mismo guard de servidor sobre `/campanas` y `/usuarios`. Contenido real pendiente de sus fases |
+| NAV-07 | Activación automática de la primera pestaña visible | Validada | 1 | `/` redirige al primer item visible para ese rol (equivalente por rutas reales, en vez de `showPage` sobre un DOM ya cargado) |
+| NAV-08 | Cambio de página sin recarga (`showPage`) | Validada | 1 | Sustituido por navegación de cliente de `next/link` + estado activo vía `usePathname()` — mismo resultado observable |
 | NAV-09 | Efectos secundarios al entrar en una página | Pendiente | 2/3/1 | Depende del contenido real de cada página (campañas, dashboard, perfil), todavía placeholders |
-| NAV-10 | Nav móvil tipo drawer con hamburguesa | Implementada | 1 | Bloquea scroll del body (`document.body.style.overflow`), muestra backdrop |
-| NAV-11 | Cierre automático del drawer al pulsar un botón de nav (≤480px) | Implementada | 1 | En la réplica se cierra en cualquier ancho móvil (breakpoint único `md`, sin distinguir 480px de 768px como el original) — mismo resultado observable, breakpoint simplificado |
-| NAV-12 | Cierre automático del drawer al redimensionar a escritorio | Implementada | 1 | Resuelto por CSS (`md:translate-x-0`) en vez de un listener de `resize` — el drawer no puede quedar visible en escritorio independientemente del estado de React, mismo resultado observable con una implementación más simple |
+| NAV-10 | Nav móvil tipo drawer con hamburguesa | Validada | 1 | Bloquea scroll del body (`document.body.style.overflow`), muestra backdrop |
+| NAV-11 | Cierre automático del drawer al pulsar un botón de nav (≤480px) | Validada | 1 | En la réplica se cierra en cualquier ancho móvil (breakpoint único `md`, sin distinguir 480px de 768px como el original) — mismo resultado observable, breakpoint simplificado |
+| NAV-12 | Cierre automático del drawer al redimensionar a escritorio | Validada | 1 | Resuelto por CSS (`md:translate-x-0`) en vez de un listener de `resize` — el drawer no puede quedar visible en escritorio independientemente del estado de React, mismo resultado observable con una implementación más simple |
 | NAV-13 | Cierre de modales predefinidos con Escape | Pendiente | 1 | Sin relación con Layout/nav — pertenece a los modales de Solicitudes/Usuarios/Campañas, todavía no migrados |
-| NAV-14 | Logos de marca en topbar | Implementada | 1 | Roly, Roly WRK, Stamina — ocultos en móvil (`hidden md:flex`) igual que el original oculta elementos no esenciales de la topbar en `@media (max-width: 768px)` |
-| NAV-15 | Botón "Mi cuenta" en topbar | Implementada | 1 | Navega a `/perfil` (placeholder hasta su propio bloque) |
+| NAV-14 | Logos de marca en topbar | Validada | 1 | Roly, Roly WRK, Stamina — ocultos en móvil (`hidden md:flex`) igual que el original oculta elementos no esenciales de la topbar en `@media (max-width: 768px)` |
+| NAV-15 | Botón "Mi cuenta" en topbar | Validada | 1 | Navega a `/perfil` (placeholder hasta su propio bloque) |
 | NAV-16 | Badge de rol en topbar | No aplicable | 1 | **Corrección de este documento**: verificado en `index.html` (~564) que `#role-tag` tiene `style="display:none"` inline y ningún punto del código (~1891, ~5116) vuelve a mostrarlo — solo actualizan su `textContent`. La observación anterior ("mostrado tras `initApp`") era incorrecta: el badge está oculto permanentemente en la producción real de hoy, no hay ningún comportamiento visible que preservar |
 
 ## Dashboard — Fase 1
@@ -324,8 +324,8 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | UI-07 | Múltiples zonas de drag&drop con implementación duplicada por zona (logo, catálogo, diseño propio, diseño en detalle, modificación, covers de campaña, carga masiva) | Pendiente | 2 y 3 | Sin abstracción común hoy — en Next.js se puede unificar en un componente reutilizable **sin cambiar el comportamiento observable** de cada zona |
 | UI-08 | Previsualización de archivo único con opción "Quitar" (modal de modificación) | Pendiente | 2 | — |
 | UI-09 | Previsualización de múltiples archivos con chip y eliminación individual | Pendiente | 2 | — |
-| UI-10 | Selector de impersonación de rol (solo admin) | Implementada | 1 | Estado de cliente en `AppShell` (`useState`, sin llamada a servidor — igual que el original), mismas opciones que `#impersonate-rol`. **Limitación conocida a revisar en el bloque de Dashboard**: solo afecta al nav pintado en este bloque; el Dashboard real todavía no existe, así que no se ha decidido cómo el rol "efectivo" le llega a una página que sí consulta datos en servidor |
-| UI-11 | Restauración forzada del rol real al cerrar sesión durante impersonación | Implementada | 1 | Al ser estado de React (no persistido), cerrar sesión / recargar la página lo descarta automáticamente — no puede quedar "atascado" entre sesiones |
+| UI-10 | Selector de impersonación de rol (solo admin) | Validada | 1 | Estado de cliente en `AppShell` (`useState`, sin llamada a servidor — igual que el original), mismas opciones que `#impersonate-rol`. **Limitación conocida a revisar en el bloque de Dashboard**: solo afecta al nav pintado en este bloque; el Dashboard real todavía no existe, así que no se ha decidido cómo el rol "efectivo" le llega a una página que sí consulta datos en servidor |
+| UI-11 | Restauración forzada del rol real al cerrar sesión durante impersonación | Validada | 1 | Al ser estado de React (no persistido), cerrar sesión / recargar la página lo descarta automáticamente — no puede quedar "atascado" entre sesiones |
 | UI-12 | Sincronización en tiempo real vía WebSocket manual (protocolo Phoenix) | Pendiente | 2 | Suscrito a `solicitudes` y `notificaciones`; en Next.js se sustituye por `supabase-js` Realtime manteniendo el mismo resultado observable |
 | UI-13 | Reconexión automática tras cierre del WebSocket (espera 5s) | Pendiente | 2 | — |
 | UI-14 | Fallback automático a polling si falla el WebSocket | Pendiente | 2 | — |
