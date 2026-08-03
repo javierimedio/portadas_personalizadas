@@ -31,19 +31,19 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| AUT-01 | Login con email/contraseña | Pendiente | 1 | Valida que ambos campos no estén vacíos antes de llamar a Supabase (`doLogin`, ~1714) |
-| AUT-02 | Mensaje de error de login genérico | Pendiente | 1 | Cualquier error de Supabase se traduce siempre a "Correo o contraseña incorrectos", sin exponer el mensaje real del backend — preservar, no "mejorar" el mensaje |
-| AUT-03 | Botón de login con spinner inline | Pendiente | 1 | Sustituye el texto "Entrar" por spinner mientras la petición está en curso |
-| AUT-04 | Logout con restauración de impersonación | Pendiente | 1 | Si había impersonación activa la restaura antes de cerrar sesión real, y hace `location.reload()` completo |
-| AUT-05 | Mostrar formulario de recuperación de contraseña | Pendiente | 1 | Enlace "¿Olvidaste tu contraseña?" revela un formulario oculto por defecto |
-| AUT-06 | Solicitar enlace de recuperación (anti-enumeración) | Pendiente | 1 | Responde siempre "Si el correo existe, recibirás un enlace..." exista o no el email — preservar este comportamiento de seguridad |
-| AUT-07 | Flujo de recuperación vía deep-link (`#access_token=...&type=recovery`) | Pendiente | 1 | Detecta el hash al arrancar y muestra una pantalla dedicada de "Nueva contraseña" en vez del login normal |
-| AUT-08 | Validación de nueva contraseña en recuperación | Pendiente | 1 | Mínimo 8 caracteres y ambos campos deben coincidir, con mensajes específicos por caso |
-| AUT-09 | Redirección temporizada tras recuperación exitosa | Pendiente | 1 | A los 2s oculta la pantalla, restaura el login y limpia el hash de la URL |
-| AUT-10 | Persistencia de sesión en localStorage | Pendiente | 1 | Key `portadas_session`; en Next.js se sustituye por el manejo de sesión de `@supabase/ssr`, pero el resultado observable (sesión persiste tras recargar) debe ser igual |
-| AUT-11 | Verificación de validez de token al arrancar | Pendiente | 1 | Llamada a `/auth/v1/user` para confirmar que el token sigue siendo válido; si no, limpia la sesión |
-| AUT-12 | Fallback a clave pública si no hay sesión | Pendiente | 1 | Peticiones sin usuario logueado usan la clave anónima — relevante solo para el cliente REST manual, en Next.js se resuelve distinto pero el resultado (acceso denegado igual por RLS) debe coincidir |
-| AUT-13 | Pantalla de carga con mensajes de progreso | Pendiente | 1 | "Verificando sesión...", "Cargando perfil..." antes de mostrar la app |
+| AUT-01 | Login con email/contraseña | Implementada | 1 | Valida que ambos campos no estén vacíos antes de llamar a Supabase (`doLogin`, ~1714) — `login.action.ts` |
+| AUT-02 | Mensaje de error de login genérico | Implementada | 1 | Cualquier error de Supabase se traduce siempre a "Correo o contraseña incorrectos", sin exponer el mensaje real del backend — preservar, no "mejorar" el mensaje |
+| AUT-03 | Botón de login con spinner inline | Implementada | 1 | Sustituye el texto "Entrar" por "Entrando…" mientras la petición está en curso (`useActionState`, sin spinner gráfico — mismo propósito funcional, distinto detalle visual) |
+| AUT-04 | Logout con restauración de impersonación | Pendiente | 1 | Implementado el cierre de sesión básico (`logout.action.ts`); la restauración de impersonación llega con el selector "Ver como rol" en el bloque de Layout/topbar — no marcar como completa hasta entonces |
+| AUT-05 | Mostrar formulario de recuperación de contraseña | Implementada | 1 | Enlace "¿Olvidaste tu contraseña?" revela un formulario oculto por defecto |
+| AUT-06 | Solicitar enlace de recuperación (anti-enumeración) | Implementada | 1 | Responde siempre "Si el correo existe, recibirás un enlace..." exista o no el email — preservar este comportamiento de seguridad |
+| AUT-07 | Flujo de recuperación vía deep-link (`#access_token=...&type=recovery`) | Implementada | 1 | Next.js usa el patrón PKCE recomendado por `@supabase/ssr` (`?code=...` + `/auth/confirm`) en vez del hash `#access_token=...` original — cambio de implementación, no de comportamiento observable: misma pantalla dedicada de "Nueva contraseña", mismo mensaje de token inválido |
+| AUT-08 | Validación de nueva contraseña en recuperación | Implementada | 1 | Mínimo 8 caracteres y ambos campos deben coincidir, con mensajes específicos por caso |
+| AUT-09 | Redirección temporizada tras recuperación exitosa | Implementada | 1 | A los 2s redirige a `/login` tras el éxito |
+| AUT-10 | Persistencia de sesión en localStorage | Implementada | 1 | Sustituida por cookies de `@supabase/ssr` gestionadas por el middleware — resultado observable equivalente (sesión persiste tras recargar) |
+| AUT-11 | Verificación de validez de token al arrancar | Implementada | 1 | `supabase.auth.getUser()` en el middleware revalida el token contra Supabase en cada petición |
+| AUT-12 | Fallback a clave pública si no hay sesión | Pendiente | 1 | No es un entregable de este bloque — el resultado (acceso denegado por RLS) ya está garantizado desde la Fase 0, se valida junto al resto |
+| AUT-13 | Pantalla de carga con mensajes de progreso | Pendiente | 1 | Sin equivalente directo en SSR: el servidor ya conoce la sesión antes de responder, no existe la fase de "verificando sesión..." del cliente original — pendiente de decisión explícita si se considera una funcionalidad a preservar visualmente o un artefacto de la arquitectura anterior sin efecto observable que reproducir |
 | AUT-14 | Fallo silencioso de `initApp` tras login | Pendiente | 1 | Si falla la inicialización, solo se oculta el loader y se loguea en consola, sin error visible — **caso límite deliberadamente ambiguo**: confirmar si se preserva tal cual (posible bug latente) o se decide corregir como parte de la migración (violaría el principio inamovible salvo decisión explícita) |
 | AUT-15 | Preferencia de notificación en topbar sincronizada con Perfil | Pendiente | 1 | Ver también PERF-11; el valor se guarda pero no filtra ningún envío real (ver NOT-12) |
 

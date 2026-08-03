@@ -1,9 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Refresca la sesión de Supabase en cada petición. Ver
-// https://supabase.com/docs/guides/auth/server-side/nextjs — patrón estándar,
-// sin lógica de negocio propia.
+// Rutas accesibles sin sesión — el resto exige estar autenticado, y /login
+// redirige a quien ya tiene sesión iniciada (equivalente a showAuthScreen()
+// vs initApp() en index.html, pero decidido aquí en vez de en el cliente).
+const PUBLIC_PATHS = ["/login", "/recuperar", "/auth/confirm"];
+
+function isPublicPath(pathname: string) {
+  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+// Refresca la sesión de Supabase en cada petición y decide la redirección de
+// rutas (Fase 1, docs/06-roadmap.md). Ver
+// https://supabase.com/docs/guides/auth/server-side/nextjs — patrón estándar.
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -26,9 +35,20 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // No se toma ninguna decisión de redirección de rutas aquí todavía —
-  // eso llega con el login real en la Fase 1 (docs/06-roadmap.md).
-  await supabase.auth.getUser();
+  const { data } = await supabase.auth.getUser();
+  const pathname = request.nextUrl.pathname;
+
+  if (!data.user && !isPublicPath(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
+  if (data.user && pathname === "/login") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    return NextResponse.redirect(url);
+  }
 
   return supabaseResponse;
 }
