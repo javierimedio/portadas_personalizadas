@@ -146,23 +146,23 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| EST-01 | Máquina de estados completa | Pendiente | 2 | `borrador → enviada → en_revision_marketing → en_diseno ⇄ modificar_diseno → diseno_en_revision_comercial → confirmada`, + `archivada` lateral. **Parcial**: el tramo `borrador → enviada` (creación/edición desde "Mis solicitudes") ya está implementado (Bloque 1); el resto de transiciones (marketing, diseño, confirmar, archivar) se deja para el Bloque 3 — la fila se mantiene en `Pendiente` hasta cubrir la máquina completa |
-| EST-02 | Botones de acción condicionados por rol+estado en el detalle | Pendiente | 2 | Ver combinaciones completas en el inventario — cada combinación rol×estado debe probarse por separado |
-| EST-03 | Guard anti doble-clic en cambio de estado | Pendiente | 2 | Flag global `_cambiarEstadoInProgress` |
-| EST-04 | No-op si el estado destino es idéntico al actual | Pendiente | 2 | — |
-| EST-05 | Cambio de estado dispara update + log + notificación + recarga + toast, siempre junto | Pendiente | 2 | Debe ser una operación atómica en el nuevo sistema |
-| EST-06 | Confirmación nativa antes de archivar, con aviso de exclusión de KPIs/Excel | Pendiente | 2 | — |
-| EST-07 | Eliminación de solicitud en cascada manual (catálogos, adjuntos, logs, notificaciones, solicitud) | Pendiente | 2 | Con `confirm()` mostrando el código SAP |
-| EST-08 | "Enviar a diseño" sin asignar diseñador | Pendiente | 2 | El primer diseñador que abre la solicitud se autoasigna |
-| EST-09 | Modal de asignación de diseñador (overlay dinámico) | Pendiente | 2 | Lista solo diseñadores/responsables activos, preselecciona el ya asignado |
-| EST-10 | Notificación al diseñador tras asignación manual | Pendiente | 2 | — |
-| EST-11 | Modal "Asignar canal y comercial" (overlay dinámico) | Pendiente | 2 | Bloquea guardado si falta canal o comercial |
-| EST-12 | Reapertura automática del detalle tras guardar canal | Pendiente | 2 | — |
-| EST-13 | Modal "Solicitar modificación" con comentario obligatorio y adjunto opcional | Pendiente | 2 | — |
-| EST-14 | Comentario de modificación concatenado con enlace al adjunto | Pendiente | 2 | Formato `📎 Adjunto: [nombre](url)` dentro del mismo log |
-| EST-15 | Historial colapsable con contador dinámico | Pendiente | 2 | "Ver historial (N)" |
-| EST-16 | Entradas de log diferenciadas visualmente por tipo | Pendiente | 2 | `cambio_estado` con badges, `comentario` con menciones resaltadas |
-| EST-17 | Logs de tipo `adjunto` excluidos de comentarios e historial visual | Pendiente | 2 | Se muestran aparte como archivos |
+| EST-01 | Máquina de estados completa | Implementada | 2 | `borrador → enviada → en_revision_marketing → en_diseno ⇄ modificar_diseno → diseno_en_revision_comercial → confirmada`, + `archivada` lateral. Bloque 3 (`features/solicitudes/domain/estado-flujo.ts`, con test unitario de todas las combinaciones rol×estado) — sin el envío de notificación en cada transición, ver EST-05/EST-10 y el módulo de Notificaciones (NOT-*), todavía no migrado |
+| EST-02 | Botones de acción condicionados por rol+estado en el detalle | Implementada | 2 | `accionesDetalle()`, con test unitario de cada combinación |
+| EST-03 | Guard anti doble-clic en cambio de estado | Implementada | 2 | Adaptado: en vez de un flag en memoria del cliente, la Server Action comprueba el estado real en BD antes de escribir (no-op si ya coincide) y la UI desactiva los botones mientras la petición está en curso |
+| EST-04 | No-op si el estado destino es idéntico al actual | Implementada | 2 | — |
+| EST-05 | Cambio de estado dispara update + log + recarga + toast, siempre junto | Implementada | 2 | Sin la notificación (módulo de Notificaciones, todavía no migrado) — no es una omisión silenciosa, es un módulo aparte pendiente de su propio bloque |
+| EST-06 | Confirmación nativa antes de archivar, con aviso de exclusión de KPIs/Excel | Implementada | 2 | `window.confirm` con el mismo texto |
+| EST-07 | Eliminación de solicitud en cascada manual (catálogos, adjuntos, logs, notificaciones, solicitud) | Implementada | 2 | Con `confirm()` mostrando el código SAP |
+| EST-08 | "Enviar a diseño" sin asignar diseñador | Implementada | 2 | El primer diseñador que abre el detalle se autoasigna (`getSolicitudDetalle`) |
+| EST-09 | Selector de asignación de diseñador | Implementada | 2 | Adaptado: panel desplegable dentro del propio modal de detalle en vez de un overlay flotante independiente — mismo contenido y misma restricción (solo diseñadores/responsables activos, preselecciona el ya asignado) |
+| EST-10 | Notificación al diseñador tras asignación manual | Pendiente | 2 | Depende del módulo de Notificaciones, todavía no migrado |
+| EST-11 | Selector "Asignar canal y comercial" | Implementada | 2 | Adaptado: panel desplegable en vez de overlay flotante. Bloquea guardado si falta canal o comercial |
+| EST-12 | Reapertura automática del detalle tras guardar canal | Implementada | 2 | El modal de detalle se recarga en el sitio, sin cerrarse |
+| EST-13 | Panel "Solicitar modificación" con comentario obligatorio y adjunto opcional | Implementada | 2 | Adaptado: panel desplegable en vez de modal aparte |
+| EST-14 | Comentario de modificación concatenado con enlace al adjunto | Implementada | 2 | Formato `📎 Adjunto: [nombre](url)` dentro del mismo log |
+| EST-15 | Historial colapsable con contador dinámico | Implementada | 2 | "Ver historial (N)" |
+| EST-16 | Entradas de log diferenciadas visualmente por tipo | Implementada | 2 | `cambio_estado` con badges de estado, `comentario` con menciones resaltadas (sin `dangerouslySetInnerHTML`: `segmentarComentario()` devuelve segmentos, con test unitario) |
+| EST-17 | Logs de tipo `adjunto` excluidos de comentarios e historial visual | Implementada | 2 | Se muestran aparte como archivos |
 
 ## Diseño (cola de trabajo) — Fase 2
 
@@ -197,16 +197,16 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| COM-01 | Detección de `@` en tiempo real con dropdown | Pendiente | 2 | Regex con soporte de acentos/ñ, máximo 6 sugerencias, excluye al propio usuario, solo perfiles activos |
-| COM-02 | Inserción de mención al hacer clic en el dropdown | Pendiente | 2 | Reemplaza desde la posición del `@`, añade espacio, reposiciona cursor |
-| COM-03 | Atajo Ctrl/Cmd+Enter para enviar comentario | Pendiente | 2 | Solo si el dropdown no está visible |
-| COM-04 | Escape cierra el dropdown sin enviar | Pendiente | 2 | — |
-| COM-05 | Cierre del dropdown al hacer clic fuera | Pendiente | 2 | — |
-| COM-06 | Extracción de menciones al guardar (regex distinta a la de detección en vivo) | Pendiente | 2 | Matching por `includes` sobre nombre o email, no exacto — **dos regex distintas para lo mismo, preservar ambas tal cual, no unificarlas silenciosamente** |
-| COM-07 | Notificación a cada mencionado, excluyendo auto-mención | Pendiente | 2 | — |
-| COM-08 | Toast diferenciado según si hubo menciones | Pendiente | 2 | — |
-| COM-09 | Reapertura automática del detalle tras comentar | Pendiente | 2 | — |
-| COM-10 | Resaltado visual de menciones en el listado (regex distinta a las dos anteriores) | Pendiente | 2 | Tercera variante de regex para lo mismo — mismo comentario que COM-06 |
+| COM-01 | Detección de `@` en tiempo real con dropdown | Implementada | 2 | Máximo 6 sugerencias, solo perfiles activos. Sin excluir al propio usuario (simplificación menor, sin `currentUserId` en este componente todavía) |
+| COM-02 | Inserción de mención al hacer clic en el dropdown | Implementada | 2 | Reemplaza desde la posición del `@`, añade espacio, reposiciona cursor |
+| COM-03 | Atajo Ctrl/Cmd+Enter para enviar comentario | Implementada | 2 | Solo si el dropdown no está visible |
+| COM-04 | Escape cierra el dropdown sin enviar | Implementada | 2 | — |
+| COM-05 | Cierre del dropdown al hacer clic fuera | Implementada | 2 | Adaptado: `onBlur` del textarea con retardo corto (en vez de un listener global de `click`), para que la selección de una sugerencia (que usa `onMouseDown`) se procese antes de cerrarse |
+| COM-06 | Extracción de menciones al guardar | Implementada | 2 | **Corregido** (cambio de criterio, ya no se replican bugs): el original tenía tres variantes de la misma regex, una de ellas con una trampa de cuantificador perezoso que en la práctica solo llegaba a capturar la primera palabra tras el `@`. Unificada en una sola función (`extractMentionNames` en `domain/comentarios.ts`, con test unitario) que captura una palabra de forma consistente y sin la trampa — el matching por subcadena sobre nombre/email para resolver a qué perfil corresponde sigue igual |
+| COM-07 | Notificación a cada mencionado, excluyendo auto-mención | Pendiente | 2 | Depende del módulo de Notificaciones, todavía no migrado — sí se calculan y guardan las menciones, solo falta el envío |
+| COM-08 | Toast diferenciado según si hubo menciones | Implementada | 2 | — |
+| COM-09 | Reapertura automática del detalle tras comentar | Implementada | 2 | El modal se recarga en el sitio, sin cerrarse |
+| COM-10 | Resaltado visual de menciones en el listado | Implementada | 2 | Misma función unificada que COM-06 (`segmentarComentario`, sin `dangerouslySetInnerHTML`) |
 
 ## Notificaciones — Fase 2
 

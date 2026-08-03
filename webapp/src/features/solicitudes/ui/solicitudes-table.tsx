@@ -19,6 +19,7 @@ export function SolicitudesTable({
   rol,
   onNueva,
   onEditar,
+  onVer,
 }: {
   rows: SolicitudListItem[];
   campanas: { id: string; nombre: string; activa: boolean }[];
@@ -26,6 +27,7 @@ export function SolicitudesTable({
   rol: string | null | undefined;
   onNueva: () => void;
   onEditar: (solicitud: SolicitudListItem) => void;
+  onVer: (solicitud: SolicitudListItem) => void;
 }) {
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState("");
@@ -172,11 +174,16 @@ export function SolicitudesTable({
                     </td>
                     <td className="text-mid text-sm">{fmtDate(s.updated_at)}</td>
                     <td>
-                      {s.estado === "borrador" && (
-                        <button type="button" onClick={() => onEditar(s)} className="btn btn-sm btn-outline">
-                          Editar
+                      <div className="gap-8">
+                        {s.estado === "borrador" && (
+                          <button type="button" onClick={() => onEditar(s)} className="btn btn-sm btn-outline">
+                            Editar
+                          </button>
+                        )}
+                        <button type="button" onClick={() => onVer(s)} className="btn btn-sm btn-outline">
+                          Ver
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))

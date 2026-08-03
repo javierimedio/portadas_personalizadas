@@ -4,14 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SolicitudesTable } from "./solicitudes-table";
 import { SolicitudModal } from "./solicitud-modal";
+import { SolicitudDetalleModal } from "./solicitud-detalle-modal";
 import type { SolicitudListItem } from "../domain/table";
 import type { FormCampana, FormPerfil } from "../domain/types";
 
-type ModalState = { mode: "new" } | { mode: "edit"; solicitud: SolicitudListItem } | null;
+type ModalState =
+  | { mode: "new" }
+  | { mode: "edit"; solicitud: SolicitudListItem }
+  | { mode: "detalle"; solicitudId: string }
+  | null;
 
 // Réplica de #page-mis-solicitudes con su modal (index.html ~578-1196):
-// une la tabla y el formulario modal en la misma página, tal como hace el
-// original (sin rutas propias para "nueva"/"editar").
+// une la tabla, el formulario modal y el modal de detalle en la misma
+// página, tal como hace el original (sin rutas propias).
 export function MisSolicitudes({
   rows,
   campanas,
@@ -42,8 +47,9 @@ export function MisSolicitudes({
         rol={rol}
         onNueva={() => setModal({ mode: "new" })}
         onEditar={(solicitud) => setModal({ mode: "edit", solicitud })}
+        onVer={(solicitud) => setModal({ mode: "detalle", solicitudId: solicitud.id })}
       />
-      {modal && (
+      {modal && modal.mode !== "detalle" && (
         <SolicitudModal
           campanas={campanas}
           perfiles={perfiles}
@@ -52,6 +58,19 @@ export function MisSolicitudes({
           solicitud={modal.mode === "edit" ? modal.solicitud : null}
           onClose={() => setModal(null)}
           onSaved={handleSaved}
+        />
+      )}
+      {modal && modal.mode === "detalle" && (
+        <SolicitudDetalleModal
+          solicitudId={modal.solicitudId}
+          rol={rol}
+          perfiles={perfiles}
+          onClose={() => setModal(null)}
+          onChanged={() => router.refresh()}
+          onEditar={() => {
+            const solicitud = rows.find((r) => r.id === modal.solicitudId);
+            if (solicitud) setModal({ mode: "edit", solicitud });
+          }}
         />
       )}
     </div>
