@@ -54,9 +54,12 @@ export function AppShell({
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between gap-3 bg-neutral-900 px-4 py-2 text-white">
-        <div className="flex items-center gap-3 text-sm font-semibold">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/GORFACTORY_LOGO.png" alt="GOR Factory" className="h-5 brightness-0 invert" />
           <span>PORTADAS PERSONALIZADAS</span>
           <span className="hidden items-center gap-2 opacity-60 md:flex">
+            <span className="mx-1 text-white/35">|</span>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="https://static.gorfactory.es/images/header/logo_Roly_2025.svg"

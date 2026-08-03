@@ -93,3 +93,9 @@ El bucket `portadas-adjuntos` del entorno de desarrollo permanece aislado (archi
 Las URLs del bucket de **producción** siguen siendo públicas durante toda la migración, sin restricción (ver `07-propuestas-futuras.md` § 6) — es una brecha de seguridad conocida que esta migración no cierra por no ser estrictamente necesaria para el cambio de arquitectura.
 
 Con esto, todas las decisiones de entorno están resueltas. Queda aprobado el diseño completo (documentos 0-9); se empieza a construir la Fase 0.
+
+## Principio añadido durante la Fase 1: paridad visual, no solo funcional
+
+Desde el bloque de Dashboard de la Fase 1 (2026-08-03), además de la paridad funcional (principio inamovible, arriba), se persigue también **paridad visual** con `index.html` **siempre que el recurso gráfico ya exista en el repositorio** (`webapp/public/images/`: logo GOR Factory en sus variantes, fondo del login, favicon; los logos de Roly/Roly WRK/Stamina siguen siendo las mismas URLs externas que usa hoy la producción). No se retrasa a un bloque final de "pulido visual": cada bloque que use uno de estos recursos lo integra en el momento de construirse, no después.
+
+Esto no cambia el principio inamovible ni el protocolo de "no replicar bugs a ciegas" — sigue aplicando igual a lo visual: por ejemplo, `index.html` usa la variante blanca del logo GOR Factory dentro de una tarjeta blanca en la pantalla de recuperación de contraseña (~502-503), donde queda invisible; en la migración se ha usado ahí la variante oscura en su lugar, documentado como una corrección obvia de bajo riesgo (sin efecto funcional, un logo decorativo invisible no es un comportamiento que preservar), no como una decisión que requiera el protocolo completo de `08-protocolo-validacion.md` § 8.7.

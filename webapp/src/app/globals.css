@@ -1,1 +1,8 @@
 @import "tailwindcss";
+
+/* --c-light de index.html (~18): fondo general de la app. El body original
+   no fija explícitamente background-color más que a través de esta
+   variable — se replica aquí como valor fijo. */
+body {
+  background-color: #f1efe8;
+}
