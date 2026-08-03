@@ -451,6 +451,30 @@ tr:last-child td {
   font-size: 11px;
   font-weight: 600;
 }
+/* ── Adjuntos (~220-222) ── */
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: var(--c-light);
+  border: 1px solid var(--c-line);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--c-dark);
+}
+.file-chip button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--c-mid);
+  font-size: 12px;
+  padding: 0;
+  line-height: 1;
+}
+.file-chip button:hover {
+  color: var(--c-red);
+}
 .text-mid {
   color: var(--c-mid);
 }
@@ -489,10 +513,20 @@ tr:last-child td {
 }
 .cat-header {
   padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
 }
 .cat-header h3 {
   font-size: 13px;
   font-weight: 700;
+}
+.cat-header .toggle {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--c-mid);
 }
 .cat-body {
   padding: 1rem;

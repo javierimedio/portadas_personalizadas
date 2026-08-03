@@ -108,12 +108,12 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | SOL-14 | Mensaje de error acumulado truncado a 3 + "N más" | Implementada | 2 | Bloque 1 |
 | SOL-15 | Guardar como borrador vs enviada con validaciones distintas | Implementada | 2 | Un borrador puede guardarse vacío; enviar exige validación completa de catálogos. Bloque 1 (validación mínima digital/impreso/unidades — la sección rica de catálogos es Bloque 2) |
 | SOL-16 | `enviada_at` se fija solo al pasar a "enviada" | Implementada | 2 | Bloque 1 |
-| SOL-17 | Toast final distinto según destino (enviada/borrador) | Implementada | 2 | Bloque 1, sin el conteo de archivos adjuntados (no hay subida de adjuntos todavía, ver SOL-18/20/22) |
-| SOL-18 | Indicador visual de progreso de subida de adjuntos | Pendiente | 2 | Depende de la subida de adjuntos, no incluida en el Bloque 1 |
+| SOL-17 | Toast final distinto según destino (enviada/borrador) | Implementada | 2 | Bloque 2: ya incluye el conteo de archivos adjuntados en el caso de envío |
+| SOL-18 | Indicador visual de progreso de subida de adjuntos | Pendiente | 2 | El estado `pending` de `useActionState` ya deshabilita los botones mientras se guarda, pero no hay un indicador específico de "subiendo archivos" separado del guardado general |
 | SOL-19 | Log de creación/edición con detalle de estado y SAP | Implementada | 2 | Bloque 1 |
-| SOL-20 | Log por cada adjunto subido | Pendiente | 2 | Depende de la subida de adjuntos, no incluida en el Bloque 1 |
+| SOL-20 | Log por cada adjunto subido | Implementada | 2 | Bloque 2 |
 | SOL-21 | Notificación automática al guardar (si no es borrador) | Pendiente | 2 | Ver módulo Notificaciones — diferido a un bloque posterior |
-| SOL-22 | Fallo de subida de un archivo no aborta el resto | Pendiente | 2 | Depende de la subida de adjuntos, no incluida en el Bloque 1 |
+| SOL-22 | Fallo de subida de un archivo no aborta el resto | Implementada | 2 | Bloque 2. Sin el toast individual por archivo fallido del original (~3016) — el fallo simplemente se omite en silencio |
 | SOL-23 | Badge de campaña distinta en tabla comercial | Implementada | 2 | Si la solicitud no pertenece a la campaña activa seleccionada. Bloque 1 |
 | SOL-24 | Resumen compacto de catálogo en tablas (`catSummary`) | Implementada | 2 | "—" / "No" / "{unidades} uds" + chip de portada. Bloque 1 |
 | SOL-25 | Cálculo de campos incompletos (`missingFields`) | Pendiente | 2 | Es del detalle de una solicitud (bloque posterior), no de "Mis solicitudes" ni del formulario |
@@ -122,22 +122,22 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| CAT-01 | Catálogos disponibles dependen de la campaña | Pendiente | 2 | `ALL_CATS` filtrado por el array `catalogos` de cada campaña |
-| CAT-02 | Solo Stamina y XMAS tienen "Diseño 100% propio" | Pendiente | 2 | Roly y Roly WRK no la tienen |
-| CAT-03 | Toggle maestro "Portada personalizada" con cascada de visibilidad | Pendiente | 2 | — |
-| CAT-04 | Toggle "Catálogo impreso" revela campo Unidades obligatorio | Pendiente | 2 | `min=1` |
-| CAT-05 | Fila "Con precios" solo visible si idioma=Español y catálogo tiene diseño propio | Pendiente | 2 | Oculta para Roly/Roly WRK y para cualquier idioma no español |
-| CAT-06 | Toggle "Diseño 100% propio" oculta preferencias y posición de logo | Pendiente | 2 | Solo Stamina/XMAS |
-| CAT-07 | Enlaces "Ver portadas disponibles"/"Ver instrucciones" por catálogo | Pendiente | 2 | Solo si la campaña tiene el PDF correspondiente cargado |
-| CAT-08 | Expandir/contraer secciones de catálogo (solo en memoria) | Pendiente | 2 | No persiste en BD |
-| CAT-09 | Radios custom (no `<input type=radio>` real) | Pendiente | 2 | Implementados a mano con clases CSS — detalle de implementación a reproducir con un componente real accesible, comportamiento observable idéntico |
-| CAT-10 | 3 preferencias de portada por catálogo (1ª obligatoria) | Pendiente | 2 | — |
-| CAT-11 | Posición de logo (A/B/C), obligatoria si aplica | Pendiente | 2 | — |
-| CAT-12 | Zona de subida de diseño propio Stamina (`.pdf,.ai,.eps`) | Pendiente | 2 | — |
-| CAT-13 | Reset completo de secciones al abrir "nueva solicitud" | Pendiente | 2 | — |
-| CAT-14 | Restauración completa de catálogos al editar | Pendiente | 2 | Expande automáticamente las secciones con datos |
-| CAT-15 | Guardado usa catálogos de la campaña del formulario, no la global activa | Pendiente | 2 | Evita guardar catálogos de otra campaña |
-| CAT-16 | `portada_diseno_propio` siempre `false`, nunca `null` | Pendiente | 2 | A diferencia del resto de booleanos del catálogo |
+| CAT-01 | Catálogos disponibles dependen de la campaña | Implementada | 2 | `ALL_CATALOGOS` filtrado por el array `catalogos` de cada campaña (`catalogosDeCampana`) |
+| CAT-02 | Solo Stamina y XMAS tienen "Diseño 100% propio" | Implementada | 2 | Roly y Roly WRK no la tienen |
+| CAT-03 | Toggle maestro "Portada personalizada" con cascada de visibilidad | Implementada | 2 | Réplica exacta, incluido que ocultar no limpia los valores ya introducidos (~2578-2604, quedan en el estado de React aunque no se muestren, igual que en el DOM original) |
+| CAT-04 | Toggle "Catálogo impreso" revela campo Unidades obligatorio | Implementada | 2 | `min=1` |
+| CAT-05 | Fila "Con precios" solo visible si idioma=Español y catálogo tiene diseño propio | Implementada | 2 | Oculta para Roly/Roly WRK y para cualquier idioma no español |
+| CAT-06 | Toggle "Diseño 100% propio" oculta preferencias y posición de logo | Implementada | 2 | Ver H-10: en el original solo se aplica literalmente a Stamina, nunca a XMAS — replicado tal cual |
+| CAT-07 | Enlaces "Ver portadas disponibles"/"Ver instrucciones" por catálogo | Implementada | 2 | Ver H-11: usan la campaña activa por defecto, no la seleccionada en el formulario — replicado tal cual. "Ver instrucciones" además ahora depende del idioma elegido (cambio funcional solicitado) |
+| CAT-08 | Expandir/contraer secciones de catálogo (solo en memoria) | Implementada | 2 | Contraídas por defecto al crear, expandidas al editar |
+| CAT-09 | Radios custom (no `<input type=radio>` real) | Implementada | 2 | Migrado a `<input type=radio>` real y accesible — decisión ya sancionada, comportamiento observable idéntico |
+| CAT-10 | 3 preferencias de portada por catálogo (1ª obligatoria) | Implementada | 2 | — |
+| CAT-11 | Posición de logo (A/B/C), obligatoria si aplica | Implementada | 2 | — |
+| CAT-12 | Zona de subida de diseño propio Stamina (`.pdf,.ai,.eps`) | Implementada | 2 | Solo Stamina — para XMAS es funcionalidad muerta en el original, ver H-10 |
+| CAT-13 | Reset completo de secciones al abrir "nueva solicitud" | Implementada | 2 | — |
+| CAT-14 | Restauración completa de catálogos al editar | Implementada | 2 | Expande automáticamente las secciones con datos |
+| CAT-15 | Guardado usa catálogos de la campaña del formulario, no la global activa | Implementada | 2 | Evita guardar catálogos de otra campaña |
+| CAT-16 | `portada_diseno_propio` siempre `false`, nunca `null` | Implementada | 2 | A diferencia del resto de booleanos del catálogo |
 | CAT-17 | Selección de portada final ("Portada elegida") inline | Pendiente | 2 | Solo marketing/admin, solo en `en_revision_marketing`/`en_diseno`, solo si hay preferencia registrada y no es diseño propio |
 | CAT-18 | Auto-adjudicación de portadas (`autoAdjudicar`) | Pendiente | 2 | Solo marketing/admin; ordena por antigüedad, asigna 1ª opción libre evitando repetir en la misma provincia; **excluye XMAS del reparto automático** — preservar esta exclusión; usa `confirm()`/`alert()` nativos del navegador |
 | CAT-19 | Auto-asignación de diseñador al abrir el detalle | Pendiente | 2 | Si está en `en_diseno` sin `asignado_id` y quien abre es diseñador/responsable_diseno |
@@ -234,6 +234,8 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 ## Campañas — Fase 3
 
+**Adelanto acotado (2026-08-03)**: se construyó un formulario mínimo de Campañas antes de tiempo (fuera de su fase), únicamente para poder gestionar el PDF de instrucciones por catálogo y por idioma que necesita el formulario de Solicitudes (cambio funcional solicitado explícitamente). CAMP-06/07/09/10 quedan cubiertos por esa construcción mínima; el resto de la fase (activa por defecto, banner de cierre, "usar como activa", eliminar, sincronización entre los 4 selectores de la app) sigue pendiente para cuando le toque su fase.
+
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
 | CAMP-01 | Cálculo de campaña activa por defecto | Pendiente | 3 | Entre las activas, la de `fecha_cierre` más reciente; si no hay ninguna activa, la primera de la lista general |
@@ -241,16 +243,17 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | CAMP-03 | Banner de aviso de cierre de campaña (rojo si ya cerró, ámbar si ≤7 días) | Pendiente | 3 | Singular/plural correcto en "1 día" vs "N días" |
 | CAMP-04 | Tabla de campañas con badge "ACTIVA" (seleccionada) distinto del flag `activa` (booleano) | Pendiente | 3 | Son dos conceptos distintos — preservar la distinción, no fusionarlos |
 | CAMP-05 | Botón "Usar como activa" solo si `activa=true` y no es ya la seleccionada | Pendiente | 3 | — |
-| CAMP-06 | Selector de catálogos por checkbox sincroniza filas de subida de PDFs | Pendiente | 3 | `syncCoverCatRows` |
-| CAMP-07 | Validación obligatoria de 2 PDFs por catálogo seleccionado | Pendiente | 3 | Mensaje detalla exactamente qué falta por catálogo |
-| CAMP-08 | 8 zonas de drag&drop independientes, solo aceptan `.pdf` | Pendiente | 3 | Portadas + instrucciones × 4 catálogos |
-| CAMP-09 | Reutilización de archivos existentes al editar (enlace "Ver" + "Sube otro para reemplazar") | Pendiente | 3 | No obliga a resubir |
-| CAMP-10 | Nombre de archivo determinista al subir PDFs | Pendiente | 3 | `covers/{campanaId}/{key}_{timestamp}.pdf`, con ID temporal para campañas nuevas sin ID real todavía |
-| CAMP-11 | Selector radio custom Activa/Inactiva (flag `activa`) | Pendiente | 3 | Distinto del concepto "seleccionada" de CAMP-04 |
+| CAMP-06 | Selector de catálogos por checkbox sincroniza filas de subida de PDFs | Implementada | 3 | Adelanto acotado — ver nota de sección |
+| CAMP-07 | Validación obligatoria de PDFs por catálogo seleccionado | Implementada | 3 | Adaptada al cambio funcional: portadas sigue exigiendo 1 PDF; instrucciones ahora exige al menos 1 idioma con PDF (no los 24) |
+| CAMP-08 | Zonas de subida por catálogo, solo aceptan `.pdf` | Implementada | 3 | Ya no son 8 fijas: portadas (1 por catálogo) + instrucciones (hasta 24 por catálogo, una sección expandible por idioma) — cambio funcional solicitado |
+| CAMP-09 | Reutilización de archivos existentes al editar (enlace "Ver" + "sube otro para reemplazar") | Implementada | 3 | Adelanto acotado |
+| CAMP-10 | Nombre de archivo determinista al subir PDFs | Implementada | 3 | `covers/{campanaId}/{key}_{timestamp}.pdf`, `instrucciones/{campanaId}/{key}_{idioma}_{timestamp}.pdf`. Sin el ID temporal del original (`new_{timestamp}`) — aquí la campaña se crea primero y se sube después con su ID real, evitando esa carpeta huérfana |
+| CAMP-11 | Selector radio custom Activa/Inactiva (flag `activa`) | Implementada | 3 | Migrado a `<input type=radio>` real, mismo criterio que CAT-09 |
 | CAMP-12 | Confirmación nativa antes de fijar una campaña como seleccionada | Pendiente | 3 | — |
 | CAMP-13 | Eliminación de campaña en cascada con aviso del nº exacto de solicitudes afectadas | Pendiente | 3 | Borra manualmente catálogos, adjuntos, logs, notificaciones y solicitudes de cada una |
 | CAMP-14 | `activeCampana` se limpia a `null` si se elimina la campaña activa | Pendiente | 3 | — |
 | CAMP-15 | 4 selectores de campaña sincronizados en toda la app | Pendiente | 3 | Panel global, dashboard, diseño, comercial — un único punto de repoblación |
+| CAMP-16 | **[Cambio funcional solicitado, no existe en `index.html`]** PDF de instrucciones por catálogo y por idioma | Implementada | 3 | `campanas.covers_instrucciones` pasa de `{ [catalogo]: url }` a `{ [catalogo]: { [idioma]: url } }`. En Solicitudes, "Ver instrucciones" solo se muestra si existe PDF para el idioma elegido (se oculta si no, nunca muestra uno incorrecto) |
 
 ## Usuarios — Fase 4
 
@@ -382,4 +385,28 @@ Registro vivo de comportamientos de `index.html` que parecen incorrectos, incomp
 - **Por qué se sospecha bug**: es el mismo patrón ya confirmado y aceptado como hipótesis en la política `comercial_solo_sus_solicitudes` de producción (`03-modelo-datos.md` § 3.4.1) — código escrito para los roles genéricos originales que quedó desactualizado cuando se introdujeron las variantes `_nacional`/`_exportacion`, sin que alguien volviera a añadir el valor genérico a todas las listas relevantes. El tratamiento es además inconsistente dentro del propio `index.html`: `loadData()` sí trata a `responsable` como válido en dos condiciones (líneas 1942 y 1954) mientras que `buildNav()` no lo trata en ninguna — mismo rol, comportamiento distinto según el archivo de código que se mire.
 - **Decisión**: Pendiente — antes de decidir si se replica tal cual (bloqueo total de la app para ese rol) o se corrige, hace falta una consulta de solo lectura en producción (`select rol, count(*) from perfiles group by rol order by 1;`) para saber si algún usuario real tiene hoy `rol = 'comercial'` o `rol = 'responsable'` sin sufijo — si no hay ninguno, es análogo a `diseno_en_revision`: un valor inerte que no bloquea la Fase 1, y la decisión se puede diferir sin riesgo.
 
-Ninguna fase que module estas funcionalidades (Fase 4 para H-01/H-06, Fase 5 para H-02, Fase 2 para H-03, Fase 1 para H-04/H-05/H-07) cierra su checklist mientras su hallazgo correspondiente siga con Decisión "Pendiente".
+### H-08 (SOL-04) — Al reeditar un borrador en español, la provincia aparece vacía
+
+- **Comportamiento actual**: `provincia` se guarda en mayúsculas (`PROVINCIA.toUpperCase()`, ~2934) pero `openFormModal()` asigna ese valor tal cual a `f-provincia-select.value` (~2744) — un `<select>` no selecciona ninguna opción si el valor no coincide EXACTAMENTE con `value` de una `<option>` (`"MADRID"` no es `"Madrid"`). El input de texto libre (idioma≠Español) no tiene este problema porque acepta cualquier valor.
+- **Por qué se sospecha bug**: es casi con certeza un descuido de mayúsculas/minúsculas, no una decisión de diseño — el dato sigue guardado correctamente, solo su representación visual al reeditar se pierde.
+- **Decisión**: Replicar tal cual (2026-08-03) — no se corrige en esta fase; revisar en la fase de refactorización.
+
+### H-09 (SOL-11) — Detección de SAP duplicado sensible a mayúsculas
+
+- **Comportamiento actual**: la comparación de duplicados (~2913-2922) usa el código tal como se escribió (sin mayusculizar) contra los ya guardados (que sí se guardan en mayúsculas, ~2932) — solo protege de duplicados cuando el SAP es puramente numérico.
+- **Por qué se sospecha bug**: la normalización a mayúsculas se aplica de forma consistente en el resto de `saveSolicitud()`; que la comparación de duplicados sea la única que no la usa parece un descuido, no una decisión deliberada.
+- **Decisión**: Replicar tal cual (2026-08-03) — no se corrige en esta fase; revisar en la fase de refactorización.
+
+### H-10 (CAT-08) — "Diseño 100% propio" está cableado al catálogo 'stamina', incluso pintado en la sección de XMAS
+
+- **Comportamiento actual**: en `buildCatSections()` (~2506-2513), el radio "Diseño 100% propio" tiene `data-cat="stamina"` literal (no `${cat.key}`) para CUALQUIER catálogo con `hasDisenoProp` (Stamina y XMAS), igual que `toggleDisenoPropio('stamina', ...)` en sus `onclick`, el `id="diseno-propio-upload-stamina"` de la zona de subida, y el `handleDrop(event,'stamina_diseno')` de su `ondrop`. Efecto: al rellenar la sección de XMAS, "Diseño 100% propio" en realidad lee/escribe el valor de **Stamina** — nunca el de XMAS, que se guarda siempre como `false` (`getRadioVal('xmas','portada_diseno_propio')` nunca encuentra su propio radio). La zona de subida de diseño propio de XMAS (`diseno-propio-upload-xmas`, con id correcto) nunca se revela porque nada la referencia por su id real, y el archivo asociado (`catFiles.xmas_diseno`) tampoco se incluye en la lista de subida final (~2982-2988) — funcionalidad muerta por dos vías independientes.
+- **Por qué se sospecha bug**: `con_precios`, en la misma plantilla y a un par de líneas de distancia, sí usa `${cat.key}` correctamente — el contraste sugiere que "Diseño 100% propio" se escribió cuando solo Stamina tenía `hasDisenoProp: true`, y no se actualizó al añadirse XMAS a esa lista.
+- **Decisión**: Replicar tal cual (2026-08-03) — no se corrige en esta fase; revisar en la fase de refactorización. Migrado como un único estado compartido entre las secciones de Stamina y XMAS del formulario (ver `features/solicitudes/ui/solicitud-form.tsx`).
+
+### H-11 (SOL-07/CAT-01) — Los enlaces "Ver portadas"/"Ver instrucciones" del formulario ignoran la campaña seleccionada en ese mismo formulario
+
+- **Comportamiento actual**: `buildCatSections()` (~2429-2440) lee `activeCampana?.covers`/`activeCampana?.covers_instrucciones` — la campaña activa GLOBAL de la app — no la campaña que el usuario tiene seleccionada en el propio `<select id="f-campana">` del formulario (`onFormCampanaChange()` solo actualiza `CATS`, nunca `activeCampana`). Si un comercial cambia de campaña dentro del formulario, los enlaces de portadas/instrucciones no se actualizan y pueden corresponder a una campaña distinta de la que está rellenando.
+- **Por qué se sospecha bug**: no hay ninguna razón funcional para que estos enlaces dependan de una campaña distinta a la que se está rellenando; parece un descuido al no propagar la campaña seleccionada del formulario a esta sección.
+- **Decisión**: Replicar tal cual (2026-08-03) — no se corrige en esta fase; revisar en la fase de refactorización. Migrado usando la campaña activa por defecto (`getDefaultCampanaId`) en vez de la campaña seleccionada en el formulario.
+
+Ninguna fase que module estas funcionalidades (Fase 4 para H-01/H-06, Fase 5 para H-02, Fase 2 para H-03/H-08/H-09/H-10/H-11, Fase 1 para H-04/H-05/H-07) cierra su checklist mientras su hallazgo correspondiente siga con Decisión "Pendiente". H-08 a H-11 ya tienen decisión ("replicar tal cual") y no bloquean, pero quedan registrados para la fase de refactorización.

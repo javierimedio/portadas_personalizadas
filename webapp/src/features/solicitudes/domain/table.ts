@@ -10,6 +10,10 @@ export type SolicitudCatalogoRow = {
   portada_personalizada: boolean | null;
   portada_diseno_propio: boolean | null;
   portada_opcion_1: string | null;
+  portada_opcion_2: string | null;
+  portada_opcion_3: string | null;
+  posicion_logo: string | null;
+  con_precios: boolean | null;
 };
 
 export type SolicitudListItem = {
@@ -25,6 +29,7 @@ export type SolicitudListItem = {
   estado: string;
   updated_at: string;
   solicitud_catalogos: SolicitudCatalogoRow[];
+  adjuntos: { nombre: string; url: string; tipo: string }[];
 };
 
 // Réplica de las comprobaciones de rol al inicio de renderComercialTable()

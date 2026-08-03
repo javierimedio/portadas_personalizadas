@@ -15,6 +15,7 @@ function sol(overrides: Partial<SolicitudListItem> = {}): SolicitudListItem {
     estado: "borrador",
     updated_at: "2026-01-01T00:00:00Z",
     solicitud_catalogos: [],
+    adjuntos: [],
     ...overrides,
   };
 }

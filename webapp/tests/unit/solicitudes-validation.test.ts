@@ -76,8 +76,13 @@ describe("validateCatalogosParaEnvio", () => {
     expect(validateCatalogosParaEnvio([cat({ impreso: true, unidades: 50 })])).toEqual([]);
   });
 
-  it("impreso=false (tocado, pero no impreso) no exige unidades", () => {
+  it("impreso=false (tocado vía digital) no exige unidades", () => {
     expect(validateCatalogosParaEnvio([cat({ digital: true, impreso: false })])).toEqual([]);
+  });
+
+  it("impreso=false SIN digital tocado no cuenta como tocado (~2859-2866, replicado tal cual)", () => {
+    const errors = validateCatalogosParaEnvio([cat({ digital: null, impreso: false })]);
+    expect(errors).toEqual(["Al menos un catálogo debe estar configurado"]);
   });
 
   it("portada personalizada sin diseño propio exige selección 1 y posición de logo", () => {

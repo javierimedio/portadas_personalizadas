@@ -1,34 +1,10 @@
-// Listas fijas copiadas literalmente del <select> de index.html
-// (~1039-1124): 24 idiomas, 52 provincias/países. El orden es el mismo que
-// en el original (Español primero, el resto alfabético; provincias en
-// orden alfabético con Ceuta/Melilla al final).
-export const IDIOMAS = [
-  "Español",
-  "Alemán",
-  "Búlgaro",
-  "Checo",
-  "Croata",
-  "Danés",
-  "Eslovaco",
-  "Esloveno",
-  "Estonio",
-  "Finlandés",
-  "Francés",
-  "Griego",
-  "Holandés",
-  "Húngaro",
-  "Inglés",
-  "Italiano",
-  "Letón",
-  "Lituano",
-  "Macedonio",
-  "Polaco",
-  "Portugués",
-  "Rumano",
-  "Ruso",
-  "Ucraniano",
-] as const;
+// IDIOMAS ahora vive en shared/domain/idiomas.ts: desde el cambio de
+// "instrucciones por idioma", Campañas también lo necesita, no solo
+// Solicitudes. Se re-exporta aquí para no romper los imports existentes.
+export { IDIOMAS } from "@/shared/domain/idiomas";
 
+// Lista fija copiada literalmente del <select> de index.html (~1070-1124):
+// 52 provincias/países en orden alfabético, Ceuta/Melilla al final.
 export const PROVINCIAS = [
   "Álava",
   "Albacete",
@@ -90,3 +66,6 @@ export const ROLES_POR_CANAL: Record<"nacional" | "exportacion", string[]> = {
   nacional: ["comercial_nacional", "responsable_nacional"],
   exportacion: ["comercial_exportacion", "responsable_exportacion"],
 };
+
+// Réplica del <select> de posición de logo (~2524-2531).
+export const POSICIONES_LOGO = ["A", "B", "C"] as const;

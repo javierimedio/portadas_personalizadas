@@ -71,8 +71,12 @@ create table campanas (
     activa boolean not null default true,
     created_at timestamptz not null default now(),
     catalogos jsonb default '["roly", "roly_wrk", "stamina"]'::jsonb,  -- ← real: JSONB, no array de texto; el default no incluye "xmas" (solo afecta a campañas nuevas sin especificar)
-    covers jsonb default '{}'::jsonb,
-    covers_instrucciones jsonb default '{}'::jsonb
+    covers jsonb default '{}'::jsonb,               -- { [catalogo]: url } — sin cambios
+    covers_instrucciones jsonb default '{}'::jsonb  -- ← CAMBIO FUNCIONAL SOLICITADO (2026-08-03, no existe en index.html):
+                                                     --   { [catalogo]: { [idioma]: url } } en vez de { [catalogo]: url } —
+                                                     --   un PDF de instrucciones por catálogo Y por idioma. No requiere
+                                                     --   migración de columna (jsonb no tiene forma fija); solo cambia la
+                                                     --   forma de los datos que se escriben/leen desde el código.
     -- confirmado: NO existen updated_at ni creada_por
 );
 

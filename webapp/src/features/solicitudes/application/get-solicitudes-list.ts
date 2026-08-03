@@ -30,9 +30,11 @@ export async function getSolicitudesList(rolEfectivo: string | null | undefined)
     supabase
       .from("solicitudes")
       .select(
-        "id, cod_sap, nombre_empresa, provincia, idioma, comentarios, canal, comercial_id, campana_id, estado, updated_at, solicitud_catalogos(catalogo, catalogo_digital, catalogo_impreso, unidades, portada_personalizada, portada_diseno_propio, portada_opcion_1)"
+        `id, cod_sap, nombre_empresa, provincia, idioma, comentarios, canal, comercial_id, campana_id, estado, updated_at,
+         solicitud_catalogos(catalogo, catalogo_digital, catalogo_impreso, unidades, portada_personalizada, portada_diseno_propio, portada_opcion_1, portada_opcion_2, portada_opcion_3, posicion_logo, con_precios),
+         adjuntos(nombre, url, tipo)`
       ),
-    supabase.from("campanas").select("id, nombre, activa, fecha_cierre, catalogos"),
+    supabase.from("campanas").select("id, nombre, activa, fecha_cierre, catalogos, covers, covers_instrucciones"),
     supabase.from("perfiles").select("id, nombre, rol, activo"),
   ]);
 
@@ -41,13 +43,21 @@ export async function getSolicitudesList(rolEfectivo: string | null | undefined)
   const rows: SolicitudListItem[] = (solicitudesRaw ?? []).map((s) => ({
     ...s,
     solicitud_catalogos: s.solicitud_catalogos ?? [],
+    adjuntos: s.adjuntos ?? [],
   }));
 
   const scoped = userData.user ? scopeSolicitudesByRole(rows, perfiles, rolEfectivo, userData.user.id) : rows;
 
   return {
     rows: scoped,
-    campanas: campanas.map((c) => ({ id: c.id, nombre: c.nombre, activa: c.activa, catalogos: c.catalogos })),
+    campanas: campanas.map((c) => ({
+      id: c.id,
+      nombre: c.nombre,
+      activa: c.activa,
+      catalogos: c.catalogos,
+      covers: c.covers ?? null,
+      coversInstrucciones: c.covers_instrucciones ?? null,
+    })),
     perfiles: perfiles.map((p) => ({ id: p.id, nombre: p.nombre, rol: p.rol, activo: p.activo })),
     defaultCampanaId: getDefaultCampanaId(campanas),
   };

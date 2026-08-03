@@ -17,9 +17,11 @@ export function validateDatosGenerales(input: DatosGeneralesInput): string[] {
   return errors;
 }
 
-// Un catálogo "tocado" es aquel donde digital o impreso ya se ha marcado
-// (sea true o false) — si ambos están sin definir, el catálogo se ignora
-// por completo (~2866, igual que missingFields()).
+// Un catálogo "tocado" es aquel donde digital se ha marcado (SI o NO) o
+// impreso se ha marcado como SI (~2859-2866: el original solo comprueba
+// `.selected-si` de impreso para esta condición, no `.selected-no` —
+// impreso=NO por sí solo, sin digital tocado, NO cuenta como "tocado".
+// Replicado tal cual, decisión explícita de no corregirlo).
 export type CatalogoFormInput = {
   key: string;
   label: string;
@@ -27,9 +29,6 @@ export type CatalogoFormInput = {
   impreso: boolean | null;
   unidades: number | null;
   hasDisenoProp: boolean;
-  // Campos de la sección completa de catálogos (bloque 2 de la Fase 2) —
-  // opcionales aquí porque el formulario de este bloque todavía no los
-  // pide; la función ya queda correcta para cuando lo hagan.
   portadaPersonalizada?: boolean | null;
   disenoPropio?: boolean | null;
   opcion1?: string | null;
@@ -41,7 +40,7 @@ export function validateCatalogosParaEnvio(catalogos: CatalogoFormInput[]): stri
   let atLeastOneCat = false;
 
   for (const cat of catalogos) {
-    const tocado = cat.digital !== null || cat.impreso !== null;
+    const tocado = cat.digital !== null || cat.impreso === true;
     if (!tocado) continue;
     atLeastOneCat = true;
 
