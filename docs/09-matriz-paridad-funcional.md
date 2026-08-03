@@ -298,18 +298,18 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| PERF-01 | Acceso solo desde el botón del topbar, nunca desde el nav | Pendiente | 1 | — |
-| PERF-02 | Campos de solo lectura: rol (traducido) y código | Pendiente | 1 | — |
-| PERF-03 | Campos editables: nombre y email | Pendiente | 1 | — |
-| PERF-04 | Cambio de email requiere confirmación por correo, no se aplica al instante | Pendiente | 1 | — |
-| PERF-05 | Validación de formato de email (regex simple) | Pendiente | 1 | — |
-| PERF-06 | Validación de nombre no vacío | Pendiente | 1 | — |
-| PERF-07 | Cambio de contraseña independiente, con su propio bloque de alertas | Pendiente | 1 | — |
-| PERF-08 | Validaciones de contraseña (no vacía, ≥8 caracteres, coincidencia) | Pendiente | 1 | — |
-| PERF-09 | Indicador de fortaleza de contraseña en tiempo real (5 niveles) | Pendiente | 1 | Calculado por longitud, mayúsculas/minúsculas, número, carácter especial |
-| PERF-10 | Botón de mostrar/ocultar contraseña | Pendiente | 1 | — |
-| PERF-11 | Preferencia de notificaciones editable desde Perfil, sincronizada con topbar | Pendiente | 1 | Ver AUT-15/NOT-11/NOT-12 |
-| PERF-12 | Botones de guardado con estado deshabilitado + texto de progreso | Pendiente | 1 | "Guardando...", "Actualizando..." |
+| PERF-01 | Acceso solo desde el botón del topbar, nunca desde el nav | Implementada | 1 | `getNavItemsForRole()` nunca incluye "perfil"; el link "Mi cuenta" del topbar es la única vía, igual que hoy |
+| PERF-02 | Campos de solo lectura: rol (traducido) y código | Implementada | 1 | `ROL_LABELS` reutilizado de `features/layout/domain/nav-items.ts` |
+| PERF-03 | Campos editables: nombre y email | Implementada | 1 | `DatosForm` / `updateDatos()` |
+| PERF-04 | Cambio de email requiere confirmación por correo, no se aplica al instante | Implementada | 1 | `supabase.auth.updateUser({email})` — comportamiento por defecto de Supabase Auth, equivalente al PUT directo a `/auth/v1/user` del original. Pendiente de que el usuario verifique que la Redirect URL de confirmación de cambio de email está permitida en el proyecto de desarrollo (mismo punto que ya se ajustó para la recuperación de contraseña) |
+| PERF-05 | Validación de formato de email (regex simple) | Implementada | 1 | Mismo regex literal que el original (`/^[^\s@]+@[^\s@]+\.[^\s@]+$/`) |
+| PERF-06 | Validación de nombre no vacío | Implementada | 1 | — |
+| PERF-07 | Cambio de contraseña independiente, con su propio bloque de alertas | Implementada | 1 | `PasswordForm`, action propia (`updatePerfilPassword`) — no reutiliza la de recuperación de contraseña porque esta tiene mensajes de validación distintos (ver PERF-08) |
+| PERF-08 | Validaciones de contraseña (no vacía, ≥8 caracteres, coincidencia) | Implementada | 1 | Dos mensajes distintos para "vacía" y "<8 caracteres", igual que `savePerfilPassword()` — a diferencia de la recuperación de contraseña, que los combina en uno solo |
+| PERF-09 | Indicador de fortaleza de contraseña en tiempo real (5 niveles) | Implementada | 1 | `passwordStrength()`, función pura con test unitario (`tests/unit/password-strength.test.ts`) — mismo cálculo de score que `checkPwdStrength()` |
+| PERF-10 | Botón de mostrar/ocultar contraseña | Implementada | 1 | Estado de cliente por campo, mismos emojis 👁/🙈 |
+| PERF-11 | Preferencia de notificaciones editable desde Perfil, sincronizada con topbar | Implementada | 1 | `NotifPrefForm` guarda al cambiar el select, sin botón — el selector del topbar (`#notif-pref`) del original está oculto permanentemente (mismo patrón que NAV-16), así que no hay nada visible con lo que sincronizar en la topbar de esta migración; ver AUT-15/NOT-11/NOT-12 |
+| PERF-12 | Botones de guardado con estado deshabilitado + texto de progreso | Implementada | 1 | "Guardando...", "Actualizando..." — `useActionState` + `disabled` |
 
 ## UI transversal — Fase 1 (base) y Fase 2 (extensiones específicas de Solicitudes/Diseño)
 
