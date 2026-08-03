@@ -1,31 +1,17 @@
 import type { KpiCard } from "@/features/dashboard/domain/dashboard-stats";
 
-const TONE_CLASSES: Record<KpiCard["tone"], string> = {
-  "": "text-neutral-900",
-  amber: "text-amber-600",
-  blue: "text-blue-700",
-  green: "text-green-700",
-};
-
-function KpiGroup({ title, cards }: { title: string; cards: KpiCard[] }) {
+function StatCard({ card, minWidth }: { card: KpiCard; minWidth: number }) {
   return (
-    <div>
-      <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-neutral-500">{title}</div>
-      <div className="flex flex-wrap gap-3">
-        {cards.map((k) => (
-          <div key={k.label} className="min-w-[110px] flex-1 rounded-lg border border-neutral-200 p-3">
-            <div className={`text-xl font-bold ${TONE_CLASSES[k.tone]}`}>{k.num}</div>
-            <div className="text-xs text-neutral-500">{k.label}</div>
-          </div>
-        ))}
-      </div>
+    <div className={`stat-card ${card.tone}`} style={{ flex: 1, minWidth }}>
+      <div className="stat-num">{card.num}</div>
+      <div className="stat-lbl">{card.label}</div>
     </div>
   );
 }
 
-// Réplica de las tarjetas #dash-kpis (~4241-4301): 8 de estado, 3 de
-// unidades + 2 de precios en el mismo bloque (el original las separa con un
-// divisor vertical dentro de la misma fila; aquí se agrupan igual).
+// Réplica de #dash-kpis (~4241-4301): dos filas ("Estado de solicitudes" y
+// "Unidades de catálogo"), con un separador vertical entre las tarjetas de
+// unidades y las de precios dentro de la segunda fila.
 export function KpiCards({
   estado,
   unidades,
@@ -36,9 +22,49 @@ export function KpiCards({
   precios: KpiCard[];
 }) {
   return (
-    <div className="mb-6 space-y-4">
-      <KpiGroup title="Estado de solicitudes" cards={estado} />
-      <KpiGroup title="Unidades de catálogo" cards={[...unidades, ...precios]} />
+    <div style={{ marginBottom: "1.5rem" }}>
+      <div style={{ width: "100%" }}>
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: ".08em",
+            color: "var(--c-mid)",
+            textTransform: "uppercase",
+            marginBottom: 8,
+          }}
+        >
+          Estado de solicitudes
+        </div>
+        <div style={{ display: "flex", gap: ".75rem", flexWrap: "wrap" }}>
+          {estado.map((k) => (
+            <StatCard key={k.label} card={k} minWidth={100} />
+          ))}
+        </div>
+      </div>
+      <div style={{ width: "100%", marginTop: "1rem" }}>
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: ".08em",
+            color: "var(--c-mid)",
+            textTransform: "uppercase",
+            marginBottom: 8,
+          }}
+        >
+          Unidades de catálogo
+        </div>
+        <div style={{ display: "flex", gap: ".75rem", flexWrap: "wrap", alignItems: "stretch" }}>
+          {unidades.map((k) => (
+            <StatCard key={k.label} card={k} minWidth={140} />
+          ))}
+          <div style={{ width: 1, background: "var(--c-line)", margin: "0 4px" }} />
+          {precios.map((k) => (
+            <StatCard key={k.label} card={k} minWidth={140} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

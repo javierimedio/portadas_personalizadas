@@ -1,30 +1,34 @@
 import type { ProgresoStep } from "@/features/dashboard/domain/dashboard-stats";
 
-// Réplica de #dash-progreso (~4502-4528): oculto si no hay pasos (total=0).
+// Réplica de la card "Progreso de la campaña" + #dash-progreso (~849-853,
+// ~4502-4528): oculto si no hay pasos (total=0).
 export function Progreso({ steps }: { steps: ProgresoStep[] }) {
   if (steps.length === 0) return null;
 
   return (
-    <div className="rounded-lg border border-neutral-200 p-4">
-      <div className="mb-3 text-sm font-bold">Progreso de la campaña</div>
-      <div className="space-y-3">
-        {steps.map((step) => (
-          <div key={step.label}>
-            <div className="mb-1 flex justify-between text-xs">
-              <span className="font-medium">{step.label}</span>
-              <span className="text-neutral-500">
-                {step.count} solicitudes ({step.pct}%)
-              </span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-neutral-100">
-              <div
-                className="h-full rounded-full transition-[width] duration-300"
-                style={{ width: `${step.pct}%`, backgroundColor: step.color }}
-              />
-            </div>
+    <div className="card">
+      <div className="card-title">Progreso de la campaña</div>
+      {steps.map((step) => (
+        <div key={step.label} style={{ marginBottom: ".75rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+            <span style={{ fontWeight: 500 }}>{step.label}</span>
+            <span style={{ color: "var(--c-mid)" }}>
+              {step.count} solicitudes ({step.pct}%)
+            </span>
           </div>
-        ))}
-      </div>
+          <div style={{ background: "var(--c-light)", borderRadius: 20, height: 8, overflow: "hidden" }}>
+            <div
+              style={{
+                width: `${step.pct}%`,
+                height: "100%",
+                background: step.color,
+                borderRadius: 20,
+                transition: "width .4s ease",
+              }}
+            />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

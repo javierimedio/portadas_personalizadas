@@ -13,6 +13,9 @@ import { UnidadesIdiomaChart } from "@/features/dashboard/ui/charts/unidades-idi
 
 // Réplica de #page-dashboard / renderDashboard() (index.html ~777-854,
 // ~4189-4529). DASH-01 a DASH-15 de docs/09-matriz-paridad-funcional.md.
+// Usa las clases .card/.card-title/.section-title/.section-sub/.dash-grid-2/
+// .dash-grid-3 portadas en globals.css — misma estructura, mismos huecos de
+// altura de gráfico (220px / 200px) que index.html.
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -25,26 +28,28 @@ export default async function DashboardPage({
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <div>
-          <div className="text-lg font-bold">Dashboard</div>
-          <div className="text-sm text-neutral-500">{dash.kpis.campanaLabel}</div>
+          <div className="section-title">Dashboard</div>
+          <div className="section-sub" style={{ marginBottom: 0 }}>
+            {dash.kpis.campanaLabel}
+          </div>
         </div>
         <CampanaSelector campanas={dash.campanas} selected={dash.campanaSeleccionada} />
       </div>
 
       <KpiCards estado={dash.kpis.estado} unidades={dash.kpis.unidades} precios={dash.kpis.precios} />
 
-      <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-lg border border-neutral-200 p-4">
-          <div className="mb-2 text-sm font-bold">Estado de solicitudes</div>
-          <div className="relative h-56">
+      <div className="dash-grid-2" style={{ marginBottom: "1rem" }}>
+        <div className="card">
+          <div className="card-title">Estado de solicitudes</div>
+          <div style={{ position: "relative", height: 220, overflow: "hidden" }}>
             <EstadoChart {...dash.estadoChart} total={dash.kpis.total} />
           </div>
         </div>
-        <div className="rounded-lg border border-neutral-200 p-4">
-          <div className="mb-2 text-sm font-bold">Solicitudes por comercial</div>
-          <div className="relative h-56">
+        <div className="card">
+          <div className="card-title">Solicitudes por comercial</div>
+          <div style={{ position: "relative", height: 220, overflow: "hidden" }}>
             <HorizontalBarChart
               labels={dash.comercialesChart.labels}
               counts={dash.comercialesChart.counts}
@@ -54,10 +59,10 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-lg border border-neutral-200 p-4">
-          <div className="mb-2 text-sm font-bold">Solicitudes por idioma</div>
-          <div className="relative h-52">
+      <div className="dash-grid-2" style={{ marginBottom: "1rem" }}>
+        <div className="card">
+          <div className="card-title">Solicitudes por idioma</div>
+          <div style={{ position: "relative", height: 200, overflow: "hidden" }}>
             <HorizontalBarChart
               labels={dash.idiomasChart.labels}
               counts={dash.idiomasChart.counts}
@@ -65,30 +70,30 @@ export default async function DashboardPage({
             />
           </div>
         </div>
-        <div className="rounded-lg border border-neutral-200 p-4">
-          <div className="mb-2 text-sm font-bold">Unidades por catálogo / idioma</div>
-          <div className="relative h-52">
+        <div className="card">
+          <div className="card-title">Unidades por catálogo / idioma</div>
+          <div style={{ position: "relative", height: 200, overflow: "hidden" }}>
             <UnidadesIdiomaChart {...dash.unidadesIdiomaChart} />
           </div>
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-lg border border-neutral-200 p-4">
-          <div className="mb-2 text-sm font-bold">Unidades por catálogo</div>
-          <div className="relative h-48">
+      <div className="dash-grid-3" style={{ marginBottom: "1rem" }}>
+        <div className="card">
+          <div className="card-title">Unidades por catálogo</div>
+          <div style={{ position: "relative", height: 200, overflow: "hidden" }}>
             <UnidadesCatalogoChart {...dash.unidadesChart} />
           </div>
         </div>
-        <div className="rounded-lg border border-neutral-200 p-4">
-          <div className="mb-2 text-sm font-bold">Portada personalizada</div>
-          <div className="relative h-48">
+        <div className="card">
+          <div className="card-title">Portada personalizada</div>
+          <div style={{ position: "relative", height: 200, overflow: "hidden" }}>
             <PortadasChart {...dash.portadasChart} />
           </div>
         </div>
-        <div className="rounded-lg border border-neutral-200 p-4">
-          <div className="mb-2 text-sm font-bold">Catálogo digital vs impreso</div>
-          <div className="relative h-48">
+        <div className="card">
+          <div className="card-title">Catálogo digital vs impreso</div>
+          <div style={{ position: "relative", height: 200, overflow: "hidden" }}>
             <TipoChart {...dash.tipoChart} />
           </div>
         </div>

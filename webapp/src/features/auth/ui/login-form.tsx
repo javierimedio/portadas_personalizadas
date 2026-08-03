@@ -9,7 +9,9 @@ import {
 
 // Réplica de la tarjeta #auth-screen de index.html (~455-484): mismos campos,
 // mismo botón con spinner (AUT-03), y el formulario de recuperación oculto
-// hasta pulsar "¿Olvidaste tu contraseña?" (AUT-05).
+// hasta pulsar "¿Olvidaste tu contraseña?" (AUT-05). Usa .auth-title/
+// .auth-sub/.form-group/.btn de globals.css — paridad visual, no solo
+// funcional.
 export function LoginForm() {
   const [loginState, loginAction, loginPending] = useActionState<LoginState, FormData>(
     login,
@@ -23,78 +25,55 @@ export function LoginForm() {
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-neutral-900">Portadas Personalizadas</h1>
-      <p className="mt-1 text-sm text-neutral-500">Accede con tu correo corporativo</p>
+      <div className="auth-title">Portadas Personalizadas</div>
+      <div className="auth-sub">Accede con tu correo corporativo</div>
 
-      {loginState?.error && (
-        <div className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-          {loginState.error}
-        </div>
-      )}
+      {loginState?.error && <div className="alert alert-error" style={{ marginBottom: "1rem" }}>{loginState.error}</div>}
 
-      <form action={loginAction} className="mt-4 space-y-3">
-        <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium text-neutral-700">
-            Correo electrónico
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            placeholder="tu@gorfactory.com"
-            autoComplete="email"
-            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-          />
+      <form action={loginAction}>
+        <div className="form-group" style={{ marginBottom: ".75rem" }}>
+          <label htmlFor="email">Correo electrónico</label>
+          <input id="email" name="email" type="email" placeholder="tu@gorfactory.com" autoComplete="email" />
         </div>
-        <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium text-neutral-700">
-            Contraseña
-          </label>
+        <div className="form-group" style={{ marginBottom: "1.25rem" }}>
+          <label htmlFor="password">Contraseña</label>
           <input
             id="password"
             name="password"
             type="password"
             placeholder="••••••••"
             autoComplete="current-password"
-            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
           />
         </div>
-        <button
-          type="submit"
-          disabled={loginPending}
-          className="w-full rounded-md bg-neutral-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-        >
+        <button type="submit" disabled={loginPending} className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }}>
           {loginPending ? "Entrando…" : "Entrar"}
         </button>
       </form>
 
-      <div className="mt-4 text-center">
+      <div style={{ marginTop: "1rem", textAlign: "center" }}>
         <button
           type="button"
           onClick={() => setShowReset(true)}
-          className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700"
+          className="btn btn-outline btn-sm"
+          style={{ width: "100%", justifyContent: "center" }}
         >
           ¿Olvidaste tu contraseña?
         </button>
       </div>
 
       {showReset && (
-        <form action={resetAction} className="mt-3 space-y-2">
+        <form action={resetAction} style={{ marginTop: "1rem" }}>
           <input
             name="email"
             type="email"
             placeholder="Introduce tu correo"
-            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+            style={{ width: "100%", marginBottom: ".5rem" }}
           />
-          <button
-            type="submit"
-            disabled={resetPending}
-            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 disabled:opacity-60"
-          >
+          <button type="submit" disabled={resetPending} className="btn btn-outline btn-sm" style={{ width: "100%", justifyContent: "center" }}>
             Enviar enlace de recuperación
           </button>
           {resetState?.sent && (
-            <div className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+            <div className="alert alert-success" style={{ marginTop: ".5rem" }}>
               Si el correo existe, recibirás un enlace de recuperación.
             </div>
           )}

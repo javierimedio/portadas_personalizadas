@@ -20,16 +20,14 @@ export default async function RecuperarPage({
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-lg">
-        <div className="mb-6 text-center">
+      <div style={{ background: "white", borderRadius: 12, padding: "2rem", width: "100%", maxWidth: 400, boxShadow: "0 4px 24px rgba(0,0,0,.1)" }}>
+        <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/GORFACTORY_LOGO.png" alt="GOR Factory" className="mx-auto mb-4 h-8" />
+          <img src="/images/GORFACTORY_LOGO.png" alt="GOR Factory" style={{ height: 32, marginBottom: "1rem", margin: "0 auto 1rem" }} />
         </div>
 
         {error || !data.user ? (
-          <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-            Token de recuperación no válido. Solicita un nuevo enlace.
-          </div>
+          <div className="alert alert-error">Token de recuperación no válido. Solicita un nuevo enlace.</div>
         ) : (
           <RecoveryForm />
         )}

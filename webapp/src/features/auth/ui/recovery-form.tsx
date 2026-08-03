@@ -25,51 +25,35 @@ export function RecoveryForm() {
 
   return (
     <div>
-      <h1 className="text-lg font-bold text-neutral-900">Nueva contraseña</h1>
-      <p className="mt-1 text-sm text-neutral-500">Introduce tu nueva contraseña</p>
+      <div style={{ fontSize: 18, fontWeight: 700, color: "var(--c-dark)" }}>Nueva contraseña</div>
+      <div style={{ fontSize: 13, color: "var(--c-mid)", marginTop: 4, marginBottom: "1rem" }}>
+        Introduce tu nueva contraseña
+      </div>
 
-      <form action={formAction} className="mt-4 space-y-3">
-        <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium text-neutral-700">
-            Nueva contraseña
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            placeholder="Mín. 8 caracteres"
-            autoComplete="new-password"
-            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-          />
+      <form action={formAction}>
+        <div className="form-group" style={{ marginBottom: "1rem" }}>
+          <label htmlFor="password">Nueva contraseña</label>
+          <input id="password" name="password" type="password" placeholder="Mín. 8 caracteres" autoComplete="new-password" />
         </div>
-        <div>
-          <label htmlFor="password2" className="mb-1 block text-sm font-medium text-neutral-700">
-            Confirmar contraseña
-          </label>
+        <div className="form-group" style={{ marginBottom: "1.5rem" }}>
+          <label htmlFor="password2">Confirmar contraseña</label>
           <input
             id="password2"
             name="password2"
             type="password"
             placeholder="Repite la contraseña"
             autoComplete="new-password"
-            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
           />
         </div>
 
-        {state?.error && (
-          <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</div>
-        )}
+        {state?.error && <div className="alert alert-error" style={{ marginBottom: "1rem" }}>{state.error}</div>}
         {state?.success && (
-          <div className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+          <div className="alert alert-success" style={{ marginBottom: "1rem" }}>
             ¡Contraseña actualizada correctamente! Redirigiendo al login...
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={pending}
-          className="w-full rounded-md bg-amber-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-        >
+        <button type="submit" disabled={pending} className="btn btn-amber" style={{ width: "100%", justifyContent: "center" }}>
           Guardar nueva contraseña
         </button>
       </form>

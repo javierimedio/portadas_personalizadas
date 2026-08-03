@@ -7,14 +7,18 @@ import { logout } from "@/features/auth/application/logout.action";
 import { IMPERSONATION_COOKIE } from "../domain/impersonation";
 import { getNavItemsForRole, IMPERSONATABLE_ROLES } from "../domain/nav-items";
 
-// Réplica funcional de la topbar + #main-nav + drawer móvil de index.html
-// (~520-575, ~5100-5127, ~5913-5951). La impersonación cambia el nav al
-// instante (estado de cliente, igual que `currentPerfil.rol` del original)
-// y además escribe una cookie + fuerza `router.refresh()` para que las
-// páginas que consultan datos en el servidor (el Dashboard) también vean el
-// rol "efectivo" — sin esto, impersonar solo cambiaría el nav sin cambiar
-// ningún dato, lo que sería más confuso que no tener impersonación en
-// absoluto. La sesión real y sus permisos de RLS no cambian en ningún caso.
+// Réplica visual y funcional de la topbar + #main-nav + drawer móvil de
+// index.html (~76-90, ~520-575, ~5100-5127, ~5913-5951) — clases .topbar/
+// .topbar-brand/.nav/.nav-btn portadas literalmente en globals.css, no
+// reinterpretadas con utilidades sueltas de Tailwind (docs/00-resumen-
+// ejecutivo.md § "paridad visual").
+//
+// La impersonación cambia el nav al instante (estado de cliente, igual que
+// `currentPerfil.rol` del original) y además escribe una cookie + fuerza
+// `router.refresh()` para que las páginas que consultan datos en el
+// servidor (el Dashboard) también vean el rol "efectivo" — sin esto,
+// impersonar solo cambiaría el nav sin cambiar ningún dato. La sesión real
+// y sus permisos de RLS no cambian en ningún caso.
 export function AppShell({
   email,
   nombre,
@@ -53,20 +57,30 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between gap-3 bg-neutral-900 px-4 py-2 text-white">
-        <div className="flex items-center gap-2 text-sm font-semibold">
+      <header className="topbar">
+        <div className="topbar-brand">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/GORFACTORY_LOGO.png" alt="GOR Factory" className="h-5 brightness-0 invert" />
-          <span>PORTADAS PERSONALIZADAS</span>
-          <span className="hidden items-center gap-2 opacity-60 md:flex">
-            <span className="mx-1 text-white/35">|</span>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/logo_Roly_2025.svg" alt="Roly" className="h-3.5 brightness-0 invert" />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/Logo_WRK_color.svg" alt="Roly WRK" className="h-3.5 brightness-0 invert" />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/logo-stm-small.svg" alt="Stamina" className="h-3.5 brightness-0 invert" />
-          </span>
+          <img src="/images/GORFACTORY_LOGO.png" alt="GOR Factory" style={{ height: 20, filter: "brightness(0) invert(1)" }} />
+          <span style={{ color: "white", fontWeight: 700 }}>PORTADAS PERSONALIZADAS</span>
+          <span style={{ color: "rgba(255,255,255,.35)", margin: "0 8px", fontWeight: 300 }}>|</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/logo_Roly_2025.svg"
+            alt="Roly"
+            style={{ height: 14, filter: "brightness(0) invert(1)", opacity: 0.5 }}
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/Logo_WRK_color.svg"
+            alt="Roly WRK"
+            style={{ height: 14, filter: "brightness(0) invert(1)", opacity: 0.5, marginLeft: 10 }}
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/logo-stm-small.svg"
+            alt="Stamina"
+            style={{ height: 14, filter: "brightness(0) invert(1)", opacity: 0.5, marginLeft: 10 }}
+          />
         </div>
 
         <div className="flex items-center gap-2">
@@ -75,7 +89,16 @@ export function AppShell({
               value={impersonatedRol ?? ""}
               onChange={(e) => handleImpersonate(e.target.value)}
               title="Simular rol (solo admin)"
-              className="hidden rounded border border-white/40 bg-neutral-800 px-2 py-1 text-xs md:inline-block"
+              className="hidden md:inline-block"
+              style={{
+                fontSize: 11,
+                padding: "3px 8px",
+                border: "1px solid rgba(255,255,255,.4)",
+                borderRadius: 6,
+                background: "#3a3a38",
+                color: "white",
+                cursor: "pointer",
+              }}
             >
               <option value="">👁 Ver como rol...</option>
               {IMPERSONATABLE_ROLES.map((r) => (
@@ -89,15 +112,40 @@ export function AppShell({
           <Link
             href="/perfil"
             title="Mi cuenta"
-            className="rounded-md border border-white/25 bg-white/10 px-3 py-1 text-xs font-medium"
+            style={{
+              background: "rgba(255,255,255,.12)",
+              border: "1px solid rgba(255,255,255,.25)",
+              color: "white",
+              fontSize: 12,
+              fontWeight: 500,
+              padding: ".35rem .75rem",
+              borderRadius: 6,
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+            }}
           >
-            ⚙️ Mi cuenta | {displayName}
+            <span style={{ fontSize: 13, opacity: 0.9 }}>⚙️</span>
+            <span style={{ opacity: 0.65, fontSize: 11, fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase" }}>
+              Mi cuenta
+            </span>
+            <span style={{ opacity: 0.3, fontSize: 10 }}>|</span>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>{displayName}</span>
           </Link>
 
           <form action={logout}>
             <button
               type="submit"
-              className="rounded border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold"
+              style={{
+                padding: ".4rem .9rem",
+                borderRadius: 4,
+                border: "1px solid rgba(255,255,255,.3)",
+                background: "rgba(255,255,255,.1)",
+                color: "white",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
             >
               Cerrar sesión
             </button>
@@ -117,17 +165,12 @@ export function AppShell({
       </header>
 
       {drawerOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
-          onClick={() => setDrawerOpen(false)}
-        />
+        <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setDrawerOpen(false)} />
       )}
 
       <nav
-        className={`z-50 flex flex-col gap-1 bg-white p-4 shadow-lg transition-transform md:static md:flex-row md:gap-0 md:border-b md:border-neutral-200 md:bg-neutral-50 md:p-0 md:shadow-none ${
-          drawerOpen
-            ? "fixed inset-y-0 left-0 w-64 translate-x-0"
-            : "fixed inset-y-0 left-0 w-64 -translate-x-full md:w-auto md:translate-x-0"
+        className={`nav fixed inset-y-0 left-0 z-50 w-64 flex-col shadow-lg transition-transform md:static md:w-auto md:flex-row md:shadow-none md:translate-x-0 ${
+          drawerOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {navItems.map((item) => {
@@ -137,11 +180,7 @@ export function AppShell({
               key={item.id}
               href={item.href}
               onClick={() => setDrawerOpen(false)}
-              className={`rounded px-3 py-2 text-sm font-medium md:rounded-none md:border-b-2 md:px-4 md:py-3 ${
-                active
-                  ? "bg-neutral-900 text-white md:border-neutral-900 md:bg-transparent md:text-neutral-900"
-                  : "text-neutral-600 hover:bg-neutral-100 md:border-transparent"
-              }`}
+              className={`nav-btn ${active ? "active" : ""}`}
             >
               {item.label}
             </Link>
@@ -149,7 +188,7 @@ export function AppShell({
         })}
       </nav>
 
-      <main className="flex-1 p-4">{children}</main>
+      <main className="main flex-1 w-full">{children}</main>
     </div>
   );
 }

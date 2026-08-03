@@ -15,9 +15,9 @@ export default function LoginPage() {
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/images/GORFACTORY_LOGO_BLANCO.png" alt="GOR Factory" className="h-16 md:h-24" />
+      <img src="/images/GORFACTORY_LOGO_BLANCO.png" alt="GOR Factory" style={{ height: 100 }} />
 
-      <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-lg">
+      <div className="auth-card">
         <LoginForm />
       </div>
 

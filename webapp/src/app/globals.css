@@ -1,8 +1,307 @@
 @import "tailwindcss";
 
-/* --c-light de index.html (~18): fondo general de la app. El body original
-   no fija explícitamente background-color más que a través de esta
-   variable — se replica aquí como valor fijo. */
+/* ============================================================================
+   Sistema de diseño portado directamente de index.html (~14-34, ~55-230):
+   mismas variables, mismos nombres de clase, mismos valores. El objetivo de
+   este bloque no es "un estilo parecido" sino paridad visual pixel a pixel
+   (docs/00-resumen-ejecutivo.md § "paridad visual") — por eso se copian las
+   reglas tal cual en vez de reinterpretarlas con utilidades de Tailwind.
+   Se amplía en cada bloque futuro que necesite una clase que index.html ya
+   tiene y esta hoja todavía no.
+   ============================================================================ */
+
+:root {
+  --c-dark: #2c2c2a;
+  --c-mid: #888780;
+  --c-light: #f1efe8;
+  --c-line: #e0ded6;
+  --c-white: #ffffff;
+  --c-amber: #ba7517;
+  --c-amber-l: #faeeda;
+  --c-blue: #003087;
+  --c-blue-l: #e5eaf3;
+  --c-teal: #fab518;
+  --c-teal-l: #fef3d0;
+  --c-purple: #e30613;
+  --c-purple-l: #fdecea;
+  --c-red: #c0392b;
+  --c-red-l: #fdecea;
+  --c-green: #3b6d11;
+  --c-green-l: #eaf3de;
+  --radius: 6px;
+  --shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
 body {
-  background-color: #f1efe8;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  background: var(--c-light);
+  color: var(--c-dark);
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+/* ── Topbar / nav (~76-90) ── */
+.topbar {
+  background: var(--c-dark);
+  color: var(--c-white);
+  padding: 0 1.5rem;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.topbar-brand {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.topbar-brand span {
+  color: var(--c-mid);
+  font-weight: 400;
+}
+.nav {
+  background: var(--c-white);
+  border-bottom: 1px solid var(--c-line);
+  padding: 0 1.5rem;
+  display: flex;
+  gap: 0;
+  position: sticky;
+  top: 52px;
+  z-index: 99;
+}
+.nav-btn {
+  padding: 0.75rem 1rem;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-mid);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.nav-btn:hover {
+  color: var(--c-dark);
+}
+.nav-btn.active {
+  color: var(--c-dark);
+  border-bottom-color: var(--c-amber);
+}
+
+/* ── Card / stat-card (~96-97, ~172-180) ── */
+.card {
+  background: var(--c-white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+}
+.card-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-mid);
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--c-line);
+}
+.stat-card {
+  background: var(--c-white);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  box-shadow: var(--shadow);
+}
+.stat-num {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--c-dark);
+  line-height: 1;
+}
+.stat-lbl {
+  font-size: 11px;
+  color: var(--c-mid);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 4px;
+}
+.stat-card.amber .stat-num {
+  color: var(--c-amber);
+}
+.stat-card.blue .stat-num {
+  color: var(--c-blue);
+}
+.stat-card.green .stat-num {
+  color: var(--c-green);
+}
+.stat-card.red .stat-num {
+  color: var(--c-red);
+}
+
+/* ── Dashboard grids (~231-233) ── */
+.dash-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.dash-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 768px) {
+  .dash-grid-2,
+  .dash-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Main (~91, ~293, ~391) ── */
+.main {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+@media (max-width: 768px) {
+  .main {
+    padding: 1rem;
+  }
+}
+@media (max-width: 480px) {
+  .main {
+    padding: 0.75rem;
+  }
+}
+
+/* ── Secciones (~211-212) ── */
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+.section-sub {
+  font-size: 13px;
+  color: var(--c-mid);
+  margin-bottom: 1.5rem;
+}
+
+/* ── Botones (~139-147) ── */
+.btn {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: opacity 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--c-dark);
+  color: var(--c-white);
+}
+.btn-amber {
+  background: var(--c-amber);
+  color: var(--c-white);
+}
+.btn-outline {
+  background: transparent;
+  border-color: var(--c-line);
+  color: var(--c-dark);
+}
+.btn-outline:hover {
+  background: var(--c-light);
+}
+.btn-sm {
+  padding: 0.3rem 0.7rem;
+  font-size: 12px;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ── Formularios (~101-111) ── */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.form-group label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-mid);
+}
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+select,
+textarea {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--c-dark);
+  background: var(--c-white);
+  transition: border-color 0.15s;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--c-amber);
+}
+
+/* ── Alertas (~191-194) ── */
+.alert {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+.alert-error {
+  background: var(--c-red-l);
+  color: var(--c-red);
+  border-left: 3px solid var(--c-red);
+}
+.alert-success {
+  background: var(--c-green-l);
+  color: var(--c-green);
+  border-left: 3px solid var(--c-green);
+}
+
+/* ── Login (~55-65) ── */
+.auth-card {
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 420px;
+}
+.auth-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--c-dark);
+  margin-bottom: 0.25rem;
+  text-align: center;
+}
+.auth-sub {
+  font-size: 13px;
+  color: var(--c-mid);
+  margin-bottom: 2rem;
+  text-align: center;
 }
