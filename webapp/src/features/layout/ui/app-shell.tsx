@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { logout } from "@/features/auth/application/logout.action";
+import { IMPERSONATION_COOKIE } from "../domain/impersonation";
 import { getNavItemsForRole, IMPERSONATABLE_ROLES } from "../domain/nav-items";
 
 // Réplica funcional de la topbar + #main-nav + drawer móvil de index.html
-// (~520-575, ~5100-5127, ~5913-5951). La impersonación es aquí un estado de
-// cliente puro, igual que el `currentPerfil.rol` del original — no hay
-// llamada a servidor ni cambia el rol real de la sesión, solo lo que se
-// pinta. No propaga (todavía) a páginas que hagan sus propias consultas de
-// servidor: cuando se construya el Dashboard real, hay que decidir cómo le
-// llega este rol "efectivo".
+// (~520-575, ~5100-5127, ~5913-5951). La impersonación cambia el nav al
+// instante (estado de cliente, igual que `currentPerfil.rol` del original)
+// y además escribe una cookie + fuerza `router.refresh()` para que las
+// páginas que consultan datos en el servidor (el Dashboard) también vean el
+// rol "efectivo" — sin esto, impersonar solo cambiaría el nav sin cambiar
+// ningún dato, lo que sería más confuso que no tener impersonación en
+// absoluto. La sesión real y sus permisos de RLS no cambian en ningún caso.
 export function AppShell({
   email,
   nombre,
@@ -27,6 +29,7 @@ export function AppShell({
   const [impersonatedRol, setImpersonatedRol] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     document.body.style.overflow = drawerOpen ? "hidden" : "";
@@ -39,6 +42,14 @@ export function AppShell({
   const effectiveRol = isAdmin && impersonatedRol ? impersonatedRol : rol;
   const navItems = getNavItemsForRole(effectiveRol);
   const displayName = nombre ?? email;
+
+  function handleImpersonate(value: string) {
+    setImpersonatedRol(value || null);
+    document.cookie = value
+      ? `${IMPERSONATION_COOKIE}=${value}; path=/`
+      : `${IMPERSONATION_COOKIE}=; path=/; max-age=0`;
+    router.refresh();
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -71,7 +82,7 @@ export function AppShell({
           {isAdmin && (
             <select
               value={impersonatedRol ?? ""}
-              onChange={(e) => setImpersonatedRol(e.target.value || null)}
+              onChange={(e) => handleImpersonate(e.target.value)}
               title="Simular rol (solo admin)"
               className="hidden rounded border border-white/40 bg-neutral-800 px-2 py-1 text-xs md:inline-block"
             >

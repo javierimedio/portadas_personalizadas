@@ -10,15 +10,19 @@ import { getNavItemsForRole } from "../domain/nav-items";
 // botón deja de ser una restricción real. No hay equivalente en index.html
 // que replicar aquí: es infraestructura necesaria por el cambio de
 // arquitectura, no una funcionalidad migrada.
-export async function requireRouteAccess(pathname: string) {
+// Devuelve el rol real (no el impersonado) para que la página no tenga que
+// repetir su propia consulta de perfil solo para saber quién es.
+export async function requireRouteAccess(pathname: string): Promise<string | null> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   const { data: perfil } = data.user
     ? await supabase.from("perfiles").select("rol").eq("id", data.user.id).maybeSingle()
     : { data: null };
 
-  const allowed = getNavItemsForRole(perfil?.rol).some((item) => item.href === pathname);
+  const rol = perfil?.rol ?? null;
+  const allowed = getNavItemsForRole(rol).some((item) => item.href === pathname);
   if (!allowed) {
     redirect("/");
   }
+  return rol;
 }

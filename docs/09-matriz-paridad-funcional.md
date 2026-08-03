@@ -72,21 +72,21 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| DASH-01 | Selector de campaña propio del dashboard | Pendiente | 1 | Independiente del selector del Panel global |
-| DASH-02 | Filtrado por canal para responsable_nacional/exportacion | Pendiente | 1 | Doble condición OR: comerciales de su canal **o** `canal` de la propia solicitud |
-| DASH-03 | Etiqueta de campaña con contador de archivadas | Pendiente | 1 | Sufijo "(+ M archivadas)" solo si M>0 |
-| DASH-04 | KPIs de estado (8 tarjetas) | Pendiente | 1 | Total, borrador, enviadas, en revisión marketing, en diseño (unión), en revisión cliente, confirmadas, archivadas |
-| DASH-05 | KPIs de unidades (total/nacional/exportación) | Pendiente | 1 | Nacional = idioma Español; exportación = cualquier otro idioma no vacío |
-| DASH-06 | KPIs de precios (solo Español, Stamina/XMAS) | Pendiente | 1 | Solo catálogos con `catalogo_impreso` no nulo |
-| DASH-07 | Gráfico doughnut de estados | Pendiente | 1 | 8 estados, colores fijos, tooltip con porcentaje |
-| DASH-08 | Gráfico "Top 10 comerciales" | Pendiente | 1 | Agrupa por nombre o código; "Sin asignar" si no hay comercial |
-| DASH-09 | Gráfico "Unidades por catálogo" | Pendiente | 1 | Dinámico según catálogos activos de la campaña |
-| DASH-10 | Gráfico "Portada personalizada por catálogo" | Pendiente | 1 | "Sin portada" solo cuenta solicitudes que tocaron ese catálogo |
-| DASH-11 | Gráfico "Digital vs Impreso" por catálogo | Pendiente | 1 | — |
-| DASH-12 | Gráfico "Solicitudes por idioma" (Top 10) | Pendiente | 1 | — |
-| DASH-13 | Gráfico "Unidades por catálogo/idioma" | Pendiente | 1 | Un dataset por catálogo |
-| DASH-14 | Barra de progreso de campaña (7 pasos) | Pendiente | 1 | Oculta si el total de solicitudes es 0 |
-| DASH-15 | Destrucción de gráficos antes de repintar | Pendiente | 1 | Detalle de implementación (evita memory leaks), no afecta al comportamiento observable pero debe preservarse funcionalmente equivalente |
+| DASH-01 | Selector de campaña propio del dashboard | Implementada | 1 | `CampanaSelector` navega a `/dashboard?campana=...` en vez de repintar in-place; mismo resultado observable, con URL propia por campaña |
+| DASH-02 | Filtrado por canal para responsable_nacional/exportacion | Implementada | 1 | `filterByResponsableCanal()`, con test unitario (`tests/unit/dashboard-stats.test.ts`) |
+| DASH-03 | Etiqueta de campaña con contador de archivadas | Implementada | 1 | `computeKpis().campanaLabel` |
+| DASH-04 | KPIs de estado (8 tarjetas) | Implementada | 1 | `computeKpis().estado` |
+| DASH-05 | KPIs de unidades (total/nacional/exportación) | Implementada | 1 | `computeKpis().unidades` |
+| DASH-06 | KPIs de precios (solo Español, Stamina/XMAS) | Implementada | 1 | `computeKpis().precios` |
+| DASH-07 | Gráfico doughnut de estados | Implementada | 1 | `EstadoChart` (Chart.js vía hook `useChart`, sin dependencia adicional) |
+| DASH-08 | Gráfico "Top 10 comerciales" | Implementada | 1 | `HorizontalBarChart`, compartido con DASH-12 (en el original están duplicados) |
+| DASH-09 | Gráfico "Unidades por catálogo" | Implementada | 1 | `UnidadesCatalogoChart` |
+| DASH-10 | Gráfico "Portada personalizada por catálogo" | Implementada | 1 | `PortadasChart`; test unitario cubre la distinción `!== null` (¿tocó el catálogo?) vs `=== true` (¿tiene portada?) |
+| DASH-11 | Gráfico "Digital vs Impreso" por catálogo | Implementada | 1 | `TipoChart`; test unitario cubre que aquí sí es un chequeo de verdad (`true`), no de "no nulo" — distinto de DASH-10 |
+| DASH-12 | Gráfico "Solicitudes por idioma" (Top 10) | Implementada | 1 | `HorizontalBarChart`, ver DASH-08 |
+| DASH-13 | Gráfico "Unidades por catálogo/idioma" | Implementada | 1 | `UnidadesIdiomaChart`; test unitario cubre que reutiliza el mismo top-10 de idiomas de DASH-12, no uno propio por unidades |
+| DASH-14 | Barra de progreso de campaña (7 pasos) | Implementada | 1 | `Progreso`, oculta si `total`=0 |
+| DASH-15 | Destrucción de gráficos antes de repintar | Implementada | 1 | Cleanup del `useEffect` de `useChart` por cada gráfico, en vez de un objeto global `dashCharts` — mismo resultado (nunca hay dos instancias de Chart.js vivas sobre el mismo canvas), sin estado global |
 
 ## Solicitudes — datos generales — Fase 2
 
@@ -324,7 +324,7 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | UI-07 | Múltiples zonas de drag&drop con implementación duplicada por zona (logo, catálogo, diseño propio, diseño en detalle, modificación, covers de campaña, carga masiva) | Pendiente | 2 y 3 | Sin abstracción común hoy — en Next.js se puede unificar en un componente reutilizable **sin cambiar el comportamiento observable** de cada zona |
 | UI-08 | Previsualización de archivo único con opción "Quitar" (modal de modificación) | Pendiente | 2 | — |
 | UI-09 | Previsualización de múltiples archivos con chip y eliminación individual | Pendiente | 2 | — |
-| UI-10 | Selector de impersonación de rol (solo admin) | Validada | 1 | Estado de cliente en `AppShell` (`useState`, sin llamada a servidor — igual que el original), mismas opciones que `#impersonate-rol`. **Limitación conocida a revisar en el bloque de Dashboard**: solo afecta al nav pintado en este bloque; el Dashboard real todavía no existe, así que no se ha decidido cómo el rol "efectivo" le llega a una página que sí consulta datos en servidor |
+| UI-10 | Selector de impersonación de rol (solo admin) | Implementada | 1 | Estado de cliente en `AppShell` (`useState`) para el nav, igual que el original; además escribe una cookie (`impersonated_rol`) + `router.refresh()` para que el Dashboard (bloque siguiente, ya construido) recalcule sus datos con el rol impersonado — sin esto, impersonar habría cambiado el nav sin cambiar ningún dato. La sesión real y sus permisos de RLS no cambian en ningún caso, igual que en el original |
 | UI-11 | Restauración forzada del rol real al cerrar sesión durante impersonación | Validada | 1 | Al ser estado de React (no persistido), cerrar sesión / recargar la página lo descarta automáticamente — no puede quedar "atascado" entre sesiones |
 | UI-12 | Sincronización en tiempo real vía WebSocket manual (protocolo Phoenix) | Pendiente | 2 | Suscrito a `solicitudes` y `notificaciones`; en Next.js se sustituye por `supabase-js` Realtime manteniendo el mismo resultado observable |
 | UI-13 | Reconexión automática tras cierre del WebSocket (espera 5s) | Pendiente | 2 | — |
