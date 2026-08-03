@@ -37,9 +37,10 @@ Los siguientes defectos **también existen hoy** pero no son un problema de cons
 | `admin` | Acceso total: solicitudes, campañas, usuarios, diseño, dashboard, panel global. |
 | `marketing` | Mismos permisos que `admin` sobre el flujo de solicitudes y campañas. |
 | `comercial_nacional` / `comercial_exportacion` / `comercial` (genérico legacy) | Crea/edita sus propias solicitudes, las envía, y en la revisión final confirma, pide modificación o archiva. Solo ve las suyas. El canal (nacional/exportación) está en el propio nombre del rol, no en un campo separado. |
-| `responsable_nacional` / `responsable_exportacion` / `responsable` (genérico legacy) | Igual que el comercial de su canal, pero ve y actúa sobre las solicitudes de todo ese canal. También ve el Dashboard. |
+| `responsable_nacional` / `responsable_exportacion` | Igual que el comercial de su canal, pero ve y actúa sobre las solicitudes de todo ese canal. También ve el Dashboard. |
+| `responsable` (genérico legacy) | Mismo comportamiento pretendido que las variantes anteriores, pero `buildNav()` (~1900-1917 de `index.html`) no incluye este valor genérico en ninguna de sus condiciones — un usuario con este rol se autentica correctamente pero no ve ningún botón de navegación tras el login (ver H-07 en `09-matriz-paridad-funcional.md`). |
 | `disenador` | Trabaja la cola de solicitudes en `en_diseno`/`modificar_diseno`, se autoasigna al abrir una sin asignar, sube el diseño terminado, usa la carga masiva. |
-| `responsable_diseno` | Igual que `disenador` pero ve las tareas de todos los diseñadores, no solo las propias, y accede también al Dashboard. |
+| `responsable_diseno` | Igual que `disenador` pero ve las tareas de todos los diseñadores, no solo las propias. **Corrección (verificado en `index.html` ~1912 y ~1954): NO accede al Dashboard** — ni `buildNav()` le añade el botón, ni `loadData()` llama a `renderDashboard()` para este rol; ambos puntos coinciden en excluirlo, consistente con que su visibilidad de `solicitudes` vía RLS está limitada a los estados de diseño (`03-modelo-datos.md` § 3.5), lo que haría incompleto cualquier KPI agregado. Una versión anterior de este documento afirmaba lo contrario por error. |
 
 Estas seis variantes de rol (y sus combinaciones legacy) **se mantienen literalmente** durante la migración. La propuesta de separar el canal en su propia columna está documentada en `07-propuestas-futuras.md` § 1, no forma parte de este proyecto.
 
