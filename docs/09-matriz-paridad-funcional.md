@@ -92,31 +92,31 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| SOL-01 | Código SAP obligatorio, normalizado a mayúsculas | Pendiente | 2 | — |
-| SOL-02 | Nombre de empresa normalizado a mayúsculas | Pendiente | 2 | — |
-| SOL-03 | Idioma obligatorio (25 opciones fijas) | Pendiente | 2 | Español + 24 idiomas europeos |
-| SOL-04 | Provincia condicional al idioma | Pendiente | 2 | Select de 54 provincias si idioma=Español (obligatorio); texto libre y opcional para el resto |
-| SOL-05 | Normalización de idioma capitalizado al reeditar | Pendiente | 2 | El idioma se guarda en mayúsculas pero el select espera capitalizado — detalle de implementación a preservar |
-| SOL-06 | Comentarios generales opcionales | Pendiente | 2 | Solo se muestra en detalle si no está vacío |
-| SOL-07 | Selector de campaña en el formulario (solo activas o la propia si está cerrada) | Pendiente | 2 | Marca "(cerrada)" si aplica |
-| SOL-08 | Recalculo de catálogos al cambiar de campaña en el formulario | Pendiente | 2 | **Caso límite**: pierde datos no guardados de catálogos ya rellenados si se cambia de campaña a mitad de formulario — preservar tal cual salvo decisión explícita |
-| SOL-09 | Bloqueo de creación en campaña cerrada | Pendiente | 2 | Toast + redirección a pestaña Campañas |
-| SOL-10 | Revalidación de cierre de campaña al guardar | Pendiente | 2 | Doble check por si la campaña cerró entre apertura del modal y el guardado |
-| SOL-11 | Detección de código SAP duplicado en la misma campaña | Pendiente | 2 | Solo al crear, no al editar |
-| SOL-12 | Campo canal+comercial asignado solo visible para admin/marketing | Pendiente | 2 | Para el resto de roles, `comercial_id` se autoasigna al usuario actual |
-| SOL-13 | Cascada canal → lista de comerciales asignables | Pendiente | 2 | Filtra por rol de canal, solo activos, orden alfabético |
-| SOL-14 | Mensaje de error acumulado truncado a 3 + "N más" | Pendiente | 2 | — |
-| SOL-15 | Guardar como borrador vs enviada con validaciones distintas | Pendiente | 2 | Un borrador puede guardarse vacío; enviar exige validación completa de catálogos |
-| SOL-16 | `enviada_at` se fija solo al pasar a "enviada" | Pendiente | 2 | — |
-| SOL-17 | Toast final distinto según destino (enviada/borrador) | Pendiente | 2 | Incluye conteo de archivos adjuntados en el caso de envío |
-| SOL-18 | Indicador visual de progreso de subida de adjuntos | Pendiente | 2 | — |
-| SOL-19 | Log de creación/edición con detalle de estado y SAP | Pendiente | 2 | — |
-| SOL-20 | Log por cada adjunto subido | Pendiente | 2 | — |
-| SOL-21 | Notificación automática al guardar (si no es borrador) | Pendiente | 2 | Ver módulo Notificaciones |
-| SOL-22 | Fallo de subida de un archivo no aborta el resto | Pendiente | 2 | Toast con nombre y código de error, continúa con el siguiente |
-| SOL-23 | Badge de campaña distinta en tabla comercial | Pendiente | 2 | Si la solicitud no pertenece a la campaña activa seleccionada |
-| SOL-24 | Resumen compacto de catálogo en tablas (`catSummary`) | Pendiente | 2 | "—" / "No" / "{unidades} uds" + chip de portada |
-| SOL-25 | Cálculo de campos incompletos (`missingFields`) | Pendiente | 2 | Reglas condicionales por idioma/catálogo/impreso — es la regla de dominio más compleja del sistema, requiere tests unitarios exhaustivos |
+| SOL-01 | Código SAP obligatorio, normalizado a mayúsculas | Implementada | 2 | Bloque 1 |
+| SOL-02 | Nombre de empresa normalizado a mayúsculas | Implementada | 2 | Bloque 1 |
+| SOL-03 | Idioma obligatorio (24 opciones fijas) | Implementada | 2 | Español + 23 idiomas europeos. Bloque 1 |
+| SOL-04 | Provincia condicional al idioma | Implementada | 2 | Select de 52 provincias/países si idioma=Español (obligatorio); texto libre y opcional para el resto. Bloque 1. **Hallazgo replicado tal cual, pendiente de decisión**: al reeditar, `provincia` se guarda en mayúsculas (`PROVINCIA.toUpperCase()`) pero el `<select>` compara por valor exacto contra las opciones capitalizadas (`"Madrid"`) — el desplegable aparece vacío al editar un borrador en español aunque el dato siga ahí; el input de texto libre (idioma≠Español) no tiene este problema. Replicado sin corregir, a decidir |
+| SOL-05 | Normalización de idioma capitalizado al reeditar | Implementada | 2 | Bloque 1 (`capitalizeIdioma()`) |
+| SOL-06 | Comentarios generales opcionales | Implementada | 2 | Bloque 1 |
+| SOL-07 | Selector de campaña en el formulario (solo activas o la propia si está cerrada) | Implementada | 2 | Marca "(cerrada)" si aplica. Bloque 1 |
+| SOL-08 | Recalculo de catálogos al cambiar de campaña en el formulario | Implementada | 2 | **Caso límite** replicado tal cual: pierde datos no guardados de catálogos ya rellenados si se cambia de campaña a mitad de formulario. Bloque 1 |
+| SOL-09 | Bloqueo de creación en campaña cerrada | Pendiente | 2 | El guard del botón "+ Nueva solicitud" (`checkCampanaAndOpen()`, toast + redirección a Campañas) se difiere — la comprobación real ya existe en el guardado (SOL-10), este es solo un aviso temprano de UX |
+| SOL-10 | Revalidación de cierre de campaña al guardar | Implementada | 2 | Doble check por si la campaña cerró entre apertura del formulario y el guardado. Bloque 1 |
+| SOL-11 | Detección de código SAP duplicado en la misma campaña | Implementada | 2 | Solo al crear, no al editar. Bloque 1. **Hallazgo replicado tal cual, pendiente de decisión**: la comparación usa el código tal como se escribió (sin mayusculizar) contra los ya guardados (que sí se guardan en mayúsculas) — sensible a mayúsculas, en la práctica solo protege SAPs numéricos. Replicado sin corregir, a decidir |
+| SOL-12 | Campo canal+comercial asignado solo visible para admin/marketing | Implementada | 2 | Para el resto de roles, `comercial_id` se autoasigna al usuario actual. Bloque 1 |
+| SOL-13 | Cascada canal → lista de comerciales asignables | Implementada | 2 | Filtra por rol de canal, solo activos, orden alfabético. Bloque 1 |
+| SOL-14 | Mensaje de error acumulado truncado a 3 + "N más" | Implementada | 2 | Bloque 1 |
+| SOL-15 | Guardar como borrador vs enviada con validaciones distintas | Implementada | 2 | Un borrador puede guardarse vacío; enviar exige validación completa de catálogos. Bloque 1 (validación mínima digital/impreso/unidades — la sección rica de catálogos es Bloque 2) |
+| SOL-16 | `enviada_at` se fija solo al pasar a "enviada" | Implementada | 2 | Bloque 1 |
+| SOL-17 | Toast final distinto según destino (enviada/borrador) | Implementada | 2 | Bloque 1, sin el conteo de archivos adjuntados (no hay subida de adjuntos todavía, ver SOL-18/20/22) |
+| SOL-18 | Indicador visual de progreso de subida de adjuntos | Pendiente | 2 | Depende de la subida de adjuntos, no incluida en el Bloque 1 |
+| SOL-19 | Log de creación/edición con detalle de estado y SAP | Implementada | 2 | Bloque 1 |
+| SOL-20 | Log por cada adjunto subido | Pendiente | 2 | Depende de la subida de adjuntos, no incluida en el Bloque 1 |
+| SOL-21 | Notificación automática al guardar (si no es borrador) | Pendiente | 2 | Ver módulo Notificaciones — diferido a un bloque posterior |
+| SOL-22 | Fallo de subida de un archivo no aborta el resto | Pendiente | 2 | Depende de la subida de adjuntos, no incluida en el Bloque 1 |
+| SOL-23 | Badge de campaña distinta en tabla comercial | Implementada | 2 | Si la solicitud no pertenece a la campaña activa seleccionada. Bloque 1 |
+| SOL-24 | Resumen compacto de catálogo en tablas (`catSummary`) | Implementada | 2 | "—" / "No" / "{unidades} uds" + chip de portada. Bloque 1 |
+| SOL-25 | Cálculo de campos incompletos (`missingFields`) | Pendiente | 2 | Es del detalle de una solicitud (bloque posterior), no de "Mis solicitudes" ni del formulario |
 
 ## Solicitudes — catálogos — Fase 2
 
@@ -146,7 +146,7 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| EST-01 | Máquina de estados completa | Pendiente | 2 | `borrador → enviada → en_revision_marketing → en_diseno ⇄ modificar_diseno → diseno_en_revision_comercial → confirmada`, + `archivada` lateral |
+| EST-01 | Máquina de estados completa | Pendiente | 2 | `borrador → enviada → en_revision_marketing → en_diseno ⇄ modificar_diseno → diseno_en_revision_comercial → confirmada`, + `archivada` lateral. **Parcial**: el tramo `borrador → enviada` (creación/edición desde "Mis solicitudes") ya está implementado (Bloque 1); el resto de transiciones (marketing, diseño, confirmar, archivar) se deja para el Bloque 3 — la fila se mantiene en `Pendiente` hasta cubrir la máquina completa |
 | EST-02 | Botones de acción condicionados por rol+estado en el detalle | Pendiente | 2 | Ver combinaciones completas en el inventario — cada combinación rol×estado debe probarse por separado |
 | EST-03 | Guard anti doble-clic en cambio de estado | Pendiente | 2 | Flag global `_cambiarEstadoInProgress` |
 | EST-04 | No-op si el estado destino es idéntico al actual | Pendiente | 2 | — |
@@ -316,9 +316,9 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
 | UI-01 | Sistema de modales por clase `.open` | Pendiente | 1/2 | Ningún bloque de la Fase 1 usa un modal — se construye la primera vez que Fase 2 lo necesite (Solicitudes), no antes; sin gestión de foco/accesibilidad aparente en el original — oportunidad de mejora a documentar en `07-propuestas-futuras.md` si se decide, no a implementar de paso |
-| UI-02 | Toasts de dos tipos (`showToast` neutro, `showFormAlert` de error) | Implementada | 1/2 | El toast neutro (`ToastProvider`, `shared/ui/toast.tsx`) ya está construido y en uso desde el bloque de Perfil. `showFormAlert` (rojo, 6s) todavía no tiene ningún llamador real — se añade la primera vez que Fase 2 lo necesite |
-| UI-03 | `showAlert` genérico inyectado por ID de contenedor | Pendiente | 1/2 | Ningún bloque de la Fase 1 lo necesita (los bloques propios usan sus propias alertas con `useActionState`) — se construye junto con los modales de Fase 2 que lo usan |
-| UI-04 | Formateo de fecha localizado `es-ES` | Pendiente | 1/2 | Ningún bloque de la Fase 1 muestra fechas — se construye la primera vez que Fase 2 lo necesite (historial de una solicitud) |
+| UI-02 | Toasts de dos tipos (`showToast` neutro, `showFormAlert` de error) | Implementada | 1/2 | El toast neutro (`ToastProvider`, `shared/ui/toast.tsx`) en uso desde Perfil. `showFormAlert` (rojo, 6s) ya tiene su primer llamador real: el formulario de Solicitudes (Bloque 1) |
+| UI-03 | `showAlert` genérico inyectado por ID de contenedor | Pendiente | 1/2 | Ningún bloque construido hasta ahora lo necesita (los formularios propios usan sus propias alertas con `useActionState`) — se construye junto con los modales de Fase 2 que lo usan |
+| UI-04 | Formateo de fecha localizado `es-ES` | Implementada | 1/2 | `fmtDate()` en `shared/domain/format.ts`, con test unitario — en uso en la tabla "Mis solicitudes" (Bloque 1) |
 | UI-05 | Formateo de número con separador de miles español | Validada | 1 | `fmtNum()` en `features/dashboard/domain/dashboard-stats.ts`, con test unitario — ya en uso en las tarjetas KPI del Dashboard |
 | UI-06 | Sistema de archivos adjuntos por categoría con deduplicación por nombre+tamaño | Pendiente | 2 | — |
 | UI-07 | Múltiples zonas de drag&drop con implementación duplicada por zona (logo, catálogo, diseño propio, diseño en detalle, modificación, covers de campaña, carga masiva) | Pendiente | 2 y 3 | Sin abstracción común hoy — en Next.js se puede unificar en un componente reutilizable **sin cambiar el comportamiento observable** de cada zona |

@@ -15,12 +15,12 @@ const LABELS: Record<string, string> = {
 // cambiar el select, sin botón aparte (PERF-11).
 export function NotifPrefForm({ value }: { value: string }) {
   const [, startTransition] = useTransition();
-  const showToast = useToast();
+  const { toast } = useToast();
 
   function handleChange(valor: string) {
     startTransition(async () => {
       await updateNotifPref(valor);
-      showToast(`Preferencia actualizada: ${LABELS[valor] ?? valor}`);
+      toast(`Preferencia actualizada: ${LABELS[valor] ?? valor}`);
     });
   }
 

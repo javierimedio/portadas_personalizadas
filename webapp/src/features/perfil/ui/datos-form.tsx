@@ -11,12 +11,12 @@ import { updateDatos, type UpdateDatosState } from "../application/update-datos.
 // (PERF-03/04/05/06/12).
 export function DatosForm({ nombre, email }: { nombre: string; email: string }) {
   const [state, formAction, pending] = useActionState<UpdateDatosState, FormData>(updateDatos, null);
-  const showToast = useToast();
+  const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
     if (!state?.success) return;
-    showToast("Perfil actualizado.");
+    toast("Perfil actualizado.");
     router.refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);

@@ -18,11 +18,11 @@ export function PasswordForm() {
   const [pwd1, setPwd1] = useState("");
   const [show1, setShow1] = useState(false);
   const [show2, setShow2] = useState(false);
-  const showToast = useToast();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!state?.success) return;
-    showToast("Contraseña actualizada.");
+    toast("Contraseña actualizada.");
     setPwd1("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
