@@ -12,6 +12,7 @@ function sol(overrides: Partial<SolicitudListItem> = {}): SolicitudListItem {
     canal: null,
     comercial_id: "u1",
     campana_id: "c1",
+    asignado_id: null,
     estado: "borrador",
     updated_at: "2026-01-01T00:00:00Z",
     solicitud_catalogos: [],

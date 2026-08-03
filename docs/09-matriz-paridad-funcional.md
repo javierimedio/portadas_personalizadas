@@ -168,16 +168,16 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| DIS-01 | Tabla de diseño filtrada siempre por `en_diseno`/`modificar_diseno` | Pendiente | 2 | Independiente del rol |
-| DIS-02 | Selector de campaña propio de la pestaña Diseño | Pendiente | 2 | — |
-| DIS-03 | Filtro por diseñador asignado | Pendiente | 2 | — |
-| DIS-04 | Contador de tareas por diseñador con umbral de color (>5 = rojo) | Pendiente | 2 | Umbral hardcodeado, preservar el mismo valor |
-| DIS-05 | Columna "Asignado a" con "—" si no hay asignación | Pendiente | 2 | — |
-| DIS-06 | Zona de subida de diseño en el detalle | Pendiente | 2 | Solo roles de diseño, solo en estados de diseño |
-| DIS-07 | Acumulación de archivos entre múltiples interacciones sin reemplazar | Pendiente | 2 | Hasta confirmar "Diseño listo" |
-| DIS-08 | "Diseño listo → Revisión cliente" sube todos los archivos acumulados de golpe | Pendiente | 2 | Si no hay archivos pendientes, solo cambia el estado |
-| DIS-09 | Exportación CSV de diseño (`exportDisenoCSV`) | Pendiente | 2 | Separador TAB, BOM UTF-8, columnas fijas `CODIGO,ROLY,WRK,STM,XMAS`; filtrado a tareas propias si el rol es `disenador` |
-| DIS-10 | Nombre de archivo CSV con campaña y fecha | Pendiente | 2 | — |
+| DIS-01 | Tabla de diseño filtrada siempre por `en_diseno`/`modificar_diseno` | Implementada | 2 | Independiente del rol — `filterDisenoTareas()` |
+| DIS-02 | Selector de campaña propio de la pestaña Diseño | Implementada | 2 | Estado propio del componente, no comparte el de Mis solicitudes, igual que en el original |
+| DIS-03 | Filtro por diseñador asignado | Implementada | 2 | Visible para admin/marketing/responsable_diseno/disenador, igual que el original — no restringe por rol, es solo un selector |
+| DIS-04 | Contador de tareas por diseñador con umbral de color (>5 = rojo) | Implementada | 2 | Umbral hardcodeado preservado; se calcula sobre las filas ya filtradas por diseñador si hay uno seleccionado (mismo orden que el original) |
+| DIS-05 | Columna "Asignado a" con "—" si no hay asignación | Implementada | 2 | — |
+| DIS-06 | Zona de subida de diseño en el detalle | Implementada | 2 | Ya construida en el modal de detalle (bloque de flujo de estados) — "Ver" en Diseño abre el mismo modal |
+| DIS-07 | Acumulación de archivos entre múltiples interacciones sin reemplazar | Implementada | 2 | Ídem — `disenoFiles` en `solicitud-detalle-modal.tsx` |
+| DIS-08 | "Diseño listo → Revisión cliente" sube todos los archivos acumulados de golpe | Implementada | 2 | Ídem — `marcarDisenoListo()` |
+| DIS-09 | Exportación CSV de diseño (`exportDisenoCSV`) | Implementada | 2 | Separador TAB, BOM UTF-8, columnas fijas `CODIGO,ROLY,WRK,STM,XMAS`; un `disenador` exporta siempre solo lo suyo aunque el selector en pantalla muestre "Todos" — regla propia de la exportación, distinta de la del listado, replicada tal cual |
+| DIS-10 | Nombre de archivo CSV con campaña y fecha | Implementada | 2 | `disenoCsvFilename()` |
 
 ## Carga masiva de diseños — Fase 2
 

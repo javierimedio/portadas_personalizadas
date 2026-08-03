@@ -12,6 +12,7 @@ export type SolicitudCatalogoRow = {
   portada_opcion_1: string | null;
   portada_opcion_2: string | null;
   portada_opcion_3: string | null;
+  portada_elegida: string | null;
   posicion_logo: string | null;
   con_precios: boolean | null;
 };
@@ -26,6 +27,7 @@ export type SolicitudListItem = {
   canal: string | null;
   comercial_id: string | null;
   campana_id: string | null;
+  asignado_id: string | null;
   estado: string;
   updated_at: string;
   solicitud_catalogos: SolicitudCatalogoRow[];
