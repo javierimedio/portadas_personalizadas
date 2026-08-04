@@ -117,6 +117,8 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | SOL-23 | Badge de campaña distinta en tabla comercial | Implementada | 2 | Si la solicitud no pertenece a la campaña activa seleccionada. Bloque 1 |
 | SOL-24 | Resumen compacto de catálogo en tablas (`catSummary`) | Implementada | 2 | "—" / "No" / "{unidades} uds" + chip de portada. Bloque 1 |
 | SOL-25 | Cálculo de campos incompletos (`missingFields`) | Implementada | 5 | `features/panel-global/domain/missing-fields.ts`, columna "Campos incompletos" de Panel Global. Usa los catálogos de la campaña de cada solicitud, no una lista global |
+| SOL-26 | Filtro de comercial en "Mis solicitudes" (solo responsables/admin/marketing) | Implementada | 2 | `muestraFiltroComercial`/`comercialesFiltroMisSolicitudes`. Colectivo distinto del de Panel Global: cada responsable de canal ve solo su propio colectivo; admin/marketing ven los comerciales rasos de los 3 canales, sin incluir a otros responsables — réplica exacta de la rama `else` de `renderComercialTable()` (~2024-2029), completado tras quedar pendiente en el Bloque 1 de esta fase |
+| SOL-27 | Filtro de idioma en "Mis solicitudes" (solo exportación) | Implementada | 2 | Mismo listado de `IDIOMAS` que el formulario, ordenado alfabéticamente para esta lista (a diferencia del select del formulario, que pone Español primero — mismo orden que el `#filter-idioma-comercial` original). Completado tras quedar pendiente en el Bloque 1 de esta fase |
 
 ## Solicitudes — catálogos — Fase 2
 
@@ -320,7 +322,7 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 |---|---|---|---|---|
 | UI-01 | Sistema de modales por clase `.open` | Implementada | 1/2 | `.modal-bg`/`.modal`/`.modal-header`/`.modal-body` en `globals.css`, montado condicionalmente en vez de por clase — mismo resultado visual. Primer uso real: el modal de Nueva/Editar solicitud (Bloque 1, decisión explícita de mantener modal en vez de ruta propia). Sin gestión de foco/accesibilidad, igual que el original — oportunidad de mejora a documentar en `07-propuestas-futuras.md`, no a implementar de paso |
 | UI-02 | Toasts de dos tipos (`showToast` neutro, `showFormAlert` de error) | Implementada | 1/2 | El toast neutro (`ToastProvider`, `shared/ui/toast.tsx`) en uso desde Perfil. `showFormAlert` (rojo, 6s) ya tiene su primer llamador real: el formulario de Solicitudes (Bloque 1) |
-| UI-03 | `showAlert` genérico inyectado por ID de contenedor | Pendiente | 1/2 | Ningún bloque construido hasta ahora lo necesita (los formularios propios usan sus propias alertas con `useActionState`) — se construye junto con los modales de Fase 2 que lo usan |
+| UI-03 | `showAlert` genérico inyectado por ID de contenedor | Implementada | 1/2/4 | Sin una función global equivalente (no hace falta: cada modal es su propio componente) — cada llamador real de `showAlert()` en el original (`user-alert`, `campana-alert`, `import-alert`) tiene su equivalente en React: estado `error`/`info` propio + `<div className="alert alert-error/alert-info">`, en `UsuarioModal`, `CampanaForm` (vía `formAlert` de `useToast`) e `ImportarUsuariosModal` |
 | UI-04 | Formateo de fecha localizado `es-ES` | Implementada | 1/2 | `fmtDate()` en `shared/domain/format.ts`, con test unitario — en uso en la tabla "Mis solicitudes" (Bloque 1) |
 | UI-05 | Formateo de número con separador de miles español | Validada | 1 | `fmtNum()` en `features/dashboard/domain/dashboard-stats.ts`, con test unitario — ya en uso en las tarjetas KPI del Dashboard |
 | UI-06 | Sistema de archivos adjuntos por categoría con deduplicación por nombre+tamaño | Implementada | 2 | `FileDropZone` (logo/diseño propio del formulario) — dedup por nombre+tamaño al añadir |
@@ -377,7 +379,7 @@ Registro vivo de comportamientos de `index.html` que parecen incorrectos, incomp
 
 - **Comportamiento actual**: `processImportFile` (~5695) solo acepta `comercial, marketing, disenador, admin` como roles válidos; no incluye `comercial_nacional`, `comercial_exportacion`, `responsable_nacional`, `responsable_exportacion` ni `responsable_diseno`, que sí existen y se usan en el resto de la aplicación.
 - **Por qué se sospecha bug**: parece una lista de roles desactualizada (probablemente escrita antes de que se introdujeran las variantes de canal), no una restricción intencionada de qué roles se pueden crear por Excel.
-- **Decisión**: Pendiente.
+- **Decisión**: Corregido (2026-08-04) — mismo hallazgo que H-13 (misma lista de roles, mismo código de origen); ver la corrección allí (`VALID_IMPORT_ROLES` en `features/usuarios/domain/import.ts`).
 
 ### H-07 (NAV-02/NAV-03) — Los roles legacy genéricos `comercial`/`responsable` (sin sufijo de canal) no ven ningún botón de navegación
 
@@ -421,4 +423,4 @@ Registro vivo de comportamientos de `index.html` que parecen incorrectos, incomp
 - **Por qué se sospecha bug**: la lista no se actualizó cuando el resto de la aplicación introdujo los roles con sufijo de canal — es la misma clase de desajuste que H-06 (importación de usuarios), no una decisión de negocio: no hay ningún escenario en el que "marcar como inválido un comercial de exportación real" sea el comportamiento deseado.
 - **Decisión**: Corregido (2026-08-04) — `VALID_IMPORT_ROLES` añade los roles reales que faltaban, sin quitar ninguno de los que ya aceptaba (incluido `comercial` genérico, que sigue siendo el valor por defecto si la columna de rol viene vacía). El resto del comportamiento se preserva tal cual: una fila con rol inválido sigue sin bloquear la importación del resto.
 
-Ninguna fase que module estas funcionalidades (Fase 4 para H-01/H-06/H-13, Fase 5 para H-02, Fase 2 para H-03, Fase 1 para H-05/H-07) cierra su checklist mientras su hallazgo correspondiente siga con Decisión "Pendiente". H-04 y H-08 a H-13 ya están corregidos y no bloquean ninguna fase.
+Ninguna fase que module estas funcionalidades (Fase 4 para H-01, Fase 5 para H-02, Fase 2 para H-03, Fase 1 para H-05/H-07) cierra su checklist mientras su hallazgo correspondiente siga con Decisión "Pendiente". H-04, H-06 y H-08 a H-13 ya están corregidos y no bloquean ninguna fase.

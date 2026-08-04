@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { filterSolicitudes, isExportRole, miniStats, scopeSolicitudesByRole, type SolicitudListItem } from "@/features/solicitudes/domain/table";
+import {
+  comercialesFiltroMisSolicitudes,
+  filterSolicitudes,
+  isExportRole,
+  miniStats,
+  muestraFiltroComercial,
+  scopeSolicitudesByRole,
+  type SolicitudListItem,
+} from "@/features/solicitudes/domain/table";
 
 function sol(overrides: Partial<SolicitudListItem> = {}): SolicitudListItem {
   return {
@@ -60,24 +68,70 @@ describe("filterSolicitudes", () => {
     sol({ id: "c", cod_sap: "80002", nombre_empresa: "ARCHIVADA CO", campana_id: "c1", estado: "archivada" }),
   ];
 
+  const base = { campanaId: "", estado: "", q: "", comercialId: "", idioma: "" };
+
   it("sin filtro de estado, oculta archivadas", () => {
-    const result = filterSolicitudes(rows, { campanaId: "", estado: "", q: "" });
+    const result = filterSolicitudes(rows, base);
     expect(result.map((r) => r.id)).toEqual(["a", "b"]);
   });
 
   it("con filtro de estado explícito, muestra incluso archivadas", () => {
-    const result = filterSolicitudes(rows, { campanaId: "", estado: "archivada", q: "" });
+    const result = filterSolicitudes(rows, { ...base, estado: "archivada" });
     expect(result.map((r) => r.id)).toEqual(["c"]);
   });
 
   it("filtra por campaña", () => {
-    const result = filterSolicitudes(rows, { campanaId: "c2", estado: "", q: "" });
+    const result = filterSolicitudes(rows, { ...base, campanaId: "c2" });
     expect(result.map((r) => r.id)).toEqual(["b"]);
   });
 
   it("busca por código SAP o nombre de empresa (case-insensitive)", () => {
-    expect(filterSolicitudes(rows, { campanaId: "", estado: "", q: "acme" }).map((r) => r.id)).toEqual(["a"]);
-    expect(filterSolicitudes(rows, { campanaId: "", estado: "", q: "70001" }).map((r) => r.id)).toEqual(["b"]);
+    expect(filterSolicitudes(rows, { ...base, q: "acme" }).map((r) => r.id)).toEqual(["a"]);
+    expect(filterSolicitudes(rows, { ...base, q: "70001" }).map((r) => r.id)).toEqual(["b"]);
+  });
+
+  it("filtra por comercial", () => {
+    const conComercial = [sol({ id: "a", comercial_id: "u1" }), sol({ id: "b", comercial_id: "u2" })];
+    expect(filterSolicitudes(conComercial, { ...base, comercialId: "u2" }).map((r) => r.id)).toEqual(["b"]);
+  });
+
+  it("filtra por idioma (case-insensitive)", () => {
+    const conIdioma = [sol({ id: "a", idioma: "Inglés" }), sol({ id: "b", idioma: "Francés" })];
+    expect(filterSolicitudes(conIdioma, { ...base, idioma: "inglés" }).map((r) => r.id)).toEqual(["a"]);
+  });
+});
+
+describe("muestraFiltroComercial", () => {
+  it("visible para responsables, admin y marketing; no para comerciales", () => {
+    expect(muestraFiltroComercial("responsable_nacional")).toBe(true);
+    expect(muestraFiltroComercial("responsable_exportacion")).toBe(true);
+    expect(muestraFiltroComercial("admin")).toBe(true);
+    expect(muestraFiltroComercial("marketing")).toBe(true);
+    expect(muestraFiltroComercial("comercial_nacional")).toBe(false);
+    expect(muestraFiltroComercial(null)).toBe(false);
+  });
+});
+
+describe("comercialesFiltroMisSolicitudes", () => {
+  const perfiles = [
+    { id: "u1", nombre: "Ana", rol: "comercial_nacional", activo: true },
+    { id: "u2", nombre: "Bea", rol: "comercial_exportacion", activo: true },
+    { id: "u3", nombre: "Carlos", rol: "responsable_nacional", activo: true },
+    { id: "u4", nombre: "Diego", rol: "responsable_exportacion", activo: true },
+    { id: "u5", nombre: "Eva", rol: "comercial", activo: true },
+    { id: "u6", nombre: "Inactivo", rol: "comercial_nacional", activo: false },
+  ];
+
+  it("responsable_nacional: solo su colectivo (comercial_nacional + responsable_nacional)", () => {
+    expect(comercialesFiltroMisSolicitudes(perfiles, "responsable_nacional").map((p) => p.id)).toEqual(["u1", "u3"]);
+  });
+
+  it("responsable_exportacion: solo su colectivo (comercial_exportacion + responsable_exportacion)", () => {
+    expect(comercialesFiltroMisSolicitudes(perfiles, "responsable_exportacion").map((p) => p.id)).toEqual(["u2", "u4"]);
+  });
+
+  it("admin/marketing: comerciales rasos de los 3 canales, sin responsables", () => {
+    expect(comercialesFiltroMisSolicitudes(perfiles, "admin").map((p) => p.id)).toEqual(["u1", "u2", "u5"]);
   });
 });
 

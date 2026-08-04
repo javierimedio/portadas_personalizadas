@@ -66,6 +66,7 @@ export function MisSolicitudes({
       <SolicitudesTable
         rows={rows}
         campanas={campanas}
+        perfiles={perfiles}
         defaultCampanaId={defaultCampanaId}
         rol={rol}
         onNueva={handleNueva}

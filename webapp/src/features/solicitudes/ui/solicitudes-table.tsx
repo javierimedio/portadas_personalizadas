@@ -4,17 +4,26 @@ import { useMemo, useState } from "react";
 import { fmtDate } from "@/shared/domain/format";
 import { ALL_CATALOGOS } from "@/shared/domain/catalogos";
 import { ESTADO_LABEL } from "@/shared/domain/estados";
+import { IDIOMAS } from "@/shared/domain/idiomas";
 import { catSummary } from "../domain/cat-summary";
-import { filterSolicitudes, isExportRole, miniStats, type SolicitudListItem } from "../domain/table";
+import {
+  comercialesFiltroMisSolicitudes,
+  filterSolicitudes,
+  isExportRole,
+  miniStats,
+  muestraFiltroComercial,
+  type SolicitudListItem,
+} from "../domain/table";
+import type { FormPerfil } from "../domain/types";
+
+const IDIOMAS_FILTRO = [...IDIOMAS].sort((a, b) => a.localeCompare(b, "es"));
 
 // Réplica de #page-mis-solicitudes (index.html ~578-642) y
-// renderComercialTable() (~2012-2121). El filtro de comercial (visible solo
-// para responsables/admin/marketing) y el filtro de idioma (solo
-// exportación) se dejan fuera a propósito en este bloque (alcance acordado
-// para Fase 2 · Bloque 1) — quedan pendientes para un bloque posterior.
+// renderComercialTable() (~2012-2121).
 export function SolicitudesTable({
   rows,
   campanas,
+  perfiles,
   defaultCampanaId,
   rol,
   onNueva,
@@ -23,6 +32,7 @@ export function SolicitudesTable({
 }: {
   rows: SolicitudListItem[];
   campanas: { id: string; nombre: string; activa: boolean }[];
+  perfiles: FormPerfil[];
   defaultCampanaId: string;
   rol: string | null | undefined;
   onNueva: () => void;
@@ -32,11 +42,15 @@ export function SolicitudesTable({
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState("");
   const [campanaId, setCampanaId] = useState(defaultCampanaId);
+  const [comercialId, setComercialId] = useState("");
+  const [idioma, setIdioma] = useState("");
 
   const isExport = isExportRole(rol);
+  const muestraComercial = muestraFiltroComercial(rol);
+  const comerciales = useMemo(() => comercialesFiltroMisSolicitudes(perfiles, rol), [perfiles, rol]);
   const filtered = useMemo(
-    () => filterSolicitudes(rows, { campanaId, estado, q }),
-    [rows, campanaId, estado, q]
+    () => filterSolicitudes(rows, { campanaId, estado, q, comercialId: muestraComercial ? comercialId : "", idioma: isExport ? idioma : "" }),
+    [rows, campanaId, estado, q, comercialId, muestraComercial, idioma, isExport]
   );
   const stats = useMemo(() => miniStats(filtered), [filtered]);
   const nombreCampana = (id: string | null) => campanas.find((c) => c.id === id)?.nombre ?? "";
@@ -66,6 +80,26 @@ export function SolicitudesTable({
               </option>
             ))}
         </select>
+        {muestraComercial && (
+          <select value={comercialId} onChange={(e) => setComercialId(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>
+            <option value="">Todos los comerciales</option>
+            {comerciales.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nombre}
+              </option>
+            ))}
+          </select>
+        )}
+        {isExport && (
+          <select value={idioma} onChange={(e) => setIdioma(e.target.value)} style={{ fontSize: 13, minWidth: 150 }}>
+            <option value="">Todos los idiomas</option>
+            {IDIOMAS_FILTRO.map((i) => (
+              <option key={i} value={i}>
+                {i}
+              </option>
+            ))}
+          </select>
+        )}
         <button type="button" onClick={onNueva} className="btn btn-amber">
           + Nueva solicitud
         </button>

@@ -1,4 +1,5 @@
 import { ROLES_POR_CANAL } from "./constants";
+import type { FormPerfil } from "./types";
 
 // Réplica de renderComercialTable() en index.html (~2012-2121): filtrado,
 // mini-stats y reglas de la tabla "Mis solicitudes" (SOL-05 a SOL-10, SOL-24).
@@ -63,15 +64,37 @@ export function isExportRole(rol: string | null | undefined): boolean {
   return rol === "comercial_exportacion" || rol === "responsable_exportacion";
 }
 
-export type SolicitudesFilters = { campanaId: string; estado: string; q: string };
+// Réplica de la visibilidad de #filter-comercial-resp (~2020-2029):
+// responsables/admin/marketing lo ven; el resto (comerciales rasos), no.
+export function muestraFiltroComercial(rol: string | null | undefined): boolean {
+  return ["responsable", "responsable_nacional", "responsable_exportacion", "admin", "marketing"].includes(rol ?? "");
+}
+
+// Réplica de las opciones de #filter-comercial-resp según el rol
+// (~2024-2029): cada responsable de canal solo ve su propio colectivo
+// (comercial + responsable del mismo canal); admin/marketing ven los
+// comerciales rasos de los 3 canales, pero NO a otros responsables — es un
+// colectivo distinto del que usa Panel Global (`comercialesFiltro`).
+export function comercialesFiltroMisSolicitudes(perfiles: FormPerfil[], rol: string | null | undefined): FormPerfil[] {
+  let roles: string[];
+  if (rol === "responsable_nacional") roles = ["comercial_nacional", "responsable_nacional"];
+  else if (rol === "responsable_exportacion") roles = ["comercial_exportacion", "responsable_exportacion"];
+  else roles = ["comercial", "comercial_nacional", "comercial_exportacion"];
+  return perfiles.filter((p) => p.activo && roles.includes(p.rol ?? "")).sort((a, b) => a.nombre.localeCompare(b.nombre));
+}
+
+export type SolicitudesFilters = { campanaId: string; estado: string; q: string; comercialId: string; idioma: string };
 
 // Réplica del filtro de la tabla (~2067-2074): búsqueda por SAP/empresa,
-// filtro de campaña, filtro de estado — y ocultar 'archivada' cuando no hay
-// filtro de estado explícito.
+// filtro de campaña, filtro de estado, filtro de comercial (SOL-26) y
+// filtro de idioma solo relevante para exportación (SOL-27) — y ocultar
+// 'archivada' cuando no hay filtro de estado explícito.
 export function filterSolicitudes(rows: SolicitudListItem[], filters: SolicitudesFilters): SolicitudListItem[] {
   const q = filters.q.trim().toLowerCase();
   return rows.filter((s) => {
     if (filters.campanaId && s.campana_id !== filters.campanaId) return false;
+    if (filters.comercialId && s.comercial_id !== filters.comercialId) return false;
+    if (filters.idioma && s.idioma?.toUpperCase() !== filters.idioma.toUpperCase()) return false;
     if (q && !s.cod_sap?.toLowerCase().includes(q) && !s.nombre_empresa?.toLowerCase().includes(q)) return false;
     if (filters.estado && s.estado !== filters.estado) return false;
     if (!filters.estado && s.estado === "archivada") return false;
