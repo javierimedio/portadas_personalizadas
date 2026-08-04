@@ -24,6 +24,7 @@ export function DisenoTable({
   rol,
   currentUserId,
   onVer,
+  onCargaMasiva,
 }: {
   rows: SolicitudListItem[];
   campanas: { id: string; nombre: string; activa: boolean }[];
@@ -32,6 +33,7 @@ export function DisenoTable({
   rol: string | null | undefined;
   currentUserId: string | null | undefined;
   onVer: (solicitud: SolicitudListItem) => void;
+  onCargaMasiva: () => void;
 }) {
   const [campanaId, setCampanaId] = useState(defaultCampanaId);
   const [disenadorId, setDisenadorId] = useState("");
@@ -82,6 +84,9 @@ export function DisenoTable({
       <div className="filter-bar">
         <button type="button" onClick={exportarCsv} className="btn btn-sm" style={{ background: "var(--c-blue)", color: "white", border: "none" }}>
           ⬇ Exportar CSV
+        </button>
+        <button type="button" onClick={onCargaMasiva} className="btn btn-sm" style={{ background: "var(--c-amber)", color: "white", border: "none" }}>
+          📦 Carga masiva
         </button>
         {mostrarFiltroDisenador && (
           <select value={disenadorId} onChange={(e) => setDisenadorId(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>

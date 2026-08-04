@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DisenoTable } from "./diseno-table";
+import { CargaMasivaModal } from "./carga-masiva-modal";
 import { SolicitudDetalleModal } from "@/features/solicitudes/ui/solicitud-detalle-modal";
 import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 import type { FormCampana, FormPerfil } from "@/features/solicitudes/domain/types";
@@ -25,6 +26,7 @@ export function DisenoPage({
   currentUserId: string | null | undefined;
 }) {
   const [solicitudId, setSolicitudId] = useState<string | null>(null);
+  const [cargaMasivaAbierta, setCargaMasivaAbierta] = useState(false);
   const router = useRouter();
 
   return (
@@ -37,7 +39,18 @@ export function DisenoPage({
         rol={rol}
         currentUserId={currentUserId}
         onVer={(s) => setSolicitudId(s.id)}
+        onCargaMasiva={() => setCargaMasivaAbierta(true)}
       />
+      {cargaMasivaAbierta && (
+        <CargaMasivaModal
+          rows={rows}
+          onClose={() => setCargaMasivaAbierta(false)}
+          onProcessed={() => {
+            setCargaMasivaAbierta(false);
+            router.refresh();
+          }}
+        />
+      )}
       {solicitudId && (
         <SolicitudDetalleModal
           solicitudId={solicitudId}

@@ -183,15 +183,15 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| CM-01 | Modal de carga masiva creado dinámicamente | Pendiente | 2 | — |
-| CM-02 | Parseo de nombre de archivo con sufijo de catálogo opcional | Pendiente | 2 | Orden de evaluación importa: `_ROLY_WRK` antes de `_ROLY` para no capturar el sufijo equivocado — replicar el mismo orden exacto |
-| CM-03 | Matching de archivo contra solicitud por SAP | Pendiente | 2 | Solo entre solicitudes en `en_diseno`/`modificar_diseno`; 3 estados: `ok`/`notfound`/`nocatalog` |
-| CM-04 | Preview con contador "N de M reconocidos" y badges de color | Pendiente | 2 | — |
-| CM-05 | Eliminación individual de un archivo de la cola antes de procesar | Pendiente | 2 | — |
-| CM-06 | Botón de procesar deshabilitado si no hay archivos reconocidos | Pendiente | 2 | Texto dinámico con el conteo |
-| CM-07 | Procesamiento por lotes con un solo cambio de estado por solicitud | Pendiente | 2 | Aunque una solicitud tenga varios archivos, el cambio de estado y el log se disparan una sola vez (`processedSols` Set) |
-| CM-08 | Notificación disparada por solicitud, no por archivo | Pendiente | 2 | — |
-| CM-09 | Resumen final con conteo de éxitos y errores | Pendiente | 2 | — |
+| CM-01 | Modal de carga masiva creado dinámicamente | Implementada | 2 | `CargaMasivaModal`, abierto desde el botón "📦 Carga masiva" de la pestaña Diseño |
+| CM-02 | Parseo de nombre de archivo con sufijo de catálogo opcional | Implementada | 2 | Orden de evaluación preservado: `_ROLY_WRK` antes de `_ROLY` — `parseCargaFilename()` |
+| CM-03 | Matching de archivo contra solicitud por SAP | Implementada | 2 | Solo entre solicitudes en `en_diseno`/`modificar_diseno`; 3 estados: `ok`/`notfound`/`nocatalog` — `matchCargaFile()`. La previsualización matchea contra las filas ya cargadas en la página; el procesamiento real (`procesarCargaMasiva` server action) recalcula contra la BD en el momento de procesar, no contra el estado en memoria del cliente |
+| CM-04 | Preview con contador "N de M reconocidos" y badges de color | Implementada | 2 | — |
+| CM-05 | Eliminación individual de un archivo de la cola antes de procesar | Implementada | 2 | — |
+| CM-06 | Botón de procesar deshabilitado si no hay archivos reconocidos | Implementada | 2 | Texto dinámico con el conteo |
+| CM-07 | Procesamiento por lotes con un solo cambio de estado por solicitud | Implementada | 2 | Aunque una solicitud tenga varios archivos, el cambio de estado y el log se disparan una sola vez (`processedSols` Set, reutiliza `cambiarEstado()`) |
+| CM-08 | Notificación disparada por solicitud, no por archivo | Pendiente | 2 | Diferido al módulo de Notificaciones, todavía no migrado — mismo criterio que el resto de acciones de detalle |
+| CM-09 | Resumen final con conteo de éxitos y errores | Implementada | 2 | Toast con el mismo formato de mensaje que el original |
 
 ## Comentarios y menciones — Fase 2
 
