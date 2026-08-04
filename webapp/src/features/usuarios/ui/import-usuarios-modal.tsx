@@ -52,14 +52,38 @@ export function ImportarUsuariosModal({ onClose, onImported }: { onClose: () => 
     setImportando(true);
     let ok = 0;
     let errores = 0;
+    // INSTRUMENTACIÓN TEMPORAL (2026-08-04) — diagnóstico en curso de "0
+    // creados, N errores" (docs/09-matriz-paridad-funcional.md § H-01). No
+    // quitar hasta confirmar en qué línea exacta se incrementa `errores`.
+    // Esto corre en el NAVEGADOR: abre la consola del navegador (F12) para
+    // verlo. La llamada a crearUsuario() en sí corre en el SERVOR — su
+    // propia instrumentación aparece en los logs del servidor (terminal de
+    // `next dev`/`next start`, o Vercel → Deployments → Functions → Logs),
+    // nunca aquí.
+    console.log(`[IMPORT] Iniciando importación de ${rows.length} fila(s).`);
+    let index = 0;
     for (const u of rows) {
+      index++;
+      console.log(`[IMPORT] Fila ${index}/${rows.length}`, {
+        email: u.email,
+        nombre: u.nombre,
+        rol: u.rol,
+        codigo: u.codigo,
+        passwordPresente: Boolean(u.pass),
+        passwordLength: u.pass?.length ?? 0,
+      });
       const res = await crearUsuario({ nombre: u.nombre, email: u.email, password: u.pass, rol: u.rol, codigo: u.codigo });
+      console.log(`[IMPORT] Fila ${index}/${rows.length} — respuesta de crearUsuario()`, res);
       if (res.error) {
-        console.warn("Import error for", u.email, res.error);
+        console.warn(`[IMPORT] Fila ${index}/${rows.length} — CONTABILIZADA COMO ERROR`, { email: u.email, error: res.error });
         errores++;
-      } else ok++;
+      } else {
+        console.log(`[IMPORT] Fila ${index}/${rows.length} — CONTABILIZADA COMO OK`, { email: u.email });
+        ok++;
+      }
       setProgreso({ ok, errores });
     }
+    console.log(`[IMPORT] Importación finalizada. ok=${ok} errores=${errores} (total filas=${rows.length}).`);
     setImportando(false);
     toast(`Importación completada: ${ok} creados${errores > 0 ? `, ${errores} errores` : ""}.`);
     onImported();

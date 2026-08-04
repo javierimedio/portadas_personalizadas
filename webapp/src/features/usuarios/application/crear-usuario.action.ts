@@ -31,36 +31,83 @@ export async function crearUsuario(input: {
   rol: string;
   codigo: string;
 }): Promise<{ error?: string }> {
-  if (!input.nombre || !input.email) return { error: "Nombre y email son obligatorios." };
-  if (!input.password) return { error: "La contraseña es obligatoria." };
+  // INSTRUMENTACIÓN TEMPORAL (2026-08-04) — diagnóstico en curso de "0
+  // creados, N errores" (docs/09-matriz-paridad-funcional.md § H-01). No
+  // quitar hasta confirmar en qué línea exacta se genera el error. Esto
+  // corre en el SERVIDOR: aparece en la terminal de `next dev`/`next
+  // start`, o en Vercel → Deployments → Functions → Logs — NUNCA en la
+  // consola del navegador, porque esta función tiene "use server".
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  console.log("[crearUsuario] input recibido", {
+    nombre: input.nombre,
+    email: input.email,
+    rol: input.rol,
+    codigo: input.codigo,
+    passwordPresente: Boolean(input.password),
+    passwordLength: input.password?.length ?? 0,
+    supabaseUrlConfigurado: Boolean(supabaseUrl),
+  });
+
+  if (!input.nombre || !input.email) {
+    console.warn("[crearUsuario] rechazado antes de cualquier llamada de red: falta nombre o email");
+    return { error: "Nombre y email son obligatorios." };
+  }
+  if (!input.password) {
+    console.warn("[crearUsuario] rechazado antes de cualquier llamada de red: falta password");
+    return { error: "La contraseña es obligatoria." };
+  }
 
   const supabase = await createClient();
-  const { data: sessionData } = await supabase.auth.getSession();
-  if (!sessionData.session) return { error: "Sesión no válida." };
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  console.log("[crearUsuario] resultado de auth.getSession()", {
+    haySesion: Boolean(sessionData.session),
+    sessionError: sessionError?.message ?? null,
+  });
+  if (!sessionData.session) {
+    console.warn("[crearUsuario] rechazado antes de cualquier llamada de red: sin sesión válida");
+    return { error: "Sesión no válida." };
+  }
+
+  const url = `${supabaseUrl}/functions/v1/create-user`;
+  const body = { nombre: input.nombre, email: input.email, password: input.password, rol: input.rol, codigo: input.codigo };
+  console.log("[crearUsuario] invocando la Edge Function create-user", { url, body: { ...body, password: `(${body.password.length} caracteres)` } });
 
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-user`, {
+    const res = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${sessionData.session.access_token}`,
       },
-      body: JSON.stringify({
-        nombre: input.nombre,
-        email: input.email,
-        password: input.password,
-        rol: input.rol,
-        codigo: input.codigo,
-      }),
+      body: JSON.stringify(body),
     });
-    const data = await res.json();
+    console.log("[crearUsuario] respuesta HTTP recibida", { status: res.status, ok: res.ok, statusText: res.statusText, contentType: res.headers.get("content-type") });
+
+    const rawText = await res.text();
+    console.log("[crearUsuario] cuerpo de la respuesta (texto crudo)", rawText);
+
+    let data: { error?: string; id?: string } = {};
+    try {
+      data = rawText ? JSON.parse(rawText) : {};
+    } catch (parseErr) {
+      console.error("[crearUsuario] el cuerpo de la respuesta no es JSON válido", { rawText, parseErr });
+    }
+    console.log("[crearUsuario] cuerpo de la respuesta (parseado)", data);
+
     if (!res.ok) {
-      console.error("crearUsuario: la Edge Function create-user respondió con error", { status: res.status, email: input.email, data });
+      console.error("[crearUsuario] la Edge Function create-user respondió con error", { status: res.status, email: input.email, data });
       return { error: data.error || "Error al crear usuario." };
     }
+    console.log("[crearUsuario] éxito", { email: input.email, id: data.id });
     return {};
   } catch (err) {
-    console.error("crearUsuario: fallo al invocar la Edge Function create-user", { email: input.email, err });
+    console.error("[crearUsuario] excepción al invocar la Edge Function create-user", {
+      email: input.email,
+      url,
+      errName: err instanceof Error ? err.name : typeof err,
+      errMessage: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     return { error: "Error al crear usuario." };
   }
 }
