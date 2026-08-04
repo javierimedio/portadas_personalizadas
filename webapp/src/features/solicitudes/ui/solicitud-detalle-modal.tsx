@@ -28,7 +28,7 @@ const ROLES_POR_CANAL_LOCAL: Record<"nacional" | "exportacion", string[]> = {
 // ~1199-1273, ~3061-3364): vista de solo lectura de catálogos + adjuntos +
 // comentarios/historial, más los botones de acción según rol y estado. Sin
 // auto-adjudicación de portadas (operación masiva del Panel global, no de
-// esta pantalla) ni notificaciones (módulo todavía no migrado).
+// esta pantalla).
 export function SolicitudDetalleModal({
   solicitudId,
   rol,
@@ -61,8 +61,13 @@ export function SolicitudDetalleModal({
   const [modificacionAbierta, setModificacionAbierta] = useState(false);
   const [comentarioModificacion, setComentarioModificacion] = useState("");
   const [archivoModificacion, setArchivoModificacion] = useState<File | null>(null);
+  const modifInputRef = useRef<HTMLInputElement>(null);
 
   const [disenoFiles, setDisenoFiles] = useState<File[]>([]);
+  const disenoInputRef = useRef<HTMLInputElement>(null);
+  function addDisenoFiles(newFiles: File[]) {
+    if (newFiles.length) setDisenoFiles((prev) => [...prev, ...newFiles]);
+  }
 
   // Réplica de checkMention()/insertMention()/handleCommentKey() (index.html
   // ~4535-4608): dropdown de menciones mientras se escribe.
@@ -356,15 +361,61 @@ export function SolicitudDetalleModal({
                   <div style={{ fontSize: 12, fontWeight: 700, color: "var(--c-mid)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: ".75rem" }}>
                     Subir diseño
                   </div>
+                  {/* Réplica de updateDisenoZone()/handleDisenoUpload()/
+                      handleDisenoFileInput() (index.html ~5488-5530, DIS-06/
+                      DIS-07): arrastrar o hacer clic ACUMULA archivos entre
+                      interacciones (no reemplaza), sin botón de eliminación
+                      individual — exactamente como en el original. */}
+                  <div
+                    onClick={() => disenoInputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      addDisenoFiles(Array.from(e.dataTransfer.files));
+                    }}
+                    style={{
+                      border: `2px dashed ${disenoFiles.length ? "var(--c-amber)" : "var(--c-line)"}`,
+                      background: disenoFiles.length ? "var(--c-amber-l)" : "var(--c-white)",
+                      borderRadius: "var(--radius)",
+                      padding: "1rem",
+                      textAlign: "center",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {disenoFiles.length > 0 ? (
+                      <div>
+                        <div style={{ fontSize: 18, marginBottom: 6 }}>✅</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 6 }}>
+                          {disenoFiles.length} archivo{disenoFiles.length > 1 ? "s" : ""} seleccionado{disenoFiles.length > 1 ? "s" : ""}
+                        </div>
+                        <div style={{ maxHeight: 120, overflowY: "auto", padding: "0 4px" }}>
+                          {disenoFiles.map((f, i) => (
+                            <div key={`${f.name}-${i}`} style={{ fontSize: 12, color: "#92400e", padding: "2px 0", textAlign: "left" }}>
+                              📄 <strong>{f.name}</strong> <span style={{ color: "var(--c-mid)" }}>({(f.size / 1024).toFixed(0)}kb)</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--c-mid)", marginTop: 8 }}>Haz clic o arrastra para añadir más</div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ fontSize: 24, marginBottom: 4 }}>🎨</div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--c-dark)" }}>Arrastra el diseño aquí o haz clic</div>
+                        <div style={{ fontSize: 11, color: "var(--c-mid)", marginTop: 2 }}>PDF · JPG · PNG · AI · EPS</div>
+                      </div>
+                    )}
+                  </div>
                   <input
+                    ref={disenoInputRef}
                     type="file"
                     multiple
                     accept=".pdf,.jpg,.jpeg,.png,.ai,.eps"
-                    onChange={(e) => setDisenoFiles(Array.from(e.target.files ?? []))}
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      addDisenoFiles(Array.from(e.target.files ?? []));
+                      e.target.value = "";
+                    }}
                   />
-                  {disenoFiles.length > 0 && (
-                    <div style={{ fontSize: 12, color: "var(--c-mid)", marginTop: 6 }}>{disenoFiles.length} archivo(s) seleccionado(s)</div>
-                  )}
                 </div>
               )}
             </div>
@@ -635,7 +686,55 @@ export function SolicitudDetalleModal({
               </div>
               <div className="form-group" style={{ marginBottom: "1rem" }}>
                 <label>Adjunto (opcional)</label>
-                <input type="file" accept=".pdf,.ai,.eps,.svg,.jpg,.jpeg,.png" onChange={(e) => setArchivoModificacion(e.target.files?.[0] ?? null)} />
+                {/* Réplica de setModifFile() (index.html ~3453-3460, UI-08):
+                    previsualización con nombre + tamaño y botón "Quitar". */}
+                <div
+                  onClick={() => modifInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const f = e.dataTransfer.files?.[0];
+                    if (f) setArchivoModificacion(f);
+                  }}
+                  style={{
+                    border: `2px dashed ${archivoModificacion ? "var(--c-green)" : "var(--c-line)"}`,
+                    background: archivoModificacion ? "var(--c-green-l)" : "var(--c-white)",
+                    borderRadius: "var(--radius)",
+                    padding: "0.75rem",
+                    cursor: "pointer",
+                    fontSize: 12,
+                  }}
+                >
+                  {archivoModificacion ? (
+                    <span>
+                      <span style={{ color: "var(--c-green)" }}>✅ {archivoModificacion.name}</span>{" "}
+                      <span style={{ color: "var(--c-mid)" }}>({(archivoModificacion.size / 1024).toFixed(0)} KB)</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setArchivoModificacion(null);
+                        }}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--c-red)", fontSize: 12, marginLeft: 6 }}
+                      >
+                        ✕ Quitar
+                      </button>
+                    </span>
+                  ) : (
+                    <span style={{ color: "var(--c-mid)" }}>Arrastra un archivo aquí o haz clic</span>
+                  )}
+                </div>
+                <input
+                  ref={modifInputRef}
+                  type="file"
+                  accept=".pdf,.ai,.eps,.svg,.jpg,.jpeg,.png"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) setArchivoModificacion(f);
+                    e.target.value = "";
+                  }}
+                />
               </div>
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                 <button type="button" className="btn btn-outline" onClick={() => setModificacionAbierta(false)}>
