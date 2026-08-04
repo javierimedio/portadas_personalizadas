@@ -279,21 +279,21 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| PAN-01 | Filtro de responsables restringido a su propio colectivo de comerciales | Pendiente | 5 | — |
-| PAN-02 | Búsqueda combinada (SAP, empresa, código/nombre de comercial) | Pendiente | 5 | — |
-| PAN-03 | Archivadas ocultas por defecto, visibles solo con filtro explícito | Pendiente | 5 | Mismo patrón en la tabla comercial (Fase 2) |
-| PAN-04 | Ordenación de columnas clicable con toggle asc/desc | Pendiente | 5 | Resetea el indicador visual de las demás columnas |
-| PAN-05 | Ordenación especial de la columna "comercial" por nombre del perfil relacionado | Pendiente | 5 | — |
-| PAN-06 | Columna "Campos incompletos" en rojo / "✓ Completa" en verde | Pendiente | 5 | — |
-| PAN-07 | Exportación a Excel: hoja "Portadas" + hoja "Resumen" | Pendiente | 5 | — |
-| PAN-08 | Columnas dinámicas por catálogo (9 o 10 si tiene diseño propio/precios) | Pendiente | 5 | — |
-| PAN-09 | Exclusión de archivadas del export | Pendiente | 5 | — |
-| PAN-10 | Formato visual del Excel (colores por catálogo, zebra striping, filas rojas si incompleta, celda verde si confirmada, congelado de 3 filas) | Pendiente | 5 | — |
-| PAN-11 | Hoja "Resumen" con 6 métricas | Pendiente | 5 | **Inconsistencia detectada hoy**: la hoja Resumen calcula sus métricas sobre `allSolicitudes` (todas las campañas), mientras la hoja principal usa `exportSols` filtrado por la campaña seleccionada — confirmar si se preserva esta inconsistencia tal cual o se corrige explícitamente (violaría el principio inamovible salvo decisión expresa) |
-| PAN-12 | Nombre de archivo `{campaña}_{fecha}.xlsx` | Pendiente | 5 | Espacios reemplazados por guion bajo |
-| PAN-13 | Botón "Auto-adjudicar" disponible en el panel | Pendiente | 5 | Funcionalidad ya cubierta en detalle en CAT-18 (Fase 2); aquí solo el punto de entrada desde el Panel |
-| PAN-14 | Selectores de campaña sincronizados con el resto de la app | Pendiente | 5 | Ver CAMP-15 |
-| PAN-15 | Filtro de estado con el mismo comportamiento especial de archivadas que el resto de tablas | Pendiente | 5 | — |
+| PAN-01 | Filtro de responsables restringido a su propio colectivo de comerciales | Implementada | 5 | `filterPanelRows()` — solo `comercial_nacional`/`comercial_exportacion`, sin el fallback por `canal` que sí tiene el filtro de "Mis solicitudes" (son dos reglas distintas en el original, preservadas por separado) |
+| PAN-02 | Búsqueda combinada (SAP, empresa, código/nombre de comercial) | Implementada | 5 | — |
+| PAN-03 | Archivadas ocultas por defecto, visibles solo con filtro explícito | Implementada | 5 | Mismo patrón en la tabla comercial (Fase 2) |
+| PAN-04 | Ordenación de columnas clicable con toggle asc/desc | Implementada | 5 | `sortPanelRows()` |
+| PAN-05 | Ordenación especial de la columna "comercial" por nombre del perfil relacionado | Implementada | 5 | — |
+| PAN-06 | Columna "Campos incompletos" en rojo / "✓ Completa" en verde | Implementada | 5 | `missingFields()`, con los catálogos de LA CAMPAÑA DE CADA SOLICITUD, no una lista global |
+| PAN-07 | Exportación a Excel: hoja "Portadas" + hoja "Resumen" | Implementada | 5 | `buildWorkbook()` (ExcelJS, generado en el cliente igual que el original) |
+| PAN-08 | Columnas dinámicas por catálogo (9 o 10 si tiene diseño propio/precios) | Implementada | 5 | `buildExportRows()` |
+| PAN-09 | Exclusión de archivadas del export | Implementada | 5 | — |
+| PAN-10 | Formato visual del Excel (colores por catálogo, zebra striping, filas rojas si incompleta, celda verde si confirmada, congelado de 3 filas) | Implementada | 5 | — |
+| PAN-11 | Hoja "Resumen" con 6 métricas | Implementada (replicado tal cual, decisión pendiente) | 5 | La hoja Resumen calcula sus métricas sobre TODAS las solicitudes, no sobre las filtradas por la campaña seleccionada (que sí usa la hoja "Portadas") — inconsistencia real del original, replicada tal cual mientras no haya una decisión explícita en contra (docs/08-protocolo-validacion.md § 8.7) |
+| PAN-12 | Nombre de archivo `{campaña}_{fecha}.xlsx` | Implementada | 5 | `exportFilename()` — espacios reemplazados por guion bajo |
+| PAN-13 | Botón "Auto-adjudicar" disponible en el panel | Implementada | 5 | `computeAdjudicaciones()`/`autoAdjudicar()` — opera sobre todas las solicitudes en `en_revision_marketing` del sistema, sin acotar por campaña (igual que el original: el nombre de la campaña activa solo se usa en el texto del diálogo de confirmación) |
+| PAN-14 | Selectores de campaña sincronizados con el resto de la app | Implementada | 5 | Comparte la cookie de sesión de CAMP-15 |
+| PAN-15 | Filtro de estado con el mismo comportamiento especial de archivadas que el resto de tablas | Implementada | 5 | — |
 
 ## Perfil de usuario — Fase 1
 
