@@ -220,6 +220,19 @@ Ninguna de estas columnas se toca en la migración (se conservan, con su comport
 
 El original mantiene un WebSocket propio contra el protocolo Phoenix de Supabase Realtime (`subscribeToTable()`, index.html ~4660-4721). La migración sustituye eso por el canal Realtime de `supabase-js` (mismo resultado observable, decisión ya recogida en la fila UI-12 de `09-matriz-paridad-funcional.md`), pero **Realtime no funciona por el simple hecho de tener RLS activada**: cada tabla que se quiera escuchar (`solicitudes`, `notificaciones`) necesita además estar añadida a la publicación `supabase_realtime` — en el Dashboard, Database → Replication → activar el toggle de esas dos tablas. Sin este paso el canal nunca pasa de `CHANNEL_ERROR`/`TIMED_OUT`; el sistema sigue funcionando porque cae automáticamente al sondeo cada 30s (UI-14/UI-15), pero sin la actualización instantánea. Pendiente de aplicar en el proyecto de desarrollo igual que las políticas RLS (`06-roadmap.md`, Fase 0).
 
+### 3.4.5 Bug real detectado y corregido: sin política de RLS para `storage.objects` en el bucket `portadas-adjuntos`
+
+La carga masiva de portadas (bloque de Diseño, Fase 2) devolvía `400 Bad Request` al subir cada archivo a Storage. El log real de Supabase (obtenido tras corregir el manejo de errores que lo ocultaba en `procesarCargaMasiva`, que hacía `throw upErr` y luego un `catch` que solo incrementaba un contador sin registrar nunca el motivo) confirmó la causa exacta:
+
+```
+new row violates row-level security policy for table "objects"
+status: 42501
+```
+
+`storage.objects` tiene RLS activada por defecto en cualquier proyecto Supabase (no se puede desactivar), pero nunca se creó ninguna policy para el bucket `portadas-adjuntos` — a diferencia de las tablas de Postgres (§ 3.5), que sí tenían una policy `allow_all` heredada de producción que había que neutralizar explícitamente, aquí no existía ni siquiera esa: sin ninguna policy, RLS deniega todo por defecto, de ahí el 400 en cualquier subida.
+
+Se comprobó por código (no se copió nada a ciegas) que la aplicación —tanto `index.html` como esta migración— usa exclusivamente el bucket `portadas-adjuntos`; el bucket `adjuntos` visible en el Dashboard no está referenciado por ningún código de subida y no había ninguna policy en este repositorio que replicar desde él. Corregido en `webapp/supabase/migrations/20260804000100_storage_objects_portadas_adjuntos.sql`: SELECT público (igual que las URLs públicas de producción), INSERT/UPDATE solo para `authenticated` (ningún flujo sube sin sesión), sin política de DELETE (ningún código borra objetos de Storage directamente). Pendiente de aplicar en el proyecto de desarrollo igual que el resto de políticas RLS.
+
 ## 3.5 RLS objetivo — versión definitiva, reconciliada contra producción
 
 RLS ya está habilitada en las 7 tablas (§ 3.4.1) — no hace falta `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, aunque se deja en el script por ser idempotente y no depender de ese hecho. El paso que sí es obligatorio y nuevo respecto a la versión anterior de esta sección es el `DROP POLICY allow_all` en cada tabla, **antes** de crear las políticas reales — si no, siguen sin tener ningún efecto (§ 3.4.1).
