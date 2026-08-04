@@ -15,11 +15,18 @@ import { crearUsuario } from "../application/crear-usuario.action";
 // era la causa del hallazgo H-15: normalmente exige la service_role key,
 // que este proyecto nunca expone a código que responde a una petición de
 // usuario — ver docs/02-arquitectura.md § 2.6/2.7).
+//
+// H-01 (cerrado 2026-08-04): el resumen final mostraba solo un recuento
+// ("N errores"), sin el motivo — cualquier fallo real (Edge Function no
+// desplegada, email duplicado, rol inválido...) solo era visible abriendo
+// la consola del navegador. Se muestra ahora directamente en el modal.
 export function ImportarUsuariosModal({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
   const [rows, setRows] = useState<ImportUsuario[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [importando, setImportando] = useState(false);
   const [progreso, setProgreso] = useState({ ok: 0, errores: 0 });
+  const [fallos, setFallos] = useState<{ email: string; error: string }[]>([]);
+  const [resultado, setResultado] = useState<{ ok: number; errores: number } | null>(null);
   const { toast } = useToast();
   useEscapeToClose(onClose);
 
@@ -50,41 +57,24 @@ export function ImportarUsuariosModal({ onClose, onImported }: { onClose: () => 
 
   async function confirmarImportacion() {
     setImportando(true);
+    setFallos([]);
+    setResultado(null);
     let ok = 0;
     let errores = 0;
-    // INSTRUMENTACIÓN TEMPORAL (2026-08-04) — diagnóstico en curso de "0
-    // creados, N errores" (docs/09-matriz-paridad-funcional.md § H-01). No
-    // quitar hasta confirmar en qué línea exacta se incrementa `errores`.
-    // Esto corre en el NAVEGADOR: abre la consola del navegador (F12) para
-    // verlo. La llamada a crearUsuario() en sí corre en el SERVOR — su
-    // propia instrumentación aparece en los logs del servidor (terminal de
-    // `next dev`/`next start`, o Vercel → Deployments → Functions → Logs),
-    // nunca aquí.
-    console.log(`[IMPORT] Iniciando importación de ${rows.length} fila(s).`);
-    let index = 0;
+    const fallosDetalle: { email: string; error: string }[] = [];
     for (const u of rows) {
-      index++;
-      console.log(`[IMPORT] Fila ${index}/${rows.length}`, {
-        email: u.email,
-        nombre: u.nombre,
-        rol: u.rol,
-        codigo: u.codigo,
-        passwordPresente: Boolean(u.pass),
-        passwordLength: u.pass?.length ?? 0,
-      });
       const res = await crearUsuario({ nombre: u.nombre, email: u.email, password: u.pass, rol: u.rol, codigo: u.codigo });
-      console.log(`[IMPORT] Fila ${index}/${rows.length} — respuesta de crearUsuario()`, res);
       if (res.error) {
-        console.warn(`[IMPORT] Fila ${index}/${rows.length} — CONTABILIZADA COMO ERROR`, { email: u.email, error: res.error });
         errores++;
+        fallosDetalle.push({ email: u.email, error: res.error });
       } else {
-        console.log(`[IMPORT] Fila ${index}/${rows.length} — CONTABILIZADA COMO OK`, { email: u.email });
         ok++;
       }
       setProgreso({ ok, errores });
     }
-    console.log(`[IMPORT] Importación finalizada. ok=${ok} errores=${errores} (total filas=${rows.length}).`);
     setImportando(false);
+    setFallos(fallosDetalle);
+    setResultado({ ok, errores });
     toast(`Importación completada: ${ok} creados${errores > 0 ? `, ${errores} errores` : ""}.`);
     onImported();
   }
@@ -136,6 +126,23 @@ export function ImportarUsuariosModal({ onClose, onImported }: { onClose: () => 
               e.target.value = "";
             }}
           />
+
+          {resultado && (
+            <div className={`alert ${resultado.errores > 0 ? "alert-error" : "alert-info"}`} style={{ marginBottom: "1rem" }}>
+              <strong>
+                Resultado real: {resultado.ok} usuario(s) creado(s){resultado.errores > 0 ? `, ${resultado.errores} con error` : ""}.
+              </strong>
+              {fallos.length > 0 && (
+                <ul style={{ margin: ".5rem 0 0", paddingLeft: "1.25rem" }}>
+                  {fallos.map((f) => (
+                    <li key={f.email} style={{ fontSize: 12 }}>
+                      <strong>{f.email}</strong>: {f.error}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
 
           {rows.length > 0 && (
             <div style={{ marginTop: "1rem" }}>

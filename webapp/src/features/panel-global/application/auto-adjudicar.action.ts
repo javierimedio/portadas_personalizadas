@@ -9,26 +9,39 @@ import { computeAdjudicaciones, type AdjudicarSolicitud } from "../domain/auto-a
 // del sistema, sin acotar por campaña — igual que el original, que solo usa
 // el nombre de la campaña activa para el texto del diálogo de confirmación,
 // no para filtrar qué se adjudica.
-export async function autoAdjudicar(): Promise<{ error: string } | { adjudicadas: number; sinOpciones: number }> {
+export async function autoAdjudicar(): Promise<
+  { error: string } | { adjudicadas: number; sinOpciones: number; evaluadas: number }
+> {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return { error: "Sesión no válida." };
   const { data: perfil } = await supabase.from("perfiles").select("rol").eq("id", userData.user.id).maybeSingle();
   if (!perfil || !["admin", "marketing"].includes(perfil.rol ?? "")) return { error: "Sin permisos." };
 
-  const { data: solicitudesRaw } = await supabase
+  // La consulta y las escrituras no comprobaban su propio `error` — un fallo
+  // de Supabase (RLS, columna, red) se interpretaba en silencio como "0
+  // solicitudes"/"0 adjudicadas", indistinguible de que de verdad no hubiera
+  // nada que adjudicar. Se comprueban aquí explícitamente para que un fallo
+  // real se vea como tal, no como un resultado válido de cero.
+  const { data: solicitudesRaw, error: selectError } = await supabase
     .from("solicitudes")
     .select("id, provincia, created_at, solicitud_catalogos(catalogo, portada_personalizada, portada_diseno_propio, portada_elegida, portada_opcion_1, portada_opcion_2, portada_opcion_3)")
     .eq("estado", "en_revision_marketing");
+  if (selectError) return { error: `Error al consultar solicitudes: ${selectError.message}` };
 
   const solicitudes: AdjudicarSolicitud[] = (solicitudesRaw ?? []).map((s) => ({ ...s, solicitud_catalogos: s.solicitud_catalogos ?? [] }));
-  if (!solicitudes.length) return { adjudicadas: 0, sinOpciones: 0 };
+  if (!solicitudes.length) return { adjudicadas: 0, sinOpciones: 0, evaluadas: 0 };
 
   const { adjudicaciones, sinOpciones } = computeAdjudicaciones(solicitudes);
 
   for (const a of adjudicaciones) {
-    await supabase.from("solicitud_catalogos").update({ portada_elegida: a.portadaElegida }).eq("solicitud_id", a.solicitudId).eq("catalogo", a.catalogo);
+    const { error: updateError } = await supabase
+      .from("solicitud_catalogos")
+      .update({ portada_elegida: a.portadaElegida })
+      .eq("solicitud_id", a.solicitudId)
+      .eq("catalogo", a.catalogo);
+    if (updateError) return { error: `Error al guardar la adjudicación de ${a.solicitudId}/${a.catalogo}: ${updateError.message}` };
   }
 
-  return { adjudicadas: adjudicaciones.length, sinOpciones };
+  return { adjudicadas: adjudicaciones.length, sinOpciones, evaluadas: solicitudes.length };
 }

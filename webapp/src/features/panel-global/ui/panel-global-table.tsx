@@ -107,7 +107,7 @@ export function PanelGlobalTable({
       alert(res.error);
       return;
     }
-    const msg = `Auto-adjudicación completada: ${res.adjudicadas} portadas asignadas${res.sinOpciones > 0 ? `, ${res.sinOpciones} sin opción disponible (revisar manualmente)` : ""}.`;
+    const msg = `Auto-adjudicación completada: ${res.adjudicadas} portadas asignadas${res.sinOpciones > 0 ? `, ${res.sinOpciones} sin opción disponible (revisar manualmente)` : ""} (${res.evaluadas} solicitud(es) en revisión evaluada(s)).`;
     onChanged();
     if (res.sinOpciones > 0) {
       setTimeout(() => alert(`${msg}\n\nLas solicitudes sin opción disponible necesitan revisión manual — todas sus opciones ya estaban asignadas a otros clientes de la misma provincia.`), 500);
