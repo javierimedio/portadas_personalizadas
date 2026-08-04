@@ -259,21 +259,21 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| USR-01 | Botón "Nuevo usuario" solo para rol admin (ni siquiera marketing) | Pendiente | 4 | Marketing puede editar pero no crear |
-| USR-02 | Filtros: nombre/email/código, rol, estado activo/inactivo | Pendiente | 4 | — |
-| USR-03 | Tarjetas de estadísticas por rol (solo usuarios activos) | Pendiente | 4 | Colores fijos por rol |
-| USR-04 | Fila de usuario inactivo con opacidad reducida | Pendiente | 4 | — |
-| USR-05 | Badge de estado con color semántico | Pendiente | 4 | — |
-| USR-06 | Campo de contraseña solo visible al crear, nunca al editar | Pendiente | 4 | No se puede resetear contraseña desde este modal |
-| USR-07 | Edición actualiza solo nombre/rol/código (no email ni contraseña) | Pendiente | 4 | — |
-| USR-08 | Creación vía Edge Function `create-user` (Service Role Key) | Pendiente | 4 | — |
-| USR-09 | Validaciones al crear: contraseña ≥8 caracteres, código obligatorio | Pendiente | 4 | — |
-| USR-10 | Mensaje de estado intermedio "Creando usuario..." | Pendiente | 4 | — |
-| USR-11 | Activar/desactivar con un solo clic, sin confirmación | Pendiente | 4 | — |
-| USR-12 | Importación masiva de usuarios desde Excel/CSV | Pendiente | 4 | Detecta cabecera automáticamente; columnas fijas por posición (email, nombre, password, rol, código) — **no es importación de solicitudes**, corrección respecto a versiones anteriores de esta documentación |
-| USR-13 | Validación de roles permitidos en importación | Pendiente | 4 | Solo `comercial, marketing, disenador, admin` — **no incluye** las variantes nacional/exportación ni `responsable_diseno` que sí existen en el resto de la app; filas con rol inválido se marcan en rojo pero no bloquean el resto de la importación — confirmar si se preserva esta inconsistencia o se decide corregir explícitamente |
-| USR-14 | Previsualización limitada a 10 filas con "...y N más" | Pendiente | 4 | — |
-| USR-15 | Import fila a fila con progreso en vivo, continúa si una fila falla | Pendiente | 4 | **Verificar antes de nada**: el import llama a `/auth/v1/admin/users`, un endpoint que normalmente exige la `service_role` key; el código usa el token de sesión del usuario o la clave pública como fallback. Confirmar en producción si esto realmente crea usuarios o falla silenciosamente — si nunca ha funcionado, la "paridad" a validar es esa misma ausencia de funcionamiento, no una versión que funcione por primera vez |
+| USR-01 | Botón "Nuevo usuario" solo para rol admin (ni siquiera marketing) | Implementada | 4 | Marketing puede editar pero no crear |
+| USR-02 | Filtros: nombre/email/código, rol, estado activo/inactivo | Implementada | 4 | `filterPerfiles()` |
+| USR-03 | Tarjetas de estadísticas por rol (solo usuarios activos) | Implementada | 4 | Colores fijos por rol — `statsPorRol()`/`ROL_COLORS` |
+| USR-04 | Fila de usuario inactivo con opacidad reducida | Implementada | 4 | — |
+| USR-05 | Badge de estado con color semántico | Implementada | 4 | — |
+| USR-06 | Campo de contraseña solo visible al crear, nunca al editar | Implementada | 4 | No se puede resetear contraseña desde este modal |
+| USR-07 | Edición actualiza solo nombre/rol/código (no email ni contraseña) | Implementada | 4 | El campo email se deshabilita visualmente al editar (mejora de claridad, sin cambiar el guardado: en el original el campo era editable pero el valor tecleado se descartaba en silencio igual) |
+| USR-08 | Creación vía Edge Function `create-user` (Service Role Key) | Implementada | 4 | `crearUsuario()` llama a la Edge Function con el token de sesión del usuario, igual que el original — la service_role solo se usa dentro de la función, nunca en código Next.js que responde a una petición |
+| USR-09 | Validaciones al crear: contraseña ≥8 caracteres, código obligatorio | Implementada | 4 | — |
+| USR-10 | Mensaje de estado intermedio "Creando usuario..." | Implementada | 4 | — |
+| USR-11 | Activar/desactivar con un solo clic, sin confirmación | Implementada | 4 | `toggleUsuario()` |
+| USR-12 | Importación masiva de usuarios desde Excel/CSV | Implementada | 4 | `parseImportRows()` — detecta cabecera automáticamente; columnas fijas por posición (email, nombre, password, rol, código) — **no es importación de solicitudes** |
+| USR-13 | Validación de roles permitidos en importación | Corregido (ver H-13) | 4 | Se amplía la lista a los roles reales de la app (con sufijo de canal + responsable_diseno), sin quitar ninguno de los que el original ya aceptaba; sigue sin bloquear el resto de la importación si una fila tiene rol inválido, igual que el original |
+| USR-14 | Previsualización limitada a 10 filas con "...y N más" | Implementada | 4 | — |
+| USR-15 | Import fila a fila con progreso en vivo, continúa si una fila falla | Implementada | 4 | En vez de llamar directamente a `/auth/v1/admin/users` (que exige `service_role`, nunca disponible en código Next.js que responde a una petición de usuario — docs/02-arquitectura.md § 2.6/2.7), cada fila pasa por la misma Edge Function `create-user` que la creación individual (USR-08); el progreso en vivo es real (bucle en el cliente con un `await` por fila), no simulado |
 
 ## Panel global y exportación — Fase 5
 
@@ -415,4 +415,10 @@ Registro vivo de comportamientos de `index.html` que parecen incorrectos, incomp
 - **Por qué se sospecha bug**: no es una interpretación, es mecánico — la propia función deshace en su segunda línea lo que hizo en la primera, sin ninguna condición que lo evite. No hay ninguna razón funcional para ofrecer un botón "Usar como activa" que nunca tiene efecto observable más allá del toast.
 - **Decisión**: Corregido (2026-08-04) — la selección de campaña activa se guarda en una cookie de sesión (mismo patrón que la impersonación de rol) que sí persiste entre recargas, y la usan por igual los 4 selectores de la app (CAMP-15): Campañas, Solicitudes, Diseño y Dashboard.
 
-Ninguna fase que module estas funcionalidades (Fase 4 para H-01/H-06, Fase 5 para H-02, Fase 2 para H-03, Fase 1 para H-04/H-05/H-07) cierra su checklist mientras su hallazgo correspondiente siga con Decisión "Pendiente". H-08 a H-12 ya están corregidos y no bloquean ninguna fase.
+### H-13 (USR-13) — La lista de roles válidos para importar usuarios no coincide con los roles reales de la aplicación
+
+- **Comportamiento actual**: `processImportFile()` (~5695) define `validRoles = ['comercial','marketing','disenador','admin']`. Ningún comercial ni responsable real usa el rol genérico `comercial` (H-07: sin nav propio) — los roles que de verdad dan acceso funcional son `comercial_nacional`/`comercial_exportacion`/`responsable_nacional`/`responsable_exportacion`/`responsable_diseno`, ninguno de los cuales está en esta lista. Importar una fila con cualquiera de esos roles reales la marcaba en rojo como "no válida" (aunque igualmente se intentaba crear, ~5697-5699).
+- **Por qué se sospecha bug**: la lista no se actualizó cuando el resto de la aplicación introdujo los roles con sufijo de canal — es la misma clase de desajuste que H-06 (importación de usuarios), no una decisión de negocio: no hay ningún escenario en el que "marcar como inválido un comercial de exportación real" sea el comportamiento deseado.
+- **Decisión**: Corregido (2026-08-04) — `VALID_IMPORT_ROLES` añade los roles reales que faltaban, sin quitar ninguno de los que ya aceptaba (incluido `comercial` genérico, que sigue siendo el valor por defecto si la columna de rol viene vacía). El resto del comportamiento se preserva tal cual: una fila con rol inválido sigue sin bloquear la importación del resto.
+
+Ninguna fase que module estas funcionalidades (Fase 4 para H-01/H-06/H-13, Fase 5 para H-02, Fase 2 para H-03, Fase 1 para H-04/H-05/H-07) cierra su checklist mientras su hallazgo correspondiente siga con Decisión "Pendiente". H-08 a H-13 ya están corregidos y no bloquean ninguna fase.

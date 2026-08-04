@@ -1,7 +1,11 @@
 import { requireRouteAccess } from "@/features/layout/application/require-route-access";
-import { PlaceholderPage } from "@/features/layout/ui/placeholder-page";
+import { getUsuarios } from "@/features/usuarios/application/get-usuarios";
+import { UsuariosPageClient } from "@/features/usuarios/ui/usuarios-page";
 
+// Réplica de #page-usuarios (index.html ~725-776). USR-01 a USR-15 de
+// docs/09-matriz-paridad-funcional.md.
 export default async function UsuariosPage() {
-  await requireRouteAccess("/usuarios");
-  return <PlaceholderPage titulo="Usuarios" mensaje="Pendiente de migrar (Fase 4, docs/06-roadmap.md)." />;
+  const rol = await requireRouteAccess("/usuarios");
+  const perfiles = await getUsuarios();
+  return <UsuariosPageClient perfiles={perfiles} rol={rol} />;
 }
