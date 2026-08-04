@@ -77,7 +77,7 @@ export function AppShell({
         <div className="topbar-brand">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/images/Logo_GOR.png" alt="GOR Factory" style={{ height: 20, filter: "brightness(0) invert(1)" }} />
-          <span style={{ color: "white", fontWeight: 700 }}>PORTADAS PERSONALIZADAS</span>
+          <span style={{ marginLeft: 8 }}>PORTADAS PERSONALIZADAS</span>
           <span style={{ color: "rgba(255,255,255,.35)", margin: "0 8px", fontWeight: 300 }}>|</span>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

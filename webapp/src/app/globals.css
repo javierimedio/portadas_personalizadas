@@ -284,6 +284,7 @@ input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="number"],
+input[type="date"],
 select,
 textarea {
   padding: 0.5rem 0.75rem;
@@ -294,6 +295,15 @@ textarea {
   color: var(--c-dark);
   background: var(--c-white);
   transition: border-color 0.15s;
+}
+/* input[type=date] no está en la lista original de index.html (~104) —
+   ahí no hacía falta: sin el preflight de Tailwind, el navegador ya le
+   daba un borde nativo por defecto. Aquí el preflight sí lo desnuda
+   (border:0, fondo transparente) si no se incluye explícitamente — se
+   añade para que el campo "Fecha de cierre" use el mismo componente
+   Input que el resto del formulario, en vez de quedar sin estilizar. */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
 }
 input:focus,
 select:focus,
