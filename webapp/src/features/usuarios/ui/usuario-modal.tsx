@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useToast } from "@/shared/ui/toast";
+import { useEscapeToClose } from "@/shared/ui/use-escape-to-close";
 import { crearUsuario } from "../application/crear-usuario.action";
 import { actualizarUsuario } from "../application/actualizar-usuario.action";
 import type { PerfilUsuario } from "../domain/types";
@@ -19,6 +20,7 @@ export function UsuarioModal({ usuario, onClose, onSaved }: { usuario: PerfilUsu
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const { toast } = useToast();
+  useEscapeToClose(onClose);
 
   async function guardar() {
     setError(null);

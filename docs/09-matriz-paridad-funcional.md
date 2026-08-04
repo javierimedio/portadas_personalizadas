@@ -59,11 +59,11 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | NAV-06 | Acceso a Campañas/Usuarios: solo admin/marketing | Validada | 3/4 | Mismo guard de servidor sobre `/campanas` y `/usuarios`. Contenido real pendiente de sus fases |
 | NAV-07 | Activación automática de la primera pestaña visible | Validada | 1 | `/` redirige al primer item visible para ese rol (equivalente por rutas reales, en vez de `showPage` sobre un DOM ya cargado) |
 | NAV-08 | Cambio de página sin recarga (`showPage`) | Validada | 1 | Sustituido por navegación de cliente de `next/link` + estado activo vía `usePathname()` — mismo resultado observable |
-| NAV-09 | Efectos secundarios al entrar en una página | Pendiente | 2/3/1 | Depende del contenido real de cada página (campañas, dashboard, perfil), todavía placeholders |
+| NAV-09 | Efectos secundarios al entrar en una página | Implementada | 2/3/1 | Resuelto por la propia arquitectura de rutas reales del App Router: cada navegación a `/campanas`, `/dashboard` o `/perfil` ejecuta su Server Component con datos frescos, equivalente al `if (id === ...) loadX()` de `showPage()` sin necesitar ese cableado manual |
 | NAV-10 | Nav móvil tipo drawer con hamburguesa | Validada | 1 | Bloquea scroll del body (`document.body.style.overflow`), muestra backdrop |
 | NAV-11 | Cierre automático del drawer al pulsar un botón de nav (≤480px) | Validada | 1 | En la réplica se cierra en cualquier ancho móvil (breakpoint único `md`, sin distinguir 480px de 768px como el original) — mismo resultado observable, breakpoint simplificado |
 | NAV-12 | Cierre automático del drawer al redimensionar a escritorio | Validada | 1 | Resuelto por CSS (`md:translate-x-0`) en vez de un listener de `resize` — el drawer no puede quedar visible en escritorio independientemente del estado de React, mismo resultado observable con una implementación más simple |
-| NAV-13 | Cierre de modales predefinidos con Escape | Pendiente | 2/3/4 | Sin relación con Layout/nav pese a estar en esta sección — pertenece a los modales de Solicitudes/Usuarios/Campañas, que se construyen en esas fases |
+| NAV-13 | Cierre de modales predefinidos con Escape | Implementada | 2/3/4 | `shared/ui/use-escape-to-close.ts`, aplicado a los 6 modales (`SolicitudModal`, `SolicitudDetalleModal`, `CampanaModal`, `UsuarioModal`, `ImportarUsuariosModal`, `CargaMasivaModal`). H-04: a diferencia del original (que solo cerraba los modales predefinidos en el HTML), aquí se aplica por igual a todos — no hay razón funcional para que "Asignar canal"/"Asignar diseñador"/carga masiva se comporten distinto |
 | NAV-14 | Logos de marca en topbar | Validada | 1 | Roly, Roly WRK, Stamina y `Logo_GOR.png` (el mismo nombre de archivo que usaba `index.html` desde `dev.gorfactory.com`) servidos ahora desde `webapp/public/images/` en vez de por URL externa — ocultos en móvil (`hidden md:flex`) igual que el original oculta elementos no esenciales de la topbar en `@media (max-width: 768px)` |
 | NAV-15 | Botón "Mi cuenta" en topbar | Validada | 1 | Navega a `/perfil` (placeholder hasta su propio bloque) |
 | NAV-16 | Badge de rol en topbar | No aplicable | 1 | **Corrección de este documento**: verificado en `index.html` (~564) que `#role-tag` tiene `style="display:none"` inline y ningún punto del código (~1891, ~5116) vuelve a mostrarlo — solo actualizan su `textContent`. La observación anterior ("mostrado tras `initApp`") era incorrecta: el badge está oculto permanentemente en la producción real de hoy, no hay ningún comportamiento visible que preservar |
@@ -116,7 +116,7 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | SOL-22 | Fallo de subida de un archivo no aborta el resto | Implementada | 2 | Bloque 2. Sin el toast individual por archivo fallido del original (~3016) — el fallo simplemente se omite en silencio |
 | SOL-23 | Badge de campaña distinta en tabla comercial | Implementada | 2 | Si la solicitud no pertenece a la campaña activa seleccionada. Bloque 1 |
 | SOL-24 | Resumen compacto de catálogo en tablas (`catSummary`) | Implementada | 2 | "—" / "No" / "{unidades} uds" + chip de portada. Bloque 1 |
-| SOL-25 | Cálculo de campos incompletos (`missingFields`) | Pendiente | 5 | Corrección de fase: es la columna "Campos incompletos" de `#page-panel` (Panel Global), no de "Mis solicitudes" ni del formulario — pertenece a la Fase 5 (`06-roadmap.md`), estaba mal etiquetada como Fase 2 |
+| SOL-25 | Cálculo de campos incompletos (`missingFields`) | Implementada | 5 | `features/panel-global/domain/missing-fields.ts`, columna "Campos incompletos" de Panel Global. Usa los catálogos de la campaña de cada solicitud, no una lista global |
 
 ## Solicitudes — catálogos — Fase 2
 
@@ -139,7 +139,7 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | CAT-15 | Guardado usa catálogos de la campaña del formulario, no la global activa | Implementada | 2 | Evita guardar catálogos de otra campaña |
 | CAT-16 | `portada_diseno_propio` siempre `false`, nunca `null` | Implementada | 2 | A diferencia del resto de booleanos del catálogo |
 | CAT-17 | Selección de portada final ("Portada elegida") inline | Implementada | 2 | `guardarPortadaElegida()`, en el modal de detalle — `mostrarSelector`/`puedeElegirPortadaFinal()` |
-| CAT-18 | Auto-adjudicación de portadas (`autoAdjudicar`) | Pendiente | 5 | Corrección de fase: vive en `renderMktTable()` de `#page-panel` (Panel Global), no en el detalle de una solicitud — pertenece a la Fase 5. Solo marketing/admin; ordena por antigüedad, asigna 1ª opción libre evitando repetir en la misma provincia; **excluye XMAS del reparto automático** — preservar esta exclusión; usa `confirm()`/`alert()` nativos del navegador |
+| CAT-18 | Auto-adjudicación de portadas (`autoAdjudicar`) | Implementada | 5 | `features/panel-global/domain/auto-adjudicar.ts` + Server Action `auto-adjudicar.action.ts` (revalida rol admin/marketing). Ordena por antigüedad, asigna 1ª opción libre evitando repetir en la misma provincia; **excluye XMAS del reparto automático**; usa `confirm()`/`alert()` nativos del navegador |
 | CAT-19 | Auto-asignación de diseñador al abrir el detalle | Implementada | 2 | `getSolicitudDetalle()` — si está en `en_diseno` sin `asignado_id` y quien abre es diseñador/responsable_diseno |
 
 ## Solicitudes — flujo de estados — Fase 2
@@ -365,7 +365,7 @@ Registro vivo de comportamientos de `index.html` que parecen incorrectos, incomp
 
 - **Comportamiento actual**: el listener de Escape (~4020-4028) solo conoce una lista fija de IDs de modal predefinidos en el HTML; los modales creados por JS en tiempo de ejecución (asignar canal, asignar diseñador, carga masiva) no están en esa lista y Escape no los cierra.
 - **Por qué se sospecha bug**: es más probable que sea un descuido al añadir esos modales dinámicos después de escribir el listener, que una decisión deliberada de que esos tres modales concretos se comporten distinto al resto.
-- **Decisión**: Pendiente.
+- **Decisión**: Corregido (2026-08-04) — mismo criterio que H-08 a H-13 (defecto objetivo, no ambigüedad de negocio): el cierre con Escape se implementa de forma uniforme para los 6 modales de la aplicación (`shared/ui/use-escape-to-close.ts`), sin distinguir predefinidos de dinámicos.
 
 ### H-05 (AUT-14) — Fallo silencioso de `initApp` tras el login
 
@@ -421,4 +421,4 @@ Registro vivo de comportamientos de `index.html` que parecen incorrectos, incomp
 - **Por qué se sospecha bug**: la lista no se actualizó cuando el resto de la aplicación introdujo los roles con sufijo de canal — es la misma clase de desajuste que H-06 (importación de usuarios), no una decisión de negocio: no hay ningún escenario en el que "marcar como inválido un comercial de exportación real" sea el comportamiento deseado.
 - **Decisión**: Corregido (2026-08-04) — `VALID_IMPORT_ROLES` añade los roles reales que faltaban, sin quitar ninguno de los que ya aceptaba (incluido `comercial` genérico, que sigue siendo el valor por defecto si la columna de rol viene vacía). El resto del comportamiento se preserva tal cual: una fila con rol inválido sigue sin bloquear la importación del resto.
 
-Ninguna fase que module estas funcionalidades (Fase 4 para H-01/H-06/H-13, Fase 5 para H-02, Fase 2 para H-03, Fase 1 para H-04/H-05/H-07) cierra su checklist mientras su hallazgo correspondiente siga con Decisión "Pendiente". H-08 a H-13 ya están corregidos y no bloquean ninguna fase.
+Ninguna fase que module estas funcionalidades (Fase 4 para H-01/H-06/H-13, Fase 5 para H-02, Fase 2 para H-03, Fase 1 para H-05/H-07) cierra su checklist mientras su hallazgo correspondiente siga con Decisión "Pendiente". H-04 y H-08 a H-13 ya están corregidos y no bloquean ninguna fase.

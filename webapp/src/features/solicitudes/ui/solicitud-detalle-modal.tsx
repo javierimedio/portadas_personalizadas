@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/shared/ui/toast";
+import { useEscapeToClose } from "@/shared/ui/use-escape-to-close";
 import { fmtDate } from "@/shared/domain/format";
 import { ESTADO_LABEL } from "@/shared/domain/estados";
 import { segmentarComentario } from "../domain/comentarios";
@@ -45,6 +46,7 @@ export function SolicitudDetalleModal({
   onEditar: () => void;
 }) {
   const { toast, formAlert } = useToast();
+  useEscapeToClose(onClose);
   const [detalle, setDetalle] = useState<SolicitudDetalle | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -446,6 +448,7 @@ export function SolicitudDetalleModal({
                           if (e.key === "Escape") {
                             setMentionQuery(null);
                             e.preventDefault();
+                            e.stopPropagation();
                           }
                           return;
                         }

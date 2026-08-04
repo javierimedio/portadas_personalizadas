@@ -2,6 +2,7 @@
 
 import { CampanaForm } from "./campana-form";
 import type { CampanaListItem } from "../domain/types";
+import { useEscapeToClose } from "@/shared/ui/use-escape-to-close";
 
 export function CampanaModal({
   campana,
@@ -12,6 +13,7 @@ export function CampanaModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  useEscapeToClose(onClose);
   return (
     <div className="modal-bg open">
       <div className="modal" style={{ maxWidth: 560 }}>

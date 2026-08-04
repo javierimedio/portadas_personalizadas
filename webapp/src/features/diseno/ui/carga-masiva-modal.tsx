@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { ALL_CATALOGOS } from "@/shared/domain/catalogos";
 import { useToast } from "@/shared/ui/toast";
+import { useEscapeToClose } from "@/shared/ui/use-escape-to-close";
 import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 import { matchCargaFile, type CargaMasivaSolicitud } from "../domain/carga-masiva";
 import { procesarCargaMasiva } from "../application/procesar-carga-masiva.action";
@@ -17,6 +18,7 @@ export function CargaMasivaModal({ rows, onClose, onProcessed }: { rows: Solicit
   const [procesando, setProcesando] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  useEscapeToClose(onClose);
 
   const candidatos: CargaMasivaSolicitud[] = useMemo(
     () =>

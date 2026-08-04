@@ -3,6 +3,7 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import { useToast } from "@/shared/ui/toast";
+import { useEscapeToClose } from "@/shared/ui/use-escape-to-close";
 import { parseImportRows, rolValido, type ImportUsuario } from "../domain/import";
 import { crearUsuario } from "../application/crear-usuario.action";
 
@@ -20,6 +21,7 @@ export function ImportarUsuariosModal({ onClose, onImported }: { onClose: () => 
   const [importando, setImportando] = useState(false);
   const [progreso, setProgreso] = useState({ ok: 0, errores: 0 });
   const { toast } = useToast();
+  useEscapeToClose(onClose);
 
   function procesarArchivo(file: File) {
     setError(null);
