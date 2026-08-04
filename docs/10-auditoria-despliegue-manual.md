@@ -1,0 +1,59 @@
+# Auditoría de despliegue manual (2026-08-04)
+
+Motivada directamente por el hallazgo del error de importación masiva de usuarios (§ H-01 en `09-matriz-paridad-funcional.md`): la causa más probable — una Edge Function distinta de la que hay en el repositorio, porque Supabase no la redespliega sola al hacer `git push` — es un caso concreto de un problema más general. Este documento identifica **todos** los elementos del proyecto que no viajan automáticamente desde el commit hasta producción, para que este tipo de desincronización no vuelva a pasar desapercibida.
+
+## Resumen — qué se despliega solo, qué no
+
+| Componente | ¿Dónde vive en el repo? | ¿Se aplica solo con `git push`? |
+|---|---|---|
+| Código de la app Next.js (`webapp/src/**`) | Sí, todo el árbol de código | **Sí** — Vercel redespliega automáticamente en cada push (asumido por convención de esta migración; el proyecto Vercel en sí no es visible desde este entorno de trabajo, ver nota al final) |
+| Variables de entorno de la app (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) | Solo una plantilla sin valores reales, `webapp/.env.example` | **No** — los valores reales se configuran a mano en Vercel → Project Settings → Environment Variables; el `.env.example` documenta qué hace falta, no lo aplica |
+| Edge Function `create-user` | `webapp/supabase/functions/create-user/index.ts` | **No** — hay que copiar el archivo entero en Dashboard → Edge Functions → `create-user` → editor → *Deploy*. No existe ningún paso de CI/CD (`supabase functions deploy` ni equivalente) en `.github/workflows/webapp-ci.yml` |
+| Secretos de la Edge Function (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` que usa `create-user` internamente) | No viven en ningún archivo del repo (ni siquiera en `.env.example` — son gestionados por Supabase, no por Next.js) | **No** — se configuran en Dashboard → Edge Functions → Secrets. Es un almacén de variables de entorno completamente distinto del de Vercel; cambiar una no afecta a la otra |
+| Migraciones SQL (esquema, RLS, policies, funciones SQL) | `webapp/supabase/migrations/*.sql` (3 archivos, ver detalle abajo) | **No** — están versionadas en git y `webapp-ci.yml` las linta implícitamente al no fallar el checkout, pero ningún paso del CI ejecuta `supabase db push` ni las aplica de ninguna otra forma. Aplicarlas exige copiarlas a mano en el SQL Editor del Dashboard, en orden, o enlazar el proyecto con la CLI de Supabase y ejecutar `supabase db push` desde una máquina con las credenciales |
+| Funciones SQL (`rol_actual()`, `email_actual()`) | Dentro de `20260731000100_enable_rls_and_policies.sql` (no son archivos separados) | **No** — mismo mecanismo que el resto de esa migración: manual |
+| Políticas RLS (todas las tablas + `storage.objects`) | Repartidas entre `20260731000100_enable_rls_and_policies.sql`, `20260804000100_storage_objects_portadas_adjuntos.sql` y `20260804000200_remove_legacy_role_support.sql` | **No** — mismo mecanismo: manual |
+| Bucket de Storage `portadas-adjuntos` | **No existe ningún archivo en el repo que lo cree** — ni una migración SQL con `insert into storage.buckets`, ni ninguna llamada de la app a `.storage.createBucket()` | **No, y además no está ni documentado como código** — el bucket tiene que existir ya en el proyecto (creado a mano desde Dashboard → Storage → *New bucket*, en algún momento no rastreado por este repositorio) antes de aplicar la migración de políticas de arriba, que asume que ya existe |
+| Datos semilla de desarrollo (`dataset-base-desarrollo.sql`) | `webapp/supabase/seed/dataset-base-desarrollo.sql`, ejecutado por `npm run seed` (`scripts/seed.ts`) | **No** — es un script que hay que ejecutar a mano (`npm run seed`) contra el proyecto de desarrollo; no se ejecuta en ningún CI ni en ningún despliegue, ni siquiera en desarrollo |
+| Triggers en `auth.users` (p. ej. `handle_new_user()`) | **Ninguno en este repositorio** — el único trigger de este tipo documentado (`handle_new_user()`) aparece solo en `creacion_de_tablas.sql`, un script SQL histórico que el propietario del proyecto compartió fuera de git (ZIP de consultas del SQL Editor), nunca comiteado aquí | **No aplica** — no hay nada que este repo pueda desplegar ni desinstalar; si ese trigger existe hoy en producción, existe por una acción manual de la que este repositorio no tiene ni rastro ni control. Sigue sin confirmarse si existe hoy (ver H-01) |
+| Cron jobs (`pg_cron` o cualquier tarea programada en Postgres/Supabase) | Ninguno — no hay ninguna mención de un cron job real en ningún archivo de código ni de migración de este repositorio | **No aplica** — no se ha encontrado evidencia de que exista ninguno, ni en el repo ni en la documentación de fases; no verificado contra la base de datos real (requeriría `select * from cron.job;` en el SQL Editor, no ejecutado desde este entorno) |
+| Vínculo del repo con un proyecto Supabase concreto (`supabase link` / `supabase/config.toml`) | **No existe ningún `config.toml` de la CLI de Supabase en el repositorio** | **No aplica al despliegue** — significa que ni siquiera hay un "proyecto por defecto" registrado en el repo para la CLI; cualquiera que quiera correr `supabase db push`/`supabase functions deploy` desde su máquina tiene que enlazar el proyecto a mano primero (`supabase link --project-ref ...`) |
+| `vercel.json` (raíz del repo) | Cabeceras de caché HTTP | **Sí, pero no afecta a `webapp/`** — es del despliegue del `index.html` legacy en la raíz del repo, un target de Vercel totalmente distinto (confirmado por el propio comentario de `webapp-ci.yml`: "No toca ni despliega index.html/vercel.json de la raíz") |
+
+## Detalle de las migraciones SQL versionadas
+
+Los tres archivos de `webapp/supabase/migrations/`, en el orden en que deben aplicarse (el nombre ya empieza por fecha/hora, así que un `ls` ordenado alfabéticamente ya da el orden correcto):
+
+1. **`20260731000100_enable_rls_and_policies.sql`** (214 líneas) — activa políticas reales sobre las 7 tablas (sustituyendo las `allow_all` heredadas de producción), define `rol_actual()`/`email_actual()`.
+2. **`20260804000100_storage_objects_portadas_adjuntos.sql`** (75 líneas) — políticas de RLS sobre `storage.objects` acotadas al bucket `portadas-adjuntos` (select público, insert/update solo autenticado, sin delete). Sin esto, cualquier subida a Storage devuelve 400 (`new row violates row-level security policy`) — ya ocurrió una vez durante el desarrollo (ver cabecera del propio archivo).
+3. **`20260804000200_remove_legacy_role_support.sql`** (54 líneas) — afina 3 políticas de `solicitudes` para quitar el rol legacy `responsable` sin sufijo de canal.
+
+**Ninguna de las tres tiene un script de "rollback"** ni un registro de qué migraciones ya se aplicaron a qué proyecto (no hay tabla de control de versiones tipo `supabase_migrations.schema_migrations` gestionada por este repo — si se usa la CLI de Supabase enlazada al proyecto, la CLI sí mantiene esa tabla ella misma, pero es responsabilidad de quien la ejecute, no algo que el repo garantice). Si estas migraciones no se han aplicado nunca a mano contra el proyecto de desarrollo o el de producción, el esquema real de esos proyectos no coincide con lo que asume el código de `webapp/src` (RLS, funciones, columnas) — otra clase de bug con la misma forma que el de la Edge Function: código correcto en el repo, entorno real desincronizado, sin ningún error visible que lo señale directamente.
+
+## Dos almacenes de variables de entorno independientes
+
+Vale la pena remarcarlo porque es una fuente fácil de confusión: este proyecto tiene **dos configuraciones de entorno separadas, sin relación entre sí**:
+
+1. **Vercel** (la app Next.js): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — las lee el código de `webapp/src` (cliente y servidor). Se configuran en Vercel → Project Settings → Environment Variables.
+2. **Supabase Edge Functions**: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` — las lee `create-user/index.ts` con `Deno.env.get(...)`. Se configuran en Supabase Dashboard → Edge Functions → Secrets, **por proyecto Supabase**, no por función individual.
+
+Cambiar una no cambia la otra. Si alguna vez se apunta la app de Next.js a un proyecto Supabase distinto (p. ej. pasar de desarrollo a producción), hay que actualizar el punto 1 en Vercel — el punto 2 vive dentro del propio proyecto Supabase de destino y no necesita tocarse, pero sí hay que confirmar que ese proyecto de destino tiene sus propios secretos ya configurados y su propia copia de la Edge Function ya desplegada (son cosas del proyecto Supabase, no de la app).
+
+## Checklist para no repetir este tipo de incidente
+
+Antes de dar por buena cualquier corrección que toque uno de estos componentes, comprobar explícitamente cuál de estas acciones manuales hace falta repetir:
+
+- [ ] ¿Cambié `webapp/supabase/functions/create-user/index.ts`? → copiar el archivo completo en Dashboard → Edge Functions → `create-user` → Deploy, en **cada** proyecto Supabase afectado (desarrollo y producción son proyectos distintos con Edge Functions independientes).
+- [ ] ¿Añadí o cambié un archivo en `webapp/supabase/migrations/`? → aplicarlo a mano (SQL Editor o `supabase db push` con el proyecto enlazado) en **cada** proyecto Supabase afectado, en orden.
+- [ ] ¿Necesito un bucket de Storage nuevo? → crearlo a mano desde Dashboard → Storage antes de escribir cualquier política RLS que lo referencie — no hay ningún mecanismo en este repo que lo haga por ti.
+- [ ] ¿Cambié una variable `NEXT_PUBLIC_*` o añadí una nueva? → actualizar Vercel → Environment Variables y volver a desplegar (un cambio de env var en Vercel normalmente no redespliega solo).
+- [ ] ¿La Edge Function necesita un secreto nuevo? → añadirlo en Dashboard → Edge Functions → Secrets, no en `.env` de Next.js — no lo va a leer desde ahí.
+
+## Limitación de este entorno de trabajo
+
+Todo lo anterior se ha determinado por **lectura exhaustiva del repositorio y de `.github/workflows/webapp-ci.yml`**, no por inspección directa de la configuración real de Vercel ni de ningún proyecto Supabase — este entorno de trabajo no tiene credenciales ni acceso a ninguno de los dos Dashboards. En concreto, quedan sin verificar desde aquí (requieren que el propietario del proyecto las compruebe directamente):
+- Que el proyecto de Vercel esté efectivamente configurado con auto-deploy en push a la rama correspondiente (se asume por convención de esta migración, documentada desde la Fase 0, pero no se ha visto la configuración real del proyecto Vercel).
+- Qué contenido tiene realmente desplegado la Edge Function `create-user` hoy, en cada proyecto Supabase.
+- Si las tres migraciones de `webapp/supabase/migrations/` están realmente aplicadas hoy contra el esquema real de cada proyecto Supabase (desarrollo y producción).
+- Si existe hoy un trigger `handle_new_user()` (o cualquier otro) en `auth.users` del proyecto de producción.
+- Si existe cualquier cron job (`pg_cron`) en cualquiera de los proyectos.

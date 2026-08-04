@@ -47,6 +47,7 @@ Esto no aplica al propio desarrollo del código de Next.js: cuando Claude escrib
 | 7 | [`07-propuestas-futuras.md`](./07-propuestas-futuras.md) | Mejoras identificadas durante el diseño, explícitamente fuera de esta migración |
 | 8 | [`08-protocolo-validacion.md`](./08-protocolo-validacion.md) | Checklist de comparación `index.html` vs Next.js al final de cada fase, y regla de bloqueo entre fases |
 | 9 | [`09-matriz-paridad-funcional.md`](./09-matriz-paridad-funcional.md) | Inventario exhaustivo de las ~230 funcionalidades existentes en `index.html`, con su estado y fase de migración — la referencia objetiva de que nada se pierde |
+| 10 | [`10-auditoria-despliegue-manual.md`](./10-auditoria-despliegue-manual.md) | Qué se despliega solo con `git push` y qué exige una acción manual (Edge Functions, migraciones SQL, buckets de Storage, variables de entorno, etc.) |
 
 ## Cómo leer esto
 
