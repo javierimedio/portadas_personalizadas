@@ -334,11 +334,16 @@ using (exists (
 
 **Notificaciones** — filtradas por email, igual que hoy; el `DELETE` se necesita porque `eliminarSolicitud`/`eliminarCampana` también borran las notificaciones de la solicitud:
 
+**Gap añadido al implementar el bloque de Notificaciones**: esta sección no tenía política de `INSERT`. Sin una, `enviarNotificacion()` no podría insertar una fila cuyo `destinatario` es el email de OTRO usuario (el caso normal: un comercial que envía notifica a marketing/admin, no a sí mismo) — en producción hoy no falla porque RLS sigue desactivada allí, pero bloquearía la función por completo en el entorno de desarrollo, donde sí está activa. Mismo criterio que `adjuntos_insert`/`logs_insert`: solo exige que la solicitud referenciada exista, sin restringir el destinatario (igual que hace hoy `index.html`, que no aplica ninguna restricción de destinatario al insertar):
+
 ```sql
 drop policy if exists allow_all on notificaciones;
 
 create policy notificaciones_select on notificaciones for select
 using (destinatario = email_actual());
+
+create policy notificaciones_insert on notificaciones for insert
+with check (exists (select 1 from solicitudes s where s.id = notificaciones.solicitud_id));
 
 create policy notificaciones_update on notificaciones for update
 using (destinatario = email_actual())

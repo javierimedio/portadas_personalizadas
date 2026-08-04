@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DisenoTable } from "./diseno-table";
 import { CargaMasivaModal } from "./carga-masiva-modal";
 import { SolicitudDetalleModal } from "@/features/solicitudes/ui/solicitud-detalle-modal";
@@ -25,9 +25,16 @@ export function DisenoPage({
   rol: string | null | undefined;
   currentUserId: string | null | undefined;
 }) {
-  const [solicitudId, setSolicitudId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const verId = searchParams.get("ver");
+  const [solicitudId, setSolicitudId] = useState<string | null>(verId);
   const [cargaMasivaAbierta, setCargaMasivaAbierta] = useState(false);
   const router = useRouter();
+
+  function cerrarDetalle() {
+    setSolicitudId(null);
+    if (verId) router.replace("/diseno");
+  }
 
   return (
     <div>
@@ -56,7 +63,7 @@ export function DisenoPage({
           solicitudId={solicitudId}
           rol={rol}
           perfiles={perfiles}
-          onClose={() => setSolicitudId(null)}
+          onClose={cerrarDetalle}
           onChanged={() => router.refresh()}
           // "Editar" solo aparece en estado borrador (puedeEditar); una
           // solicitud en la cola de Diseño nunca está en ese estado, así

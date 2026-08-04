@@ -2,6 +2,11 @@
 
 import { createClient } from "@/shared/infrastructure/supabase/server-client";
 import { perfilesMencionados } from "../domain/comentarios";
+import {
+  enviarNotificacion,
+  enviarNotificacionAsignacion,
+  enviarNotificacionesMencion,
+} from "@/features/notificaciones/application/enviar-notificacion";
 
 const STORAGE_BUCKET = "portadas-adjuntos";
 
@@ -13,11 +18,16 @@ async function currentUserAndPerfil() {
   return { supabase, user: userData.user, perfil };
 }
 
-// Réplica funcional de cambiarEstadoDirecto() (index.html ~3532-3555), sin
-// el envío de notificación (módulo de Notificaciones, todavía no migrado).
-// El guard anti doble-clic del original es un flag en memoria del cliente;
-// aquí basta con comprobar el estado real justo antes de escribir — si ya
-// está en el estado destino, es un no-op.
+// Réplica funcional de cambiarEstadoDirecto() (index.html ~3532-3555),
+// incluido el envío de notificación (~3547-3553) — este es el único punto
+// central por el que pasan todas las transiciones genéricas de estado
+// (enviar a marketing, devolver a borrador, iniciar revisión, enviar a
+// diseño sin asignar, "Diseño listo", solicitar modificación, confirmar,
+// archivar, carga masiva), así que basta con enviarla aquí una sola vez
+// para cubrir NOT-02 a NOT-07 en todos esos casos. El guard anti doble-clic
+// del original es un flag en memoria del cliente; aquí basta con comprobar
+// el estado real justo antes de escribir — si ya está en el estado
+// destino, es un no-op (y no reenvía notificación).
 export async function cambiarEstado(solicitudId: string, nuevoEstado: string): Promise<{ error?: string }> {
   const { supabase, user, perfil } = await currentUserAndPerfil();
   if (!user) return { error: "Sesión no válida." };
@@ -36,6 +46,7 @@ export async function cambiarEstado(solicitudId: string, nuevoEstado: string): P
     accion: "cambio_estado",
     detalle: { estado_anterior: sol.estado, estado_nuevo: nuevoEstado },
   });
+  await enviarNotificacion(supabase, solicitudId, nuevoEstado);
   return {};
 }
 
@@ -67,14 +78,17 @@ export async function asignarCanalYComercial(
   return {};
 }
 
-// Réplica de confirmAsignar() (~3680-3697), sin la notificación al
-// diseñador (módulo de Notificaciones, todavía no migrado).
+// Réplica de confirmAsignar() (~3680-3697): a diferencia de cambiarEstado(),
+// esta acción NO dispara el aviso general de "en_diseno" (NOT-03) — solo un
+// aviso directo al diseñador recién asignado, exactamente como en el
+// original (que hace su propio update+insert, sin pasar por
+// cambiarEstadoDirecto).
 export async function asignarDisenadorYEnviar(solicitudId: string, disenadorId: string): Promise<{ error?: string }> {
   if (!disenadorId) return { error: "Selecciona un diseñador." };
   const { supabase, user, perfil } = await currentUserAndPerfil();
   if (!user) return { error: "Sesión no válida." };
 
-  const { data: disenador } = await supabase.from("perfiles").select("nombre").eq("id", disenadorId).maybeSingle();
+  const { data: disenador } = await supabase.from("perfiles").select("nombre, email").eq("id", disenadorId).maybeSingle();
   const { error } = await supabase.from("solicitudes").update({ estado: "en_diseno", asignado_id: disenadorId }).eq("id", solicitudId);
   if (error) return { error: `Error: ${error.message}` };
 
@@ -85,6 +99,7 @@ export async function asignarDisenadorYEnviar(solicitudId: string, disenadorId: 
     accion: "asignacion",
     detalle: { disenador: disenador?.nombre },
   });
+  if (disenador?.email) await enviarNotificacionAsignacion(supabase, solicitudId, disenador.email);
   return {};
 }
 
@@ -169,17 +184,15 @@ export async function guardarPortadaElegida(solicitudId: string, catalogo: strin
   return {};
 }
 
-// Réplica de addComentario() (~3364-3401), sin la notificación a los
-// usuarios mencionados (módulo de Notificaciones, todavía no migrado) — se
-// mantiene el cálculo de menciones porque forma parte del registro del
-// comentario en sí, no de su envío por email.
+// Réplica de addComentario() (~3364-3401), incluida la notificación a los
+// mencionados (~3393-3405, COM-07) excluyendo siempre al propio autor.
 export async function addComentario(solicitudId: string, texto: string): Promise<{ error?: string; mencionados?: number }> {
   const trimmed = texto.trim();
   if (!trimmed) return { error: "Escribe un comentario." };
   const { supabase, user, perfil } = await currentUserAndPerfil();
   if (!user) return { error: "Sesión no válida." };
 
-  const { data: perfiles } = await supabase.from("perfiles").select("nombre, email");
+  const { data: perfiles } = await supabase.from("perfiles").select("id, nombre, email");
   const mencionados = perfilesMencionados(trimmed, perfiles ?? []);
 
   const { error } = await supabase.from("logs").insert({
@@ -190,5 +203,9 @@ export async function addComentario(solicitudId: string, texto: string): Promise
     detalle: { texto: trimmed, fecha: new Date().toISOString(), menciones: mencionados.map((m) => m.nombre) },
   });
   if (error) return { error: `Error: ${error.message}` };
+
+  const destinatarios = mencionados.filter((m) => m.id !== user.id);
+  await enviarNotificacionesMencion(supabase, solicitudId, perfil?.nombre ?? null, trimmed, destinatarios);
+
   return { mencionados: mencionados.length };
 }

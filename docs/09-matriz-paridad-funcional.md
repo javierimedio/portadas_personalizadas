@@ -150,12 +150,12 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | EST-02 | Botones de acción condicionados por rol+estado en el detalle | Implementada | 2 | `accionesDetalle()`, con test unitario de cada combinación |
 | EST-03 | Guard anti doble-clic en cambio de estado | Implementada | 2 | Adaptado: en vez de un flag en memoria del cliente, la Server Action comprueba el estado real en BD antes de escribir (no-op si ya coincide) y la UI desactiva los botones mientras la petición está en curso |
 | EST-04 | No-op si el estado destino es idéntico al actual | Implementada | 2 | — |
-| EST-05 | Cambio de estado dispara update + log + recarga + toast, siempre junto | Implementada | 2 | Sin la notificación (módulo de Notificaciones, todavía no migrado) — no es una omisión silenciosa, es un módulo aparte pendiente de su propio bloque |
+| EST-05 | Cambio de estado dispara update + log + recarga + toast, siempre junto | Implementada | 2 | Incluida la notificación — `cambiarEstado()` es el único punto por el que pasan todas las transiciones genéricas, así que la dispara una sola vez para todas ellas |
 | EST-06 | Confirmación nativa antes de archivar, con aviso de exclusión de KPIs/Excel | Implementada | 2 | `window.confirm` con el mismo texto |
 | EST-07 | Eliminación de solicitud en cascada manual (catálogos, adjuntos, logs, notificaciones, solicitud) | Implementada | 2 | Con `confirm()` mostrando el código SAP |
 | EST-08 | "Enviar a diseño" sin asignar diseñador | Implementada | 2 | El primer diseñador que abre el detalle se autoasigna (`getSolicitudDetalle`) |
 | EST-09 | Selector de asignación de diseñador | Implementada | 2 | Adaptado: panel desplegable dentro del propio modal de detalle en vez de un overlay flotante independiente — mismo contenido y misma restricción (solo diseñadores/responsables activos, preselecciona el ya asignado) |
-| EST-10 | Notificación al diseñador tras asignación manual | Pendiente | 2 | Depende del módulo de Notificaciones, todavía no migrado |
+| EST-10 | Notificación al diseñador tras asignación manual | Implementada | 2 | `enviarNotificacionAsignacion()`, llamada desde `asignarDisenadorYEnviar()` |
 | EST-11 | Selector "Asignar canal y comercial" | Implementada | 2 | Adaptado: panel desplegable en vez de overlay flotante. Bloquea guardado si falta canal o comercial |
 | EST-12 | Reapertura automática del detalle tras guardar canal | Implementada | 2 | El modal de detalle se recarga en el sitio, sin cerrarse |
 | EST-13 | Panel "Solicitar modificación" con comentario obligatorio y adjunto opcional | Implementada | 2 | Adaptado: panel desplegable en vez de modal aparte |
@@ -190,7 +190,7 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | CM-05 | Eliminación individual de un archivo de la cola antes de procesar | Implementada | 2 | — |
 | CM-06 | Botón de procesar deshabilitado si no hay archivos reconocidos | Implementada | 2 | Texto dinámico con el conteo |
 | CM-07 | Procesamiento por lotes con un solo cambio de estado por solicitud | Implementada | 2 | Aunque una solicitud tenga varios archivos, el cambio de estado y el log se disparan una sola vez (`processedSols` Set, reutiliza `cambiarEstado()`) |
-| CM-08 | Notificación disparada por solicitud, no por archivo | Pendiente | 2 | Diferido al módulo de Notificaciones, todavía no migrado — mismo criterio que el resto de acciones de detalle |
+| CM-08 | Notificación disparada por solicitud, no por archivo | Implementada | 2 | La dispara `cambiarEstado()` una sola vez por solicitud (`processedSols` Set), no `procesarCargaMasiva()` por archivo |
 | CM-09 | Resumen final con conteo de éxitos y errores | Implementada | 2 | Toast con el mismo formato de mensaje que el original |
 
 ## Comentarios y menciones — Fase 2
@@ -203,7 +203,7 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | COM-04 | Escape cierra el dropdown sin enviar | Implementada | 2 | — |
 | COM-05 | Cierre del dropdown al hacer clic fuera | Implementada | 2 | Adaptado: `onBlur` del textarea con retardo corto (en vez de un listener global de `click`), para que la selección de una sugerencia (que usa `onMouseDown`) se procese antes de cerrarse |
 | COM-06 | Extracción de menciones al guardar | Implementada | 2 | **Corregido** (cambio de criterio, ya no se replican bugs): el original tenía tres variantes de la misma regex, una de ellas con una trampa de cuantificador perezoso que en la práctica solo llegaba a capturar la primera palabra tras el `@`. Unificada en una sola función (`extractMentionNames` en `domain/comentarios.ts`, con test unitario) que captura una palabra de forma consistente y sin la trampa — el matching por subcadena sobre nombre/email para resolver a qué perfil corresponde sigue igual |
-| COM-07 | Notificación a cada mencionado, excluyendo auto-mención | Pendiente | 2 | Depende del módulo de Notificaciones, todavía no migrado — sí se calculan y guardan las menciones, solo falta el envío |
+| COM-07 | Notificación a cada mencionado, excluyendo auto-mención | Implementada | 2 | `enviarNotificacionesMencion()`, llamada desde `addComentario()` filtrando al propio autor por id |
 | COM-08 | Toast diferenciado según si hubo menciones | Implementada | 2 | — |
 | COM-09 | Reapertura automática del detalle tras comentar | Implementada | 2 | El modal se recarga en el sitio, sin cerrarse |
 | COM-10 | Resaltado visual de menciones en el listado | Implementada | 2 | Misma función unificada que COM-06 (`segmentarComentario`, sin `dangerouslySetInnerHTML`) |
@@ -212,25 +212,25 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| NOT-01 | Notificaciones in-app sin envío real de email | Pendiente | 2 | Comentario explícito en el código; ver `07-propuestas-futuras.md` § 4 |
-| NOT-02 | Destinatarios por transición: enviada/en_revision_marketing | Pendiente | 2 | Marketing+admin y el propio comercial |
-| NOT-03 | Destinatarios por transición: en_diseno | Pendiente | 2 | Comercial+marketing/admin y todos los diseñadores/responsables_diseno |
-| NOT-04 | Destinatarios por transición: diseno_en_revision_comercial | Pendiente | 2 | Comercial+marketing/admin |
-| NOT-05 | Destinatarios por transición: modificar_diseno | Pendiente | 2 | Solo diseñadores |
-| NOT-06 | Destinatarios por transición: confirmada | Pendiente | 2 | Comercial+marketing/admin |
-| NOT-07 | Destinatarios por transición: vuelta a borrador | Pendiente | 2 | Solo el comercial |
-| NOT-08 | Deduplicación de destinatarios por email | Pendiente | 2 | — |
-| NOT-09 | Resolución de comercial destinatario aunque la solicitud no esté aún en memoria | Pendiente | 2 | Usa el parámetro explícito como fallback |
-| NOT-10 | Carga de perfiles a demanda si no están precargados | Pendiente | 2 | — |
-| NOT-11 | Preferencia de notificación por usuario (ambas/email/herramienta/ninguna) | Pendiente | 1 y 2 | Editable desde topbar (Fase 1) y Perfil (Fase 1); consumida — o no — desde el envío de notificaciones (Fase 2) |
-| NOT-12 | La preferencia de notificación NO filtra realmente el envío | Pendiente | 2 | **Gap funcional existente hoy**: se guarda el valor pero todas las notificaciones se insertan igual con `enviado:false` — preservar este comportamiento (no implementar el filtrado real, sería una mejora funcional fuera de alcance) |
-| NOT-13 | Carga de notificaciones limitada a 7 días / 30 registros | Pendiente | 2 | — |
-| NOT-14 | Estado de "leído" en localStorage, no en BD | Pendiente | 2 | Ver `07-propuestas-futuras.md` § 2 |
-| NOT-15 | Badge de no leídas con tope visual "9+" | Pendiente | 2 | Oculto si es 0 |
-| NOT-16 | Panel lateral con animación y auto-marcado de leídas a los 2s de abrir | Pendiente | 2 | — |
-| NOT-17 | Resaltado visual de no leídas (fondo ámbar + negrita) | Pendiente | 2 | — |
-| NOT-18 | Truncado del cuerpo a 80 caracteres en el listado | Pendiente | 2 | — |
-| NOT-19 | Clic en notificación abre el detalle de la solicitud referenciada | Pendiente | 2 | Recarga la solicitud primero si no está en memoria |
+| NOT-01 | Notificaciones in-app sin envío real de email | Implementada | 2 | `enviado`/`enviado_at` siempre `false`/`null`, igual que el original; ver `07-propuestas-futuras.md` § 4 |
+| NOT-02 | Destinatarios por transición: enviada/en_revision_marketing | Implementada | 2 | Marketing+admin y el propio comercial — `buildNotificaciones()` |
+| NOT-03 | Destinatarios por transición: en_diseno | Implementada | 2 | Comercial+marketing/admin y todos los diseñadores/responsables_diseno. Solo se dispara al "Enviar a diseño" sin asignar (vía `cambiarEstado()`) — "Asignar y enviar a diseño" dispara en su lugar un aviso directo solo al diseñador asignado (NOT-03b, ver `asignarDisenadorYEnviar()`), exactamente como `confirmAsignar()` en el original |
+| NOT-04 | Destinatarios por transición: diseno_en_revision_comercial | Implementada | 2 | Comercial+marketing/admin |
+| NOT-05 | Destinatarios por transición: modificar_diseno | Implementada | 2 | Solo diseñadores |
+| NOT-06 | Destinatarios por transición: confirmada | Implementada | 2 | Comercial+marketing/admin |
+| NOT-07 | Destinatarios por transición: vuelta a borrador | Implementada | 2 | Solo el comercial |
+| NOT-08 | Deduplicación de destinatarios por email | Implementada | 2 | `buildNotificaciones()` — un mismo email en dos grupos del mismo `push()` recibe un solo mensaje |
+| NOT-09 | Resolución de comercial destinatario aunque la solicitud no esté aún en memoria | Implementada (ya no aplica el problema original) | 2 | El original necesitaba un parámetro de fallback porque el cliente podía no tener aún la solicitud recién creada en su caché en memoria; en un Server Action la solicitud y sus perfiles siempre se leen frescos de la BD, así que ese problema — propio de un SPA con caché de cliente — no existe aquí |
+| NOT-10 | Carga de perfiles a demanda si no están precargados | Implementada (ya no aplica el problema original) | 2 | Mismo motivo que NOT-09: siempre se consulta `perfiles` fresco, no hace falta una carga "a demanda" separada de una carga "ya hecha" |
+| NOT-11 | Preferencia de notificación por usuario (ambas/email/herramienta/ninguna) | Implementada | 1 y 2 | Editable desde Perfil (Fase 1); NOT-12 confirma que no se consume al enviar, igual que hoy |
+| NOT-12 | La preferencia de notificación NO filtra realmente el envío | Implementada | 2 | **Gap funcional existente hoy, preservado tal cual**: `buildNotificaciones()`/`enviarNotificacion()` no consultan `notif_preferencia` en ningún punto — se guarda el valor pero todas las notificaciones se insertan igual con `enviado:false` |
+| NOT-13 | Carga de notificaciones limitada a 7 días / 30 registros | Implementada | 2 | `getNotificaciones()` |
+| NOT-14 | Estado de "leído" en localStorage, no en BD | Implementada | 2 | `features/notificaciones/infrastructure/read-state.ts`; ver `07-propuestas-futuras.md` § 2 |
+| NOT-15 | Badge de no leídas con tope visual "9+" | Implementada | 2 | Oculto si es 0 |
+| NOT-16 | Panel lateral con animación y auto-marcado de leídas a los 2s de abrir | Implementada | 2 | — |
+| NOT-17 | Resaltado visual de no leídas (fondo ámbar + negrita) | Implementada | 2 | — |
+| NOT-18 | Truncado del cuerpo a 80 caracteres en el listado | Implementada | 2 | — |
+| NOT-19 | Clic en notificación abre el detalle de la solicitud referenciada | Implementada | 2 | Navega a `/solicitudes?ver=<id>` o `/diseno?ver=<id>` según a cuál tenga acceso el rol actual — ambas páginas abren `SolicitudDetalleModal`, que siempre carga la solicitud fresca por id (no depende de que ya esté en memoria) |
 
 ## Campañas — Fase 3
 

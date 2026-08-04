@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { SolicitudesTable } from "./solicitudes-table";
 import { SolicitudModal } from "./solicitud-modal";
 import { SolicitudDetalleModal } from "./solicitud-detalle-modal";
@@ -30,12 +30,19 @@ export function MisSolicitudes({
   defaultCampanaId: string;
   rol: string | null | undefined;
 }) {
-  const [modal, setModal] = useState<ModalState>(null);
+  const searchParams = useSearchParams();
+  const verId = searchParams.get("ver");
+  const [modal, setModal] = useState<ModalState>(verId ? { mode: "detalle", solicitudId: verId } : null);
   const router = useRouter();
 
   function handleSaved() {
     setModal(null);
     router.refresh();
+  }
+
+  function cerrarDetalle() {
+    setModal(null);
+    if (verId) router.replace("/solicitudes");
   }
 
   return (
@@ -65,7 +72,7 @@ export function MisSolicitudes({
           solicitudId={modal.solicitudId}
           rol={rol}
           perfiles={perfiles}
-          onClose={() => setModal(null)}
+          onClose={cerrarDetalle}
           onChanged={() => router.refresh()}
           onEditar={() => {
             const solicitud = rows.find((r) => r.id === modal.solicitudId);

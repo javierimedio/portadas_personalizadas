@@ -2,6 +2,7 @@
 
 import { createClient } from "@/shared/infrastructure/supabase/server-client";
 import { catalogosDeCampana } from "@/shared/domain/catalogos";
+import { enviarNotificacion } from "@/features/notificaciones/application/enviar-notificacion";
 import {
   formatearErrores,
   validateCatalogosParaEnvio,
@@ -14,8 +15,7 @@ import {
 // las correcciones de docs/09-matriz-paridad-funcional.md § H-09/H-10: el
 // SAP duplicado se compara sin distinguir mayúsculas, y "Diseño 100%
 // propio" es independiente por catálogo (Stamina y XMAS ya no comparten
-// estado). El resto de transiciones de estado se dejan para el bloque 3;
-// enviarNotificacion() sigue diferido al módulo de Notificaciones.
+// estado).
 export type SaveSolicitudState = { error?: string; success?: string; solicitudId?: string } | null;
 
 const STORAGE_BUCKET = "portadas-adjuntos";
@@ -203,6 +203,11 @@ export async function saveSolicitud(_prev: SaveSolicitudState, formData: FormDat
       detalle: { nombre: entry.file.name, tipo: entry.tipo, url: pub.publicUrl },
     });
   }
+
+  // Réplica de ~3044-3047: solo se notifica al enviar, nunca al guardar
+  // como borrador — cubre tanto la creación como la resubmisión de una
+  // solicitud ya existente que estaba en borrador.
+  if (intent === "enviada" && solId) await enviarNotificacion(supabase, solId, "enviada");
 
   // Réplica de ~3053-3057: el toast final de "enviada" incluye el número
   // de archivos adjuntados (contados sobre los seleccionados, no solo los

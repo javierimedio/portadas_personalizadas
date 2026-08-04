@@ -9,9 +9,9 @@ const STORAGE_BUCKET = "portadas-adjuntos";
 // Réplica de procesarCargaMasiva() (index.html ~5291-5360): el emparejamiento
 // se recalcula aquí contra el estado real en BD (no contra lo que el
 // cliente tenía en memoria al abrir el modal), y solo se procesan los
-// archivos que resuelven a 'ok'. La notificación al comercial (CM-08) queda
-// diferida al módulo de Notificaciones, todavía no migrado — igual que en
-// el resto de acciones de detalle.
+// archivos que resuelven a 'ok'. La notificación por solicitud (CM-08) la
+// dispara cambiarEstado() al cambiar el estado — una sola vez por
+// solicitud, aunque tenga varios archivos, igual que el original.
 export async function procesarCargaMasiva(formData: FormData): Promise<{ ok: number; errors: number } | { error: string }> {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();

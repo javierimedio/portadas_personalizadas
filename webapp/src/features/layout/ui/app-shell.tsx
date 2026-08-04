@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { logout } from "@/features/auth/application/logout.action";
+import { NotifBell } from "@/features/notificaciones/ui/notif-bell";
 import { IMPERSONATION_COOKIE } from "../domain/impersonation";
 import { getNavItemsForRole, IMPERSONATABLE_ROLES } from "../domain/nav-items";
 
@@ -53,6 +54,19 @@ export function AppShell({
       ? `${IMPERSONATION_COOKIE}=${value}; path=/`
       : `${IMPERSONATION_COOKIE}=; path=/; max-age=0`;
     router.refresh();
+  }
+
+  // Elige a qué página navegar al hacer clic en una notificación: en el
+  // original todo el detalle vivía en un único modal accesible desde
+  // cualquier pestaña; aquí hay que aterrizar en una ruta real que ese rol
+  // pueda ver — /solicitudes si la tiene, si no /diseno (todo rol que puede
+  // recibir una notificación de una solicitud tiene acceso a al menos una
+  // de las dos, ver nav-items.ts).
+  function verSolicitudHref(solicitudId: string) {
+    const ids = navItems.map((i) => i.id);
+    if (ids.includes("solicitudes")) return `/solicitudes?ver=${solicitudId}`;
+    if (ids.includes("diseno")) return `/diseno?ver=${solicitudId}`;
+    return "/";
   }
 
   return (
@@ -108,6 +122,8 @@ export function AppShell({
               ))}
             </select>
           )}
+
+          <NotifBell verSolicitudHref={verSolicitudHref} />
 
           <Link
             href="/perfil"
