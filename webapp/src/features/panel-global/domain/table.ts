@@ -71,8 +71,10 @@ export function sortPanelRows(rows: SolicitudListItem[], sort: PanelSort, perfil
 }
 
 // Réplica de populateComercialFilter() (~2139-2153): comerciales y
-// responsables activos, incluidos los roles legacy genéricos.
+// responsables activos. H-07 (cerrado 2026-08-04): sin los roles legacy
+// genéricos `comercial`/`responsable` — no existe ningún usuario real con
+// esos roles.
 export function comercialesFiltro(perfiles: FormPerfil[]): FormPerfil[] {
-  const roles = ["comercial", "comercial_nacional", "comercial_exportacion", "responsable", "responsable_nacional", "responsable_exportacion"];
+  const roles = ["comercial_nacional", "comercial_exportacion", "responsable_nacional", "responsable_exportacion"];
   return perfiles.filter((p) => roles.includes(p.rol ?? "") && p.activo).sort((a, b) => a.nombre.localeCompare(b.nombre));
 }

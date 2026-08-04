@@ -2,12 +2,11 @@
 // navegación ve cada rol, en el mismo orden. Sin dependencias de React/Next
 // a propósito (regla de dependencias de docs/04-estructura-carpetas.md).
 //
-// Incluye deliberadamente el hueco documentado en H-07
-// (docs/09-matriz-paridad-funcional.md): los roles legacy genéricos
-// "comercial"/"responsable" (sin sufijo de canal) no cumplen ninguna
-// condición y por tanto no reciben ningún item — decisión pendiente de
-// confirmar contra datos reales de producción, replicado tal cual mientras
-// tanto.
+// H-07 (cerrado 2026-08-04, confirmado por el propietario del proyecto
+// contra datos reales de producción): los roles legacy genéricos
+// "comercial"/"responsable" (sin sufijo de canal) no existen en ningún
+// usuario real — no cumplen ninguna condición de las de abajo y por tanto
+// no reciben ningún item de navegación, a propósito.
 export type NavItemId = "dashboard" | "solicitudes" | "panel" | "diseno" | "campanas" | "usuarios";
 
 export type NavItem = { id: NavItemId; label: string; href: string };
@@ -53,15 +52,15 @@ export const IMPERSONATABLE_ROLES: { value: string; label: string }[] = [
   { value: "responsable_diseno", label: "Resp. Diseño" },
 ];
 
-// Réplica de ROL_LABELS (~2309).
+// Réplica de ROL_LABELS (~2309). H-07 (cerrado 2026-08-04): sin los roles
+// legacy genéricos `comercial`/`responsable` — no existe ningún usuario real
+// con esos roles.
 export const ROL_LABELS: Record<string, string> = {
   responsable_diseno: "Resp. Diseño",
   admin: "Administrador",
   marketing: "Marketing",
-  responsable: "Resp. Comercial",
   responsable_nacional: "Resp. Nacional",
   responsable_exportacion: "Resp. Exportación",
-  comercial: "Comercial",
   comercial_nacional: "Comercial Nacional",
   comercial_exportacion: "Comercial Exportación",
   disenador: "Diseñador",

@@ -118,7 +118,6 @@ describe("comercialesFiltroMisSolicitudes", () => {
     { id: "u2", nombre: "Bea", rol: "comercial_exportacion", activo: true },
     { id: "u3", nombre: "Carlos", rol: "responsable_nacional", activo: true },
     { id: "u4", nombre: "Diego", rol: "responsable_exportacion", activo: true },
-    { id: "u5", nombre: "Eva", rol: "comercial", activo: true },
     { id: "u6", nombre: "Inactivo", rol: "comercial_nacional", activo: false },
   ];
 
@@ -130,8 +129,8 @@ describe("comercialesFiltroMisSolicitudes", () => {
     expect(comercialesFiltroMisSolicitudes(perfiles, "responsable_exportacion").map((p) => p.id)).toEqual(["u2", "u4"]);
   });
 
-  it("admin/marketing: comerciales rasos de los 3 canales, sin responsables", () => {
-    expect(comercialesFiltroMisSolicitudes(perfiles, "admin").map((p) => p.id)).toEqual(["u1", "u2", "u5"]);
+  it("admin/marketing: comerciales rasos de los 2 canales, sin responsables (H-07: sin el rol legacy 'comercial' genérico)", () => {
+    expect(comercialesFiltroMisSolicitudes(perfiles, "admin").map((p) => p.id)).toEqual(["u1", "u2"]);
   });
 });
 

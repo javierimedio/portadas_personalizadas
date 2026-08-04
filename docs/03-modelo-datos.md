@@ -302,6 +302,8 @@ using (
 ```
 
 > **Nota de verificación obligatoria pendiente**: la condición para el rol legacy `responsable` (sin canal explícito) no se pudo determinar con certeza solo leyendo `index.html` — antes de activar esta policy en producción, verificar contra el código actual (o contra un usuario de prueba con ese rol) si ve todas las solicitudes, ninguna, o si ese valor de rol ya no está en uso.
+>
+> **Cerrado (2026-08-04, H-07)**: confirmado por el propietario del proyecto contra datos reales de producción — no existe ningún usuario con el rol legacy `responsable` (ni `comercial` genérico). La migración `20260804000200_remove_legacy_role_support.sql` elimina las referencias a `responsable` de las 3 policies de `solicitudes` que las tenían (`solicitudes_select`/`solicitudes_insert`/`solicitudes_delete`); el resto del código de la aplicación (nav, filtros de comercial, roles válidos de importación) también se limpia de este mismo residuo.
 
 **`solicitud_catalogos`, `adjuntos` y `logs`** heredan la visibilidad de su `solicitud_id`. **Corrección importante respecto a una versión anterior de esta sección**: `solicitud_catalogos` no puede tener una única política `FOR ALL` con la condición de `select` — eso permitiría borrar sus filas con solo poder *ver* la solicitud padre, sin exigir `borrador`/admin/marketing, replicando el mismo error de diseño que ya corregimos en `allow_all` (una política demasiado permisiva neutralizando la restricción real). Se separa en 4 políticas, una por comando:
 

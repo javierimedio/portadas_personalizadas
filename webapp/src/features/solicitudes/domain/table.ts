@@ -66,20 +66,23 @@ export function isExportRole(rol: string | null | undefined): boolean {
 
 // Réplica de la visibilidad de #filter-comercial-resp (~2020-2029):
 // responsables/admin/marketing lo ven; el resto (comerciales rasos), no.
+// H-07 (cerrado 2026-08-04): sin el rol legacy `responsable` genérico — no
+// existe ningún usuario real con ese rol.
 export function muestraFiltroComercial(rol: string | null | undefined): boolean {
-  return ["responsable", "responsable_nacional", "responsable_exportacion", "admin", "marketing"].includes(rol ?? "");
+  return ["responsable_nacional", "responsable_exportacion", "admin", "marketing"].includes(rol ?? "");
 }
 
 // Réplica de las opciones de #filter-comercial-resp según el rol
 // (~2024-2029): cada responsable de canal solo ve su propio colectivo
 // (comercial + responsable del mismo canal); admin/marketing ven los
 // comerciales rasos de los 3 canales, pero NO a otros responsables — es un
-// colectivo distinto del que usa Panel Global (`comercialesFiltro`).
+// colectivo distinto del que usa Panel Global (`comercialesFiltro`). H-07:
+// sin el rol legacy `comercial` genérico en la rama por defecto.
 export function comercialesFiltroMisSolicitudes(perfiles: FormPerfil[], rol: string | null | undefined): FormPerfil[] {
   let roles: string[];
   if (rol === "responsable_nacional") roles = ["comercial_nacional", "responsable_nacional"];
   else if (rol === "responsable_exportacion") roles = ["comercial_exportacion", "responsable_exportacion"];
-  else roles = ["comercial", "comercial_nacional", "comercial_exportacion"];
+  else roles = ["comercial_nacional", "comercial_exportacion"];
   return perfiles.filter((p) => p.activo && roles.includes(p.rol ?? "")).sort((a, b) => a.nombre.localeCompare(b.nombre));
 }
 

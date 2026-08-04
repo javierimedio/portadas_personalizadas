@@ -54,8 +54,10 @@ export function ImportarUsuariosModal({ onClose, onImported }: { onClose: () => 
     let errores = 0;
     for (const u of rows) {
       const res = await crearUsuario({ nombre: u.nombre, email: u.email, password: u.pass, rol: u.rol, codigo: u.codigo });
-      if (res.error) errores++;
-      else ok++;
+      if (res.error) {
+        console.warn("Import error for", u.email, res.error);
+        errores++;
+      } else ok++;
       setProgreso({ ok, errores });
     }
     setImportando(false);

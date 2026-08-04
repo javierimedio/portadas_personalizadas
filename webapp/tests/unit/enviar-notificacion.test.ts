@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildAsignacionNotificacion, buildNotificaciones, type NotifRecipients } from "@/features/notificaciones/domain/enviar-notificacion";
+import {
+  buildAsignacionNotificacion,
+  buildNotificaciones,
+  resolverEntrega,
+  type NotifRecipients,
+} from "@/features/notificaciones/domain/enviar-notificacion";
 
 function ctx(overrides: Partial<NotifRecipients> = {}): NotifRecipients {
   return {
@@ -69,5 +74,28 @@ describe("buildAsignacionNotificacion", () => {
     expect(n.destinatario).toBe("dis1@gor.es");
     expect(n.asunto).toBe("Nueva portada asignada — 60239");
     expect(n.cuerpo).toContain("ACME");
+  });
+});
+
+describe("resolverEntrega (H-03/NOT-12)", () => {
+  it("'ninguna': no se crea ningún registro", () => {
+    expect(resolverEntrega("ninguna")).toEqual({ crear: false, entregada: false });
+  });
+
+  it("'email': no se crea ningún registro (no hay canal de email real implementado)", () => {
+    expect(resolverEntrega("email")).toEqual({ crear: false, entregada: false });
+  });
+
+  it("'herramienta': se crea y cuenta como ya entregada", () => {
+    expect(resolverEntrega("herramienta")).toEqual({ crear: true, entregada: true });
+  });
+
+  it("'ambas': se crea pero NO como entregada (email real sigue pendiente)", () => {
+    expect(resolverEntrega("ambas")).toEqual({ crear: true, entregada: false });
+  });
+
+  it("sin preferencia guardada (null/undefined), se comporta como 'ambas' (default de la columna)", () => {
+    expect(resolverEntrega(null)).toEqual({ crear: true, entregada: false });
+    expect(resolverEntrega(undefined)).toEqual({ crear: true, entregada: false });
   });
 });

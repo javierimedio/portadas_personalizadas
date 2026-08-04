@@ -27,11 +27,15 @@ describe("parseImportRows", () => {
     expect(parseImportRows(rows).map((u) => u.email)).toEqual(["ana@gor.es"]);
   });
 
-  it("rol vacío cae al valor por defecto 'comercial', en minúsculas", () => {
+  it("normaliza el rol a minúsculas y sin espacios", () => {
     const rows = [["ana@gor.es", "Ana García", "clave1234", "  MARKETING  ", ""]];
     expect(parseImportRows(rows)[0]?.rol).toBe("marketing");
+  });
+
+  it("rol vacío se deja vacío (H-07): no cae a ningún rol legacy por defecto", () => {
     const sinRol = [["ana@gor.es", "Ana García", "clave1234", "", ""]];
-    expect(parseImportRows(sinRol)[0]?.rol).toBe("comercial");
+    expect(parseImportRows(sinRol)[0]?.rol).toBe("");
+    expect(rolValido(parseImportRows(sinRol)[0]?.rol ?? "")).toBe(false);
   });
 
   it("sin filas, devuelve vacío", () => {
@@ -51,8 +55,9 @@ describe("rolValido", () => {
     expect(rolValido("admin")).toBe(true);
   });
 
-  it("acepta 'comercial' genérico (valor por defecto del import, igual que el original)", () => {
-    expect(rolValido("comercial")).toBe(true);
+  it("rechaza los roles legacy sin sufijo de canal (H-07: no existe ningún usuario real con estos roles)", () => {
+    expect(rolValido("comercial")).toBe(false);
+    expect(rolValido("responsable")).toBe(false);
   });
 
   it("rechaza roles inexistentes", () => {

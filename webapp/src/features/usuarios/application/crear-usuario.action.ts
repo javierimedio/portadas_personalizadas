@@ -9,6 +9,21 @@ import { createClient } from "@/shared/infrastructure/supabase/server-client";
 // sesión del usuario, igual que el original — la función decide con esa
 // identidad si quien llama puede crear usuarios; la creación real en
 // auth.users + el insert en `perfiles` ocurren dentro de la propia función.
+//
+// H-01: la validación de "contraseña mínimo 8 caracteres" y "código
+// obligatorio" NO vive aquí — vive solo en `UsuarioModal` (réplica exacta
+// de esos mismos checks en `saveUser()`, ~3756-3757), porque esta acción
+// también la usa la importación masiva (`ImportarUsuariosModal`), cuyo
+// equivalente original (`confirmImport()`, ~5732-5765) nunca aplicó esas
+// dos comprobaciones — enviaba lo que hubiera en el Excel tal cual al
+// Admin API. Tenerlas aquí como guardas bloqueantes hacía fallar el 100%
+// de las filas de cualquier import con contraseñas de menos de 8
+// caracteres o sin columna de código, sin llegar a llamar nunca a
+// Supabase (de ahí "0 creados, N errores" sin ninguna petición visible en
+// los logs de Supabase ni ninguna excepción en la consola del navegador:
+// el error se generaba y se devolvía antes de la primera llamada de red,
+// dentro de un Server Action que además corre en el servidor, no en el
+// navegador).
 export async function crearUsuario(input: {
   nombre: string;
   email: string;
@@ -17,8 +32,7 @@ export async function crearUsuario(input: {
   codigo: string;
 }): Promise<{ error?: string }> {
   if (!input.nombre || !input.email) return { error: "Nombre y email son obligatorios." };
-  if (!input.password || input.password.length < 8) return { error: "La contraseña debe tener mínimo 8 caracteres." };
-  if (!input.codigo) return { error: "El código de usuario es obligatorio." };
+  if (!input.password) return { error: "La contraseña es obligatoria." };
 
   const supabase = await createClient();
   const { data: sessionData } = await supabase.auth.getSession();
@@ -40,9 +54,13 @@ export async function crearUsuario(input: {
       }),
     });
     const data = await res.json();
-    if (!res.ok) return { error: data.error || "Error al crear usuario." };
+    if (!res.ok) {
+      console.error("crearUsuario: la Edge Function create-user respondió con error", { status: res.status, email: input.email, data });
+      return { error: data.error || "Error al crear usuario." };
+    }
     return {};
-  } catch {
+  } catch (err) {
+    console.error("crearUsuario: fallo al invocar la Edge Function create-user", { email: input.email, err });
     return { error: "Error al crear usuario." };
   }
 }

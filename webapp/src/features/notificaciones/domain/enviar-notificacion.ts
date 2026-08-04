@@ -2,10 +2,14 @@
 // que decide destinatarios y textos por transición de estado (NOT-02 a
 // NOT-08). Aquí es una función pura — la resolución de emails reales
 // (perfiles, comercial, diseñadores) vive en la capa de aplicación, que ya
-// tiene acceso a Supabase. `enviado`/`enviado_at` no se modelan aquí: en el
-// original siempre se guardan como `false`/`null` (el flag `solo_herramienta`
-// que los activaría nunca se asigna — docs/03-modelo-datos.md § 3.4.3), así
-// que la capa de aplicación los inserta ya fijos, sin necesidad de calcularlos.
+// tiene acceso a Supabase.
+//
+// H-03/NOT-12 (corregido 2026-08-04, a petición explícita del propietario
+// del proyecto — "implementa completamente las preferencias de
+// notificación... a partir de ahora esa preferencia debe gobernar todo el
+// sistema"): `enviado`/`enviado_at` ya no se fijan siempre a `false`/`null`.
+// `resolverEntrega()` decide, según la preferencia del destinatario, si el
+// registro se crea y si cuenta como ya entregado.
 export type NotifRecipients = {
   codSap: string;
   nombreEmpresa: string | null;
@@ -110,4 +114,31 @@ export function buildMencionNotificacion(ctx: { autorNombre: string | null; codS
     asunto: `[Portadas GOR] ${ctx.autorNombre ?? ""} te ha mencionado`,
     cuerpo: `${ctx.autorNombre ?? ""} te ha mencionado en un comentario de la solicitud ${ctx.codSap}:\n\n"${ctx.texto}"`,
   };
+}
+
+export type NotifEntrega = { crear: boolean; entregada: boolean };
+
+// H-03/NOT-12: decide, para un destinatario concreto, si la notificación se
+// crea y si cuenta como ya entregada — según su `notif_preferencia`
+// (perfiles.notif_preferencia, default 'ambas' en la base de datos):
+// - 'ninguna': no se crea ningún registro — no recibe nada.
+// - 'email': el canal de email real no está implementado en esta aplicación
+//   (docs/07-propuestas-futuras.md § 4, ni en el original ni aquí) — no se
+//   crea el registro, porque "solo email" pide explícitamente NO aparecer
+//   en la herramienta, y no hay ningún otro canal que ofrecerle hoy.
+// - 'herramienta': se crea y se marca como ya entregada (nada más pendiente).
+// - 'ambas' (y cualquier valor no reconocido, igual que el default de la
+//   columna): se crea, visible en la herramienta, pero NO se marca como
+//   entregada — sigue pendiente el envío real por email, que esta
+//   aplicación no implementa todavía.
+export function resolverEntrega(preferencia: string | null | undefined): NotifEntrega {
+  switch (preferencia) {
+    case "ninguna":
+    case "email":
+      return { crear: false, entregada: false };
+    case "herramienta":
+      return { crear: true, entregada: true };
+    default:
+      return { crear: true, entregada: false };
+  }
 }

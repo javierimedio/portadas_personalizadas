@@ -3,15 +3,15 @@ import type { PerfilUsuario } from "./types";
 
 export { ROL_LABELS };
 
-// Réplica de ROL_COLORS (index.html ~2308).
+// Réplica de ROL_COLORS (index.html ~2308). H-07 (cerrado 2026-08-04): sin
+// los roles legacy genéricos `comercial`/`responsable` — no existe ningún
+// usuario real con esos roles.
 export const ROL_COLORS: Record<string, string> = {
   responsable_diseno: "var(--c-purple)",
   admin: "var(--c-amber)",
   marketing: "var(--c-blue)",
-  responsable: "#0F6E56",
   responsable_nacional: "#0F6E56",
   responsable_exportacion: "#0F6E56",
-  comercial: "var(--c-teal)",
   comercial_nacional: "var(--c-teal)",
   comercial_exportacion: "var(--c-teal)",
   disenador: "var(--c-purple)",
@@ -35,7 +35,6 @@ export function filterPerfiles(perfiles: PerfilUsuario[], filters: UsuariosFilte
 }
 
 const USER_STAT_LABELS: Record<string, string> = {
-  comercial: "Comercial",
   comercial_nacional: "Com. Nacional",
   comercial_exportacion: "Com. Export.",
   marketing: "Marketing",

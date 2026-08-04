@@ -1,5 +1,5 @@
 import type { createClient } from "@/shared/infrastructure/supabase/server-client";
-import { buildAsignacionNotificacion, buildMencionNotificacion, buildNotificaciones } from "../domain/enviar-notificacion";
+import { buildAsignacionNotificacion, buildMencionNotificacion, buildNotificaciones, resolverEntrega } from "../domain/enviar-notificacion";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -19,8 +19,9 @@ export async function enviarNotificacion(supabase: Supabase, solicitudId: string
     .maybeSingle();
   if (!sol) return;
 
-  const { data: perfilesRaw } = await supabase.from("perfiles").select("id, email, nombre, rol").eq("activo", true);
+  const { data: perfilesRaw } = await supabase.from("perfiles").select("id, email, nombre, rol, notif_preferencia").eq("activo", true);
   const perfiles = perfilesRaw ?? [];
+  const preferenciaPorEmail = new Map(perfiles.map((p) => [p.email, p.notif_preferencia]));
 
   const comercial = perfiles.find((p) => p.id === sol.comercial_id);
   const mktAdminEmails = perfiles.filter((p) => ["marketing", "admin"].includes(p.rol ?? "")).map((p) => p.email);
@@ -36,9 +37,14 @@ export async function enviarNotificacion(supabase: Supabase, solicitudId: string
   });
   if (!mensajes.length) return;
 
-  await supabase.from("notificaciones").insert(
-    mensajes.map((m) => ({ solicitud_id: solicitudId, destinatario: m.destinatario, asunto: m.asunto, cuerpo: m.cuerpo, enviado: false, enviado_at: null }))
-  );
+  const filas = mensajes.flatMap((m) => {
+    const { crear, entregada } = resolverEntrega(preferenciaPorEmail.get(m.destinatario));
+    if (!crear) return [];
+    return [{ solicitud_id: solicitudId, destinatario: m.destinatario, asunto: m.asunto, cuerpo: m.cuerpo, enviado: entregada, enviado_at: entregada ? new Date().toISOString() : null }];
+  });
+  if (!filas.length) return;
+
+  await supabase.from("notificaciones").insert(filas);
 }
 
 // Réplica del aviso directo de confirmAsignar() (~3690-3695) — un único
@@ -47,14 +53,18 @@ export async function enviarNotificacionAsignacion(supabase: Supabase, solicitud
   const { data: sol } = await supabase.from("solicitudes").select("cod_sap, nombre_empresa").eq("id", solicitudId).maybeSingle();
   if (!sol) return;
 
+  const { data: disenadorPerfil } = await supabase.from("perfiles").select("notif_preferencia").eq("email", disenadorEmail).maybeSingle();
+  const { crear, entregada } = resolverEntrega(disenadorPerfil?.notif_preferencia);
+  if (!crear) return;
+
   const mensaje = buildAsignacionNotificacion({ codSap: sol.cod_sap, nombreEmpresa: sol.nombre_empresa, disenadorEmail });
   await supabase.from("notificaciones").insert({
     solicitud_id: solicitudId,
     destinatario: mensaje.destinatario,
     asunto: mensaje.asunto,
     cuerpo: mensaje.cuerpo,
-    enviado: false,
-    enviado_at: null,
+    enviado: entregada,
+    enviado_at: entregada ? new Date().toISOString() : null,
   });
 }
 
@@ -65,14 +75,19 @@ export async function enviarNotificacionesMencion(
   solicitudId: string,
   autorNombre: string | null,
   texto: string,
-  destinatarios: { email: string }[]
+  destinatarios: { email: string; notif_preferencia?: string | null }[]
 ): Promise<void> {
   if (!destinatarios.length) return;
   const { data: sol } = await supabase.from("solicitudes").select("cod_sap").eq("id", solicitudId).maybeSingle();
   if (!sol) return;
 
-  const mensajes = destinatarios.map((d) => buildMencionNotificacion({ autorNombre, codSap: sol.cod_sap, texto, destinatarioEmail: d.email }));
-  await supabase.from("notificaciones").insert(
-    mensajes.map((m) => ({ solicitud_id: solicitudId, destinatario: m.destinatario, asunto: m.asunto, cuerpo: m.cuerpo, enviado: false, enviado_at: null }))
-  );
+  const filas = destinatarios.flatMap((d) => {
+    const { crear, entregada } = resolverEntrega(d.notif_preferencia);
+    if (!crear) return [];
+    const m = buildMencionNotificacion({ autorNombre, codSap: sol.cod_sap, texto, destinatarioEmail: d.email });
+    return [{ solicitud_id: solicitudId, destinatario: m.destinatario, asunto: m.asunto, cuerpo: m.cuerpo, enviado: entregada, enviado_at: entregada ? new Date().toISOString() : null }];
+  });
+  if (!filas.length) return;
+
+  await supabase.from("notificaciones").insert(filas);
 }
