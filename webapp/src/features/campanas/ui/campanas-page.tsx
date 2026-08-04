@@ -2,21 +2,51 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/shared/ui/toast";
 import { CampanaModal } from "./campana-modal";
+import { eliminarCampana } from "../application/eliminar-campana.action";
+import { ACTIVE_CAMPANA_COOKIE } from "../domain/active-campana";
 import type { CampanaListItem } from "../domain/types";
 
 type ModalState = { mode: "new" } | { mode: "edit"; campana: CampanaListItem } | null;
 
-// Réplica de #page-campanas (index.html ~630-641 estilo tabla, ~4899-4931
-// renderCampanasTable()) — sin "Usar como activa" (concepto solo en
-// memoria del cliente en el original, no persiste en BD) ni "Eliminar"
-// (borrado en cascada, fuera de alcance de este bloque).
-export function CampanasPageClient({ campanas }: { campanas: CampanaListItem[] }) {
+// Réplica de #page-campanas (index.html ~630-641 estilo tabla, ~4899-5098
+// renderCampanasTable()/setActiveCampana()/eliminarCampana()): CAMP-01 a
+// CAMP-05, CAMP-12 a CAMP-14. "Usar como activa" es una selección de sesión
+// (cookie, no persiste en BD — CAMP-01/CAMP-04/CAMP-05), distinta del flag
+// `activa` de la campaña.
+export function CampanasPageClient({ campanas, activeCampanaId }: { campanas: CampanaListItem[]; activeCampanaId: string }) {
   const [modal, setModal] = useState<ModalState>(null);
+  const [busy, setBusy] = useState(false);
   const router = useRouter();
+  const { toast } = useToast();
 
   function handleSaved() {
     setModal(null);
+    router.refresh();
+  }
+
+  function usarComoActiva(c: CampanaListItem) {
+    if (!window.confirm("¿Establecer esta campaña como la activa para nuevas solicitudes?")) return;
+    document.cookie = `${ACTIVE_CAMPANA_COOKIE}=${c.id}; path=/`;
+    toast(`Campaña "${c.nombre}" establecida como activa.`);
+    router.refresh();
+  }
+
+  async function eliminar(c: CampanaListItem) {
+    const warn = c.solicitudesCount > 0 ? `\n\n⚠️ Esta campaña tiene ${c.solicitudesCount} solicitud(es) asociadas. También se eliminarán.` : "";
+    if (!window.confirm(`¿Eliminar la campaña "${c.nombre}"? Esta acción no se puede deshacer.${warn}`)) return;
+
+    setBusy(true);
+    const res = await eliminarCampana(c.id);
+    setBusy(false);
+    if (res.error) {
+      toast(res.error);
+      return;
+    }
+    // CAMP-14: si la campaña eliminada era la activa, se limpia la selección.
+    if (c.id === activeCampanaId) document.cookie = `${ACTIVE_CAMPANA_COOKIE}=; path=/; max-age=0`;
+    toast(`Campaña "${c.nombre}" eliminada.`);
     router.refresh();
   }
 
@@ -42,6 +72,7 @@ export function CampanasPageClient({ campanas }: { campanas: CampanaListItem[] }
                 <th>Nombre</th>
                 <th>Descripción</th>
                 <th>Fecha cierre</th>
+                <th style={{ textAlign: "center" }}>Solicitudes</th>
                 <th>Estado</th>
                 <th></th>
               </tr>
@@ -49,32 +80,61 @@ export function CampanasPageClient({ campanas }: { campanas: CampanaListItem[] }
             <tbody>
               {campanas.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     <div className="empty-state">
                       <p>No hay campañas creadas.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                campanas.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <strong>{c.nombre}</strong>
-                    </td>
-                    <td className="text-sm text-mid">{c.descripcion || "—"}</td>
-                    <td className="text-sm">{c.fecha_cierre ? c.fecha_cierre.slice(0, 10) : "—"}</td>
-                    <td>
-                      <span style={{ color: c.activa ? "var(--c-green)" : "var(--c-mid)" }}>
-                        {c.activa ? "● Activa" : "● Inactiva"}
-                      </span>
-                    </td>
-                    <td>
-                      <button type="button" className="btn btn-sm btn-outline" onClick={() => setModal({ mode: "edit", campana: c })}>
-                        Editar
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                campanas.map((c) => {
+                  const isActive = c.id === activeCampanaId;
+                  return (
+                    <tr key={c.id}>
+                      <td>
+                        <strong>{c.nombre}</strong>
+                        {isActive && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              background: "var(--c-green-l)",
+                              color: "var(--c-green)",
+                              padding: "1px 6px",
+                              borderRadius: 10,
+                              marginLeft: 6,
+                              fontWeight: 700,
+                            }}
+                          >
+                            ACTIVA
+                          </span>
+                        )}
+                      </td>
+                      <td className="text-sm text-mid">{c.descripcion || "—"}</td>
+                      <td className="text-sm">{c.fecha_cierre ? c.fecha_cierre.slice(0, 10) : "—"}</td>
+                      <td className="text-sm" style={{ textAlign: "center" }}>
+                        {c.solicitudesCount}
+                      </td>
+                      <td>
+                        <span style={{ color: c.activa ? "var(--c-green)" : "var(--c-mid)" }}>{c.activa ? "● Activa" : "● Inactiva"}</span>
+                      </td>
+                      <td>
+                        <div className="gap-8">
+                          <button type="button" className="btn btn-sm btn-outline" onClick={() => setModal({ mode: "edit", campana: c })}>
+                            Editar
+                          </button>
+                          {!isActive && c.activa && (
+                            <button type="button" className="btn btn-sm btn-green" disabled={busy} onClick={() => usarComoActiva(c)}>
+                              Usar como activa
+                            </button>
+                          )}
+                          <button type="button" className="btn btn-sm btn-danger" disabled={busy} title="Eliminar campaña" onClick={() => eliminar(c)}>
+                            🗑 Eliminar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

@@ -222,6 +222,16 @@ body {
 .btn-outline:hover {
   background: var(--c-light);
 }
+.btn-danger {
+  background: var(--c-red-l);
+  color: var(--c-red);
+  border-color: var(--c-red);
+}
+.btn-green {
+  background: var(--c-green-l);
+  color: var(--c-green);
+  border-color: var(--c-green);
+}
 .btn-sm {
   padding: 0.3rem 0.7rem;
   font-size: 12px;

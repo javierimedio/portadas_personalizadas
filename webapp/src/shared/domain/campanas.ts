@@ -28,3 +28,40 @@ export function campanaCerrada(fechaCierre: string | null): boolean {
   cierre.setHours(23, 59, 59);
   return new Date() > cierre;
 }
+
+// Réplica de `activeCampana` (index.html ~1610, ~5067-5074, CAMP-01/CAMP-05):
+// concepto DISTINTO del flag `activa` de la campaña (CAMP-04) — es una
+// selección de sesión, no persistida en BD, que "Usar como activa" puede
+// fijar explícitamente a cualquier campaña activa. Aquí se replica con una
+// cookie (mismo patrón que la impersonación de rol), así que esta función
+// solo decide: si la cookie apunta a una campaña que sigue activa, se
+// respeta; si no (nunca se fijó, o la campaña ya no es activa/se borró), se
+// recalcula el valor por defecto.
+export function activeCampanaId(campanas: CampanaLike[], overrideId: string | null | undefined): string {
+  if (overrideId && campanas.some((c) => c.id === overrideId && c.activa)) return overrideId;
+  return getDefaultCampanaId(campanas);
+}
+
+export type CampanaBanner = { variant: "cerrada" | "porcerrar"; mensaje: string };
+
+// Réplica de renderCampanaBanner() (~2366-2393, CAMP-03): rojo si la
+// campaña activa ya cerró, ámbar si cierra en 7 días o menos, nada en el
+// resto de casos.
+export function campanaBanner(campana: { nombre: string; fecha_cierre: string | null } | null | undefined): CampanaBanner | null {
+  if (!campana?.fecha_cierre) return null;
+  const cierre = new Date(campana.fecha_cierre);
+  cierre.setHours(23, 59, 59);
+  const hoy = new Date();
+
+  if (hoy > cierre) {
+    return { variant: "cerrada", mensaje: `Campaña cerrada. ${campana.nombre} cerró el ${campana.fecha_cierre.slice(0, 10)}.` };
+  }
+  const diasRestantes = Math.ceil((cierre.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+  if (diasRestantes <= 7) {
+    return {
+      variant: "porcerrar",
+      mensaje: `La campaña ${campana.nombre} cierra en ${diasRestantes} día${diasRestantes !== 1 ? "s" : ""}. Fecha de cierre: ${campana.fecha_cierre.slice(0, 10)}.`,
+    };
+  }
+  return null;
+}

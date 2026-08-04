@@ -1,6 +1,8 @@
+import { cookies } from "next/headers";
 import { requireRouteAccess } from "@/features/layout/application/require-route-access";
 import { getEffectiveRole } from "@/features/layout/application/get-effective-role";
 import { getDashboardData } from "@/features/dashboard/application/get-dashboard-data";
+import { ACTIVE_CAMPANA_COOKIE } from "@/features/campanas/domain/active-campana";
 import { CampanaSelector } from "@/features/dashboard/ui/campana-selector";
 import { KpiCards } from "@/features/dashboard/ui/kpi-cards";
 import { Progreso } from "@/features/dashboard/ui/progreso";
@@ -24,10 +26,20 @@ export default async function DashboardPage({
   const rol = await requireRouteAccess("/dashboard");
   const effectiveRol = await getEffectiveRole(rol);
   const { campana } = await searchParams;
-  const dash = await getDashboardData(effectiveRol, campana);
+  const cookieStore = await cookies();
+  const dash = await getDashboardData(effectiveRol, campana, cookieStore.get(ACTIVE_CAMPANA_COOKIE)?.value);
 
   return (
     <div>
+      {dash.campanaActivaBanner && (
+        <div
+          className={dash.campanaActivaBanner.variant === "cerrada" ? "alert alert-error" : "alert alert-info"}
+          style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: 10 }}
+        >
+          <span style={{ fontSize: 18 }}>{dash.campanaActivaBanner.variant === "cerrada" ? "🔒" : "⚠️"}</span>
+          <div>{dash.campanaActivaBanner.mensaje}</div>
+        </div>
+      )}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <div>
           <div className="section-title">Dashboard</div>

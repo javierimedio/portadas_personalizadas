@@ -1,11 +1,11 @@
 import { createClient } from "@/shared/infrastructure/supabase/server-client";
+import { activeCampanaId, campanaBanner, type CampanaBanner } from "@/shared/domain/campanas";
 import {
   catsForDashboard,
   comercialesChartData,
   computeKpis,
   estadoChartData,
   filterByResponsableCanal,
-  getDefaultCampanaId,
   idiomasChartData,
   portadasChartData,
   progresoData,
@@ -20,6 +20,7 @@ import {
 export type DashboardData = {
   campanas: { id: string; nombre: string; esDefault: boolean }[];
   campanaSeleccionada: string; // "" = todas las campañas
+  campanaActivaBanner: CampanaBanner | null;
   kpis: ReturnType<typeof computeKpis>;
   estadoChart: ReturnType<typeof estadoChartData>;
   comercialesChart: ReturnType<typeof comercialesChartData>;
@@ -37,7 +38,8 @@ export type DashboardData = {
 // Server Component en vez de al cliente.
 export async function getDashboardData(
   rol: string | null | undefined,
-  campanaParam: string | undefined
+  campanaParam: string | undefined,
+  activeOverrideId?: string | null
 ): Promise<DashboardData> {
   const supabase = await createClient();
 
@@ -53,12 +55,21 @@ export async function getDashboardData(
 
   const campanas: Campana[] = campanasRaw ?? [];
   const perfiles: Perfil[] = perfilesRaw ?? [];
-  const defaultId = getDefaultCampanaId(campanas);
+  // activeCampanaId() usa por debajo el mismo algoritmo puro
+  // (getDefaultCampanaId) que este módulo ya tenía, añadiendo por encima la
+  // "campaña activa" de sesión (CAMP-01/CAMP-05/CAMP-15) — el original tiene
+  // aquí un bug real: setActiveCampana() asigna `activeCampana = c` y en la
+  // siguiente línea llama a loadAndRenderCampanas(), que internamente
+  // recalcula y sobreescribe esa misma variable con el default algorítmico
+  // — la elección del usuario nunca sobrevive más allá de esa asignación
+  // síncrona. Se corrige aquí con una selección de sesión que sí persiste
+  // (cookie, igual que en Campañas/Solicitudes/Diseño).
+  const resolvedDefaultId = activeCampanaId(campanas, activeOverrideId);
 
   // Réplica de dashSel (~4192-4194): sin parámetro en la URL se usa la
   // campaña por defecto; con el parámetro presente (incluido vacío, "Todas
   // las campañas"), se respeta tal cual.
-  const campanaId = campanaParam !== undefined ? campanaParam : defaultId;
+  const campanaId = campanaParam !== undefined ? campanaParam : resolvedDefaultId;
 
   // Sin tipos generados de Supabase todavía (docs/06-roadmap.md — Fase 0),
   // el embed de perfiles se infiere como array aunque en tiempo de
@@ -92,8 +103,11 @@ export async function getDashboardData(
   return {
     campanas: campanas
       .filter((c) => c.activa)
-      .map((c) => ({ id: c.id, nombre: c.nombre, esDefault: c.id === defaultId })),
+      .map((c) => ({ id: c.id, nombre: c.nombre, esDefault: c.id === resolvedDefaultId })),
     campanaSeleccionada: campanaId,
+    // Réplica de renderCampanaBanner() (~2366-2393, CAMP-03): sobre la
+    // campaña activa de sesión, no sobre la seleccionada en el filtro.
+    campanaActivaBanner: campanaBanner(campanas.find((c) => c.id === resolvedDefaultId) ?? null),
     kpis,
     estadoChart: estadoChartData(sols),
     comercialesChart: comercialesChartData(sols),

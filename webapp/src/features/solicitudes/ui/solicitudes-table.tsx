@@ -62,6 +62,7 @@ export function SolicitudesTable({
             .map((c) => (
               <option key={c.id} value={c.id}>
                 {c.nombre}
+                {c.id === defaultCampanaId ? " ★" : ""}
               </option>
             ))}
         </select>

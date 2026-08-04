@@ -10,4 +10,5 @@ export type CampanaListItem = {
   // catálogo Y por idioma (cambio funcional solicitado explícitamente, no
   // existe en index.html, que solo tenía un único PDF por catálogo).
   covers_instrucciones: Record<string, Record<string, string>> | null;
+  solicitudesCount: number;
 };

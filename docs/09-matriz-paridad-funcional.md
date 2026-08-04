@@ -238,21 +238,21 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 
 | ID | Funcionalidad | Estado | Fase | Observaciones |
 |---|---|---|---|---|
-| CAMP-01 | Cálculo de campaña activa por defecto | Pendiente | 3 | Entre las activas, la de `fecha_cierre` más reciente; si no hay ninguna activa, la primera de la lista general |
-| CAMP-02 | Marcador "★" en el selector junto a la campaña por defecto | Pendiente | 3 | — |
-| CAMP-03 | Banner de aviso de cierre de campaña (rojo si ya cerró, ámbar si ≤7 días) | Pendiente | 3 | Singular/plural correcto en "1 día" vs "N días" |
-| CAMP-04 | Tabla de campañas con badge "ACTIVA" (seleccionada) distinto del flag `activa` (booleano) | Pendiente | 3 | Son dos conceptos distintos — preservar la distinción, no fusionarlos |
-| CAMP-05 | Botón "Usar como activa" solo si `activa=true` y no es ya la seleccionada | Pendiente | 3 | — |
+| CAMP-01 | Cálculo de campaña activa por defecto | Implementada | 3 | `activeCampanaId()`/`getDefaultCampanaId()` en `shared/domain/campanas.ts` |
+| CAMP-02 | Marcador "★" en el selector junto a la campaña por defecto | Implementada | 3 | Selectores de Solicitudes, Diseño y Dashboard |
+| CAMP-03 | Banner de aviso de cierre de campaña (rojo si ya cerró, ámbar si ≤7 días) | Implementada | 3 | `campanaBanner()`, mostrado en el Dashboard (único sitio donde el original lo pinta) |
+| CAMP-04 | Tabla de campañas con badge "ACTIVA" (seleccionada) distinto del flag `activa` (booleano) | Implementada | 3 | Son dos conceptos distintos, preservados sin fusionar — la tabla muestra ambos |
+| CAMP-05 | Botón "Usar como activa" solo si `activa=true` y no es ya la seleccionada | Implementada (corregido, ver H-12) | 3 | En el original nunca sobrevivía a la recarga que la propia función disparaba — aquí sí persiste, vía cookie de sesión |
 | CAMP-06 | Selector de catálogos por checkbox sincroniza filas de subida de PDFs | Implementada | 3 | Adelanto acotado — ver nota de sección |
 | CAMP-07 | Validación obligatoria de PDFs por catálogo seleccionado | Implementada | 3 | Adaptada al cambio funcional: portadas sigue exigiendo 1 PDF; instrucciones ahora exige al menos 1 idioma con PDF (no los 24) |
 | CAMP-08 | Zonas de subida por catálogo, solo aceptan `.pdf` | Implementada | 3 | Ya no son 8 fijas: portadas (1 por catálogo) + instrucciones (una por idioma, cantidad abierta — se puede añadir cualquier idioma por nombre libre, sin lista cerrada en código) — cambio funcional solicitado |
 | CAMP-09 | Reutilización de archivos existentes al editar (enlace "Ver" + "sube otro para reemplazar") | Implementada | 3 | Adelanto acotado |
 | CAMP-10 | Nombre de archivo determinista al subir PDFs | Implementada | 3 | `covers/{campanaId}/{key}_{timestamp}.pdf`, `instrucciones/{campanaId}/{key}_{idioma}_{timestamp}.pdf`. Sin el ID temporal del original (`new_{timestamp}`) — aquí la campaña se crea primero y se sube después con su ID real, evitando esa carpeta huérfana |
 | CAMP-11 | Selector radio custom Activa/Inactiva (flag `activa`) | Implementada | 3 | Migrado a `<input type=radio>` real, mismo criterio que CAT-09 |
-| CAMP-12 | Confirmación nativa antes de fijar una campaña como seleccionada | Pendiente | 3 | — |
-| CAMP-13 | Eliminación de campaña en cascada con aviso del nº exacto de solicitudes afectadas | Pendiente | 3 | Borra manualmente catálogos, adjuntos, logs, notificaciones y solicitudes de cada una |
-| CAMP-14 | `activeCampana` se limpia a `null` si se elimina la campaña activa | Pendiente | 3 | — |
-| CAMP-15 | 4 selectores de campaña sincronizados en toda la app | Pendiente | 3 | Panel global, dashboard, diseño, comercial — un único punto de repoblación |
+| CAMP-12 | Confirmación nativa antes de fijar una campaña como seleccionada | Implementada | 3 | `window.confirm()` en `usarComoActiva()` |
+| CAMP-13 | Eliminación de campaña en cascada con aviso del nº exacto de solicitudes afectadas | Implementada | 3 | `eliminarCampana()` — borra manualmente catálogos, adjuntos, logs, notificaciones y solicitudes de cada una |
+| CAMP-14 | `activeCampana` se limpia a `null` si se elimina la campaña activa | Implementada | 3 | Se borra la cookie de sesión si la campaña eliminada era la activa — cae de nuevo al default algorítmico |
+| CAMP-15 | 4 selectores de campaña sincronizados en toda la app | Implementada | 3 | Panel global queda pendiente de su propio bloque (todavía no existe la página); Dashboard, Diseño y Solicitudes ya comparten la misma cookie de sesión como fuente única |
 | CAMP-16 | **[Cambio funcional solicitado, no existe en `index.html`]** PDF de instrucciones por catálogo y por idioma, sin lista de idiomas fija en código | Implementada | 3 | `campanas.covers_instrucciones` pasa de `{ [catalogo]: url }` a `{ [catalogo]: { [idioma]: url } }`. El conjunto de idiomas se descubre en tiempo de ejecución a partir de lo que Marketing escriba/suba — añadir un idioma nuevo no requiere ningún cambio de código. En Solicitudes, "Ver instrucciones" solo se muestra si existe PDF para el idioma elegido (se oculta si no, nunca muestra uno incorrecto) |
 
 ## Usuarios — Fase 4
@@ -409,4 +409,10 @@ Registro vivo de comportamientos de `index.html` que parecen incorrectos, incomp
 - **Por qué se sospecha bug**: no hay ninguna razón funcional para que estos enlaces dependan de una campaña distinta a la que se está rellenando; parece un descuido al no propagar la campaña seleccionada del formulario a esta sección.
 - **Decisión**: Corregido (2026-08-03) — los enlaces usan ahora la campaña realmente seleccionada en el formulario (`selectedCampana`), no la activa por defecto.
 
-Ninguna fase que module estas funcionalidades (Fase 4 para H-01/H-06, Fase 5 para H-02, Fase 2 para H-03, Fase 1 para H-04/H-05/H-07) cierra su checklist mientras su hallazgo correspondiente siga con Decisión "Pendiente". H-08 a H-11 ya están corregidos y no bloquean ninguna fase.
+### H-12 (CAMP-05) — "Usar como activa" nunca sobrevive a la recarga que la propia función dispara
+
+- **Comportamiento actual**: `setActiveCampana(id)` (~5067-5074) asigna `activeCampana = c` y en la línea siguiente hace `await loadAndRenderCampanas()`. Esa función llama internamente a `populateCampanaFilter()` (~2155-2191), que resetea `_defaultCampanaId` y termina con `activeCampana = defCamp` usando el resultado de `getDefaultCampanaId()` — el algoritmo puro (campaña activa con `fecha_cierre` más lejana), no la elegida por el usuario. El toast final ("Campaña X establecida como activa.") siempre se muestra, pero la asignación que lo precedía ya ha sido sobrescrita: la elección del usuario no sobrevive ni un ciclo de renderizado salvo que coincida por casualidad con el default algorítmico (y si coincidiera, el botón ni se habría mostrado, porque solo aparece para campañas activas que no son ya la seleccionada).
+- **Por qué se sospecha bug**: no es una interpretación, es mecánico — la propia función deshace en su segunda línea lo que hizo en la primera, sin ninguna condición que lo evite. No hay ninguna razón funcional para ofrecer un botón "Usar como activa" que nunca tiene efecto observable más allá del toast.
+- **Decisión**: Corregido (2026-08-04) — la selección de campaña activa se guarda en una cookie de sesión (mismo patrón que la impersonación de rol) que sí persiste entre recargas, y la usan por igual los 4 selectores de la app (CAMP-15): Campañas, Solicitudes, Diseño y Dashboard.
+
+Ninguna fase que module estas funcionalidades (Fase 4 para H-01/H-06, Fase 5 para H-02, Fase 2 para H-03, Fase 1 para H-04/H-05/H-07) cierra su checklist mientras su hallazgo correspondiente siga con Decisión "Pendiente". H-08 a H-12 ya están corregidos y no bloquean ninguna fase.
