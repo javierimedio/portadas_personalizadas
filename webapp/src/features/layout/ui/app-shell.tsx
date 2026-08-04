@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { logout } from "@/features/auth/application/logout.action";
 import { NotifBell } from "@/features/notificaciones/ui/notif-bell";
+import { RealtimeSync } from "@/shared/ui/realtime-sync";
 import { IMPERSONATION_COOKIE } from "../domain/impersonation";
 import { getNavItemsForRole, IMPERSONATABLE_ROLES } from "../domain/nav-items";
 
@@ -71,6 +72,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen flex-col">
+      <RealtimeSync />
       <header className="topbar">
         <div className="topbar-brand">
           {/* eslint-disable-next-line @next/next/no-img-element */}

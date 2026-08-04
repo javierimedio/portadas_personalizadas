@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fmtDate } from "@/shared/domain/format";
+import { createClient } from "@/shared/infrastructure/supabase/browser-client";
 import { getNotificaciones } from "../application/get-notificaciones";
 import { badgeTexto, contarNoLeidas, truncarCuerpo, type NotificacionItem } from "../domain/panel";
 import { getReadIds, markAllRead } from "../infrastructure/read-state";
@@ -23,6 +24,25 @@ export function NotifBell({ verSolicitudHref }: { verSolicitudHref: (solicitudId
     getNotificaciones()
       .then(setNotifs)
       .catch(() => {});
+  }, []);
+
+  // Réplica de la suscripción separada a `notificaciones` (~4642-4645,
+  // UI-18): más ligera que la de `solicitudes` — solo recarga la lista de
+  // notificaciones, sin refrescar la página ni mostrar el aviso "↻ Datos
+  // actualizados".
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("portadas-notificaciones")
+      .on("postgres_changes", { event: "*", schema: "public", table: "notificaciones" }, () => {
+        getNotificaciones()
+          .then(setNotifs)
+          .catch(() => {});
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Réplica de "marcar visibles como leídas a los 2s de abrir" (~5423-5427).

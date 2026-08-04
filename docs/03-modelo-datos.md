@@ -216,6 +216,10 @@ Mismo método (lectura de `index.html`, no de datos) para las columnas que la ba
 
 Ninguna de estas columnas se toca en la migración (se conservan, con su comportamiento inerte replicado tal cual) — cambiarlas sería una mejora funcional fuera de alcance, ver `07-propuestas-futuras.md`.
 
+### 3.4.4 Requisito de infraestructura añadido al implementar el sincronismo en tiempo real (UI-12 a UI-18)
+
+El original mantiene un WebSocket propio contra el protocolo Phoenix de Supabase Realtime (`subscribeToTable()`, index.html ~4660-4721). La migración sustituye eso por el canal Realtime de `supabase-js` (mismo resultado observable, decisión ya recogida en la fila UI-12 de `09-matriz-paridad-funcional.md`), pero **Realtime no funciona por el simple hecho de tener RLS activada**: cada tabla que se quiera escuchar (`solicitudes`, `notificaciones`) necesita además estar añadida a la publicación `supabase_realtime` — en el Dashboard, Database → Replication → activar el toggle de esas dos tablas. Sin este paso el canal nunca pasa de `CHANNEL_ERROR`/`TIMED_OUT`; el sistema sigue funcionando porque cae automáticamente al sondeo cada 30s (UI-14/UI-15), pero sin la actualización instantánea. Pendiente de aplicar en el proyecto de desarrollo igual que las políticas RLS (`06-roadmap.md`, Fase 0).
+
 ## 3.5 RLS objetivo — versión definitiva, reconciliada contra producción
 
 RLS ya está habilitada en las 7 tablas (§ 3.4.1) — no hace falta `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, aunque se deja en el script por ser idempotente y no depender de ese hecho. El paso que sí es obligatorio y nuevo respecto a la versión anterior de esta sección es el `DROP POLICY allow_all` en cada tabla, **antes** de crear las políticas reales — si no, siguen sin tener ningún efecto (§ 3.4.1).

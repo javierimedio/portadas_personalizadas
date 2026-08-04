@@ -329,13 +329,13 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | UI-09 | Previsualización de múltiples archivos con chip y eliminación individual | Implementada | 2 | `FileDropZone` (chips + ✕ por archivo) y `CargaMasivaModal` (lista con ✕ por archivo). La zona de "Subir diseño" del detalle muestra lista de archivos pero **sin** eliminación individual — fiel al original, que tampoco la tiene ahí (`updateDisenoZone()`) |
 | UI-10 | Selector de impersonación de rol (solo admin) | Validada | 1 | Estado de cliente en `AppShell` (`useState`) para el nav, igual que el original; además escribe una cookie (`impersonated_rol`) + `router.refresh()` para que el Dashboard (bloque siguiente, ya construido) recalcule sus datos con el rol impersonado — sin esto, impersonar habría cambiado el nav sin cambiar ningún dato. La sesión real y sus permisos de RLS no cambian en ningún caso, igual que en el original |
 | UI-11 | Restauración forzada del rol real al cerrar sesión durante impersonación | Validada | 1 | Al ser estado de React (no persistido), cerrar sesión / recargar la página lo descarta automáticamente — no puede quedar "atascado" entre sesiones |
-| UI-12 | Sincronización en tiempo real vía WebSocket manual (protocolo Phoenix) | Pendiente | 2 | Suscrito a `solicitudes` y `notificaciones`; en Next.js se sustituye por `supabase-js` Realtime manteniendo el mismo resultado observable |
-| UI-13 | Reconexión automática tras cierre del WebSocket (espera 5s) | Pendiente | 2 | — |
-| UI-14 | Fallback automático a polling si falla el WebSocket | Pendiente | 2 | — |
-| UI-15 | Polling de respaldo cada 30s con debounce de 2s contra actualizaciones realtime recientes | Pendiente | 2 | — |
-| UI-16 | Debounce global de 2s entre recargas de datos | Pendiente | 2 | Evita tormentas de refresco con varios eventos realtime juntos |
-| UI-17 | Toast sutil "↻ Datos actualizados" tras recarga disparada por evento realtime (no tras polling) | Pendiente | 2 | — |
-| UI-18 | Dos canales de suscripción realtime independientes (solicitudes vs notificaciones) | Pendiente | 2 | El de notificaciones es más ligero (solo recarga notificaciones) |
+| UI-12 | Sincronización en tiempo real vía WebSocket manual (protocolo Phoenix) | Implementada | 2 | Suscrito a `solicitudes` y `notificaciones`; sustituido por el canal Realtime de `supabase-js` (`RealtimeSync`, `NotifBell`) manteniendo el mismo resultado observable — requiere Realtime habilitado en ambas tablas, ver `03-modelo-datos.md` § 3.4.4 |
+| UI-13 | Reconexión automática tras cierre del WebSocket (espera 5s) | Implementada (delegada a la librería) | 2 | La reconexión la gestiona `supabase-js` internamente, no un `setTimeout` propio — mismo resultado observable |
+| UI-14 | Fallback automático a polling si falla el WebSocket | Implementada | 2 | `RealtimeSync` cae a sondeo si el canal termina en `CHANNEL_ERROR`/`TIMED_OUT`/`CLOSED` |
+| UI-15 | Polling de respaldo cada 30s con debounce de 2s contra actualizaciones realtime recientes | Implementada | 2 | `debeActualizar()`, compartido entre la vía realtime y la de sondeo |
+| UI-16 | Debounce global de 2s entre recargas de datos | Implementada | 2 | Mismo `lastUpdateRef` para ambas vías dentro de `RealtimeSync` |
+| UI-17 | Toast sutil "↻ Datos actualizados" tras recarga disparada por evento realtime (no tras polling) | Implementada | 2 | Indicador propio (no el sistema de toasts general), igual que `showRealtimeToast()` — solo se muestra en la vía realtime, nunca en sondeo |
+| UI-18 | Dos canales de suscripción realtime independientes (solicitudes vs notificaciones) | Implementada | 2 | `RealtimeSync` (`solicitudes`, refresca la página + aviso) y `NotifBell` (`notificaciones`, solo recarga la lista) |
 
 ---
 
