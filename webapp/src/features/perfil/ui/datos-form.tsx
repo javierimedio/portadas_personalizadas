@@ -30,7 +30,7 @@ export function DatosForm({ nombre, email }: { nombre: string; email: string }) 
         </div>
       )}
       {state?.success && (
-        <div className="alert alert-info" style={{ marginBottom: ".75rem" }}>
+        <div className={`alert alert-${state.successKind === "info" ? "info" : "success"}`} style={{ marginBottom: ".75rem" }}>
           {state.success}
         </div>
       )}

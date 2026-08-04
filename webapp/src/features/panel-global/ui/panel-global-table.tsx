@@ -7,7 +7,7 @@ import { catSummary } from "@/features/solicitudes/domain/cat-summary";
 import { fmtDate } from "@/shared/domain/format";
 import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 import type { FormCampana, FormPerfil } from "@/features/solicitudes/domain/types";
-import { comercialesFiltro, filterPanelRows, sortPanelRows, type PanelSort } from "../domain/table";
+import { comercialesFiltro, filterPanelRows, panelStats, sortPanelRows, type PanelSort } from "../domain/table";
 import { missingFields } from "../domain/missing-fields";
 import { buildExportRows, buildResumenRows, exportCatalogos, exportFilename, type CampanaCatalogosPorId } from "../domain/export-excel";
 import { buildWorkbook } from "../infrastructure/excel-workbook";
@@ -58,6 +58,7 @@ export function PanelGlobalTable({
   const comerciales = useMemo(() => comercialesFiltro(perfiles), [perfiles]);
   const campanaSeleccionada = campanas.find((c) => c.id === campanaId) ?? null;
   const banner = campanaBanner(campanaSeleccionada);
+  const stats = useMemo(() => panelStats(rows, campanaId, campanaCatalogosPorId), [rows, campanaId, campanaCatalogosPorId]);
 
   function toggleSort(col: string) {
     setSort((prev) => (prev.col === col ? { col, dir: prev.dir === "asc" ? "desc" : "asc" } : { col, dir: "asc" }));
@@ -123,6 +124,17 @@ export function PanelGlobalTable({
           {banner.mensaje}
         </div>
       )}
+
+      <div className="stats-row">
+        {stats.map((s) => (
+          <div key={s.label} className={`stat-card ${s.className ?? ""}`}>
+            <div className="stat-num" style={s.color ? { color: s.color } : undefined}>
+              {s.value}
+            </div>
+            <div className="stat-lbl">{s.label}</div>
+          </div>
+        ))}
+      </div>
 
       <div className="filter-bar">
         <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar SAP, empresa..." style={{ flex: 1, minWidth: 160 }} />

@@ -1,5 +1,6 @@
 import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 import type { FormPerfil } from "@/features/solicitudes/domain/types";
+import { missingFields } from "./missing-fields";
 
 export type PanelFilters = { q: string; estado: string; comercialId: string; provincia: string; campanaId: string };
 export type PanelSort = { col: string; dir: "asc" | "desc" };
@@ -68,6 +69,45 @@ export function sortPanelRows(rows: SolicitudListItem[], sort: PanelSort, perfil
     if (va > vb) return sort.dir === "asc" ? 1 : -1;
     return 0;
   });
+}
+
+export type PanelStat = { label: string; value: number; className?: "amber" | "blue" | "green" | "red"; color?: string };
+
+// Réplica de renderStats() (~2395-2414): mini-stats del Panel Global,
+// filtradas SOLO por la campaña seleccionada (independientes del resto de
+// filtros de la tabla — búsqueda/estado/comercial/provincia — igual que el
+// original, que las calcula sobre `allSolicitudes`, no sobre las filas ya
+// filtradas por `renderMktTable()`). "Incompletas" usa `missingFields()`
+// con los catálogos de la campaña de CADA solicitud.
+export function panelStats(
+  rows: SolicitudListItem[],
+  campanaId: string,
+  campanaCatalogosPorId: Map<string, string[] | null>
+): PanelStat[] {
+  const statSols = campanaId ? rows.filter((s) => s.campana_id === campanaId) : rows;
+  const activas = statSols.filter((s) => s.estado !== "archivada");
+  const total = activas.length;
+  const porEstado = (e: string) => activas.filter((s) => s.estado === e).length;
+  const completas = activas.filter(
+    (s) =>
+      missingFields({
+        provincia: s.provincia,
+        idioma: s.idioma,
+        campana_catalogos: s.campana_id ? campanaCatalogosPorId.get(s.campana_id) ?? null : null,
+        solicitud_catalogos: s.solicitud_catalogos,
+      }).length === 0
+  ).length;
+
+  return [
+    { label: "Total", value: total },
+    { label: "Borrador", value: porEstado("borrador") },
+    { label: "Enviadas", value: porEstado("enviada"), className: "amber" },
+    { label: "En revisión de Marketing", value: porEstado("en_revision_marketing"), className: "blue" },
+    { label: "En diseño", value: porEstado("en_diseno") + porEstado("modificar_diseno"), color: "var(--c-purple)" },
+    { label: "En revisión del cliente", value: porEstado("diseno_en_revision_comercial"), color: "var(--c-amber)" },
+    { label: "Confirmadas", value: porEstado("confirmada"), className: "green" },
+    { label: "Incompletas", value: total - completas, className: "red" },
+  ];
 }
 
 // Réplica de populateComercialFilter() (~2139-2153): comerciales y

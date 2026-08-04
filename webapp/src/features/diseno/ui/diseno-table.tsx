@@ -59,6 +59,42 @@ export function DisenoTable({
 
   return (
     <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: 8 }}>
+        <div>
+          <div className="section-title">Diseño</div>
+          <div className="section-sub">Solicitudes en proceso de diseño.</div>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <button type="button" onClick={exportarCsv} className="btn btn-sm" style={{ background: "var(--c-blue)", color: "white", border: "none" }}>
+            ⬇ Exportar CSV
+          </button>
+          <button type="button" onClick={onCargaMasiva} className="btn btn-sm" style={{ background: "var(--c-amber)", color: "white", border: "none" }}>
+            📦 Carga masiva
+          </button>
+          {mostrarFiltroDisenador && (
+            <select value={disenadorId} onChange={(e) => setDisenadorId(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>
+              <option value="">Todos los diseñadores</option>
+              {disenadores.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.nombre}
+                </option>
+              ))}
+            </select>
+          )}
+          <select value={campanaId} onChange={(e) => setCampanaId(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>
+            <option value="">Todas las campañas</option>
+            {campanas
+              .filter((c) => c.activa)
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
+                  {c.id === defaultCampanaId ? " ★" : ""}
+                </option>
+              ))}
+          </select>
+        </div>
+      </div>
+
       {stats.length > 0 && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: "1rem" }}>
           {stats.map((s) => (
@@ -80,36 +116,6 @@ export function DisenoTable({
           ))}
         </div>
       )}
-
-      <div className="filter-bar">
-        <button type="button" onClick={exportarCsv} className="btn btn-sm" style={{ background: "var(--c-blue)", color: "white", border: "none" }}>
-          ⬇ Exportar CSV
-        </button>
-        <button type="button" onClick={onCargaMasiva} className="btn btn-sm" style={{ background: "var(--c-amber)", color: "white", border: "none" }}>
-          📦 Carga masiva
-        </button>
-        {mostrarFiltroDisenador && (
-          <select value={disenadorId} onChange={(e) => setDisenadorId(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>
-            <option value="">Todos los diseñadores</option>
-            {disenadores.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.nombre}
-              </option>
-            ))}
-          </select>
-        )}
-        <select value={campanaId} onChange={(e) => setCampanaId(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>
-          <option value="">Todas las campañas</option>
-          {campanas
-            .filter((c) => c.activa)
-            .map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre}
-                {c.id === defaultCampanaId ? " ★" : ""}
-              </option>
-            ))}
-        </select>
-      </div>
 
       <div className="card" style={{ padding: 0 }}>
         <div className="tbl-wrap">

@@ -66,6 +66,18 @@ body {
   color: var(--c-mid);
   font-weight: 400;
 }
+/* Réplica del hover de #user-name (index.html ~565): .12 -> .22 de opacidad de fondo */
+.topbar-account-btn:hover {
+  background: rgba(255, 255, 255, 0.22) !important;
+}
+/* Réplica del hover del botón "Cerrar sesión" (index.html ~571): .1 -> .2 */
+.topbar-logout-btn:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+/* Réplica del hover de cada fila del panel de notificaciones (index.html ~5455) */
+.notif-item:hover {
+  background: var(--c-light) !important;
+}
 .nav {
   background: var(--c-white);
   border-bottom: 1px solid var(--c-line);
@@ -112,6 +124,12 @@ body {
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--c-line);
+}
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 .stat-card {
   background: var(--c-white);

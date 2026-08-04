@@ -58,11 +58,7 @@ export function CargaMasivaModal({ rows, onClose, onProcessed }: { rows: Solicit
         res.errors ? ` ⚠️ ${res.errors} con errores.` : ""
       } Solicitudes enviadas a revisión cliente.`
     );
-    // DIAGNÓSTICO TEMPORAL — investigación del 400 de Storage en carga
-    // masiva: muestra el motivo real de cada fallo en consola del
-    // navegador, además del log de servidor. Quitar en cuanto se confirme
-    // la causa exacta.
-    if (res.detalles?.length) console.error("CARGA MASIVA — detalles de errores", res.detalles);
+    if (res.detalles?.length) console.warn("Carga masiva — filas con error", res.detalles);
     onProcessed();
   }
 

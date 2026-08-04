@@ -7,6 +7,12 @@ import { IDIOMAS } from "@/shared/domain/idiomas";
 import { saveCampana, type SaveCampanaState } from "../application/save-campana.action";
 import type { CampanaListItem } from "../domain/types";
 
+// Réplica de #modal-campana (index.html ~1299-1394): a diferencia del resto
+// de la app (que usa las etiquetas en mayúsculas de ALL_CATALOGOS), este
+// modal en concreto escribe los nombres de catálogo literalmente en
+// mayúscula/minúscula normal ("Roly", "Roly WRK", "Stamina", "XMAS").
+const CAT_LABEL_MODAL: Record<string, string> = { roly: "Roly", roly_wrk: "Roly WRK", stamina: "Stamina", xmas: "XMAS" };
+
 // Réplica funcional de #modal-campana (index.html ~1274-1423), con el
 // cambio funcional solicitado: el PDF de "Instrucciones" pasa de ser uno
 // por catálogo a uno por catálogo Y por idioma. La lista de idiomas con
@@ -101,12 +107,12 @@ export function CampanaForm({
                 checked={catalogosSelected.includes(cat.key)}
                 onChange={() => toggleCatalogo(cat.key)}
               />
-              {cat.label}
+              {CAT_LABEL_MODAL[cat.key] ?? cat.label}
             </label>
           ))}
         </div>
       </div>
-      <div className="form-group" style={{ marginTop: ".75rem" }}>
+      <div className="form-group">
         <label>Estado</label>
         <div className="radio-group" style={{ marginTop: 6 }}>
           <label>
@@ -136,7 +142,7 @@ export function CampanaForm({
         return (
           <div className={`cat-section cat-${cat.key}`} key={cat.key} style={{ marginBottom: "1rem" }}>
             <div className="cat-header">
-              <h3>{cat.label}</h3>
+              <h3>{CAT_LABEL_MODAL[cat.key] ?? cat.label}</h3>
             </div>
             <div className="cat-body">
               <div className="form-group" style={{ marginBottom: ".75rem" }}>
@@ -144,11 +150,11 @@ export function CampanaForm({
                 <input type="file" name={`cover_${cat.key}`} accept=".pdf" />
                 {existingCover && (
                   <div style={{ fontSize: 11, marginTop: 4 }}>
-                    ✅ PDF cargado ·{" "}
+                    ✅ PDF cargado{" "}
                     <a href={existingCover} target="_blank" rel="noreferrer" style={{ color: "var(--c-blue)" }}>
                       Ver
                     </a>{" "}
-                    · <span style={{ color: "var(--c-mid)" }}>sube otro para reemplazar</span>
+                    · <span style={{ color: "var(--c-mid)" }}>Sube otro para reemplazar</span>
                   </div>
                 )}
               </div>

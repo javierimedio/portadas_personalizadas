@@ -135,6 +135,7 @@ export function NotifBell({ verSolicitudHref }: { verSolicitudHref: (solicitudId
                   return (
                     <div
                       key={n.id}
+                      className="notif-item"
                       onClick={() => clickNotif(n)}
                       style={{
                         padding: ".875rem 1.25rem",

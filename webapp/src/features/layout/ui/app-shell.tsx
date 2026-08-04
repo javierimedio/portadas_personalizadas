@@ -100,6 +100,17 @@ export function AppShell({
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="Menú"
+            onClick={() => setDrawerOpen((v) => !v)}
+            className="flex flex-col gap-1 p-1 md:hidden"
+          >
+            <span className="h-0.5 w-5 bg-white" />
+            <span className="h-0.5 w-5 bg-white" />
+            <span className="h-0.5 w-5 bg-white" />
+          </button>
+
           {isAdmin && (
             <select
               value={impersonatedRol ?? ""}
@@ -130,6 +141,7 @@ export function AppShell({
           <Link
             href="/perfil"
             title="Mi cuenta"
+            className="topbar-account-btn"
             style={{
               background: "rgba(255,255,255,.12)",
               border: "1px solid rgba(255,255,255,.25)",
@@ -154,6 +166,7 @@ export function AppShell({
           <form action={logout}>
             <button
               type="submit"
+              className="topbar-logout-btn"
               style={{
                 padding: ".4rem .9rem",
                 borderRadius: 4,
@@ -168,17 +181,6 @@ export function AppShell({
               Cerrar sesión
             </button>
           </form>
-
-          <button
-            type="button"
-            aria-label="Menú"
-            onClick={() => setDrawerOpen((v) => !v)}
-            className="flex flex-col gap-1 p-1 md:hidden"
-          >
-            <span className="h-0.5 w-5 bg-white" />
-            <span className="h-0.5 w-5 bg-white" />
-            <span className="h-0.5 w-5 bg-white" />
-          </button>
         </div>
       </header>
 

@@ -4,7 +4,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/shared/ui/toast";
 import { catalogosDeCampana, type CatalogoDef } from "@/shared/domain/catalogos";
 import { matchOptionCaseInsensitive } from "@/shared/domain/format";
-import { IDIOMAS, POSICIONES_LOGO, PROVINCIAS, ROLES_POR_CANAL } from "../domain/constants";
+import { CAT_LOGO, IDIOMAS, POSICIONES_LOGO, PROVINCIAS, ROLES_POR_CANAL } from "../domain/constants";
 import { saveSolicitud, type SaveSolicitudState } from "../application/save-solicitud.action";
 import type { ExistingSolicitud, FormCampana, FormPerfil } from "../domain/types";
 import { FileDropZone } from "./file-drop-zone";
@@ -39,6 +39,7 @@ const BLANK_CAT: CatFieldState = {
 function tri(v: boolean | null): Tri {
   return v === true ? "si" : v === false ? "no" : "";
 }
+
 
 function buildInitialCatState(cats: CatalogoDef[], solicitud: ExistingSolicitud | null): Record<string, CatFieldState> {
   const initial: Record<string, CatFieldState> = Object.fromEntries(cats.map((c) => [c.key, { ...BLANK_CAT }]));
@@ -274,7 +275,12 @@ export function SolicitudForm({
               className="cat-header"
               onClick={() => setExpandedCats((prev) => ({ ...prev, [cat.key]: !prev[cat.key] }))}
             >
-              <h3>{cat.label}</h3>
+              {CAT_LOGO[cat.key] ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={CAT_LOGO[cat.key]} alt={cat.label} style={{ height: 20, maxWidth: 80, objectFit: "contain" }} />
+              ) : (
+                <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: ".08em", color: cat.color }}>{cat.label}</span>
+              )}
               <span className="toggle">{expanded ? "▲ Contraer" : "▼ Expandir"}</span>
             </div>
             <div className="cat-body" style={{ display: expanded ? "block" : "none" }}>
@@ -340,7 +346,7 @@ export function SolicitudForm({
                       checked={c.portadaPersonalizada === "si"}
                       onChange={() => setCatField(cat.key, "portadaPersonalizada", "si")}
                     />{" "}
-                    Sí
+                    SI
                   </label>
                   <label>
                     <input
@@ -350,7 +356,7 @@ export function SolicitudForm({
                       checked={c.portadaPersonalizada === "no"}
                       onChange={() => setCatField(cat.key, "portadaPersonalizada", "no")}
                     />{" "}
-                    No
+                    NO
                   </label>
                 </div>
               </div>
@@ -367,7 +373,7 @@ export function SolicitudForm({
                         checked={c.digital === "si"}
                         onChange={() => setCatField(cat.key, "digital", "si")}
                       />{" "}
-                      Sí
+                      SI
                     </label>
                     <label>
                       <input
@@ -377,7 +383,7 @@ export function SolicitudForm({
                         checked={c.digital === "no"}
                         onChange={() => setCatField(cat.key, "digital", "no")}
                       />{" "}
-                      No
+                      NO
                     </label>
                   </div>
                 </div>
@@ -393,7 +399,7 @@ export function SolicitudForm({
                         checked={c.impreso === "si"}
                         onChange={() => setCatField(cat.key, "impreso", "si")}
                       />{" "}
-                      Sí
+                      SI
                     </label>
                     <label>
                       <input
@@ -403,7 +409,7 @@ export function SolicitudForm({
                         checked={c.impreso === "no"}
                         onChange={() => setCatField(cat.key, "impreso", "no")}
                       />{" "}
-                      No
+                      NO
                     </label>
                   </div>
                 </div>
@@ -438,7 +444,7 @@ export function SolicitudForm({
                           checked={c.conPrecios === "si"}
                           onChange={() => setCatField(cat.key, "conPrecios", "si")}
                         />{" "}
-                        Con precios
+                        CON PRECIOS
                       </label>
                       <label>
                         <input
@@ -448,7 +454,7 @@ export function SolicitudForm({
                           checked={c.conPrecios === "no"}
                           onChange={() => setCatField(cat.key, "conPrecios", "no")}
                         />{" "}
-                        Sin precios
+                        SIN PRECIOS
                       </label>
                     </div>
                   </div>
@@ -466,7 +472,7 @@ export function SolicitudForm({
                           checked={c.disenoPropio === "si"}
                           onChange={() => setCatField(cat.key, "disenoPropio", "si")}
                         />{" "}
-                        Sí
+                        SI
                       </label>
                       <label>
                         <input
@@ -476,7 +482,7 @@ export function SolicitudForm({
                           checked={c.disenoPropio === "no"}
                           onChange={() => setCatField(cat.key, "disenoPropio", "no")}
                         />{" "}
-                        No
+                        NO
                       </label>
                     </div>
                   </div>

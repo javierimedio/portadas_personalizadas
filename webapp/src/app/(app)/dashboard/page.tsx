@@ -43,9 +43,7 @@ export default async function DashboardPage({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <div>
           <div className="section-title">Dashboard</div>
-          <div className="section-sub" style={{ marginBottom: 0 }}>
-            {dash.kpis.campanaLabel}
-          </div>
+          <div className="section-sub">{dash.kpis.campanaLabel}</div>
         </div>
         <CampanaSelector campanas={dash.campanas} selected={dash.campanaSeleccionada} />
       </div>

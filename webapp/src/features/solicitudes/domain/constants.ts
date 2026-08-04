@@ -69,3 +69,13 @@ export const ROLES_POR_CANAL: Record<"nacional" | "exportacion", string[]> = {
 
 // Réplica del <select> de posición de logo (~2524-2531).
 export const POSICIONES_LOGO = ["A", "B", "C"] as const;
+
+// Réplica de ALL_CATS (index.html ~1648-1653): las cabeceras de catálogo
+// (formulario y detalle) pintan el logo de marca cuando el catálogo tiene
+// uno (Roly/Roly WRK/Stamina) y caen a texto en mayúsculas con el color del
+// catálogo solo cuando no lo tiene (XMAS, único con `logo: ''`).
+export const CAT_LOGO: Record<string, string> = {
+  roly: "/images/logo_Roly_2025.svg",
+  roly_wrk: "/images/Logo_WRK_color.svg",
+  stamina: "/images/logo-stm-small.svg",
+};

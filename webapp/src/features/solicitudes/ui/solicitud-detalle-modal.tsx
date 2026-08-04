@@ -6,6 +6,7 @@ import { useEscapeToClose } from "@/shared/ui/use-escape-to-close";
 import { fmtDate } from "@/shared/domain/format";
 import { ESTADO_LABEL } from "@/shared/domain/estados";
 import { segmentarComentario } from "../domain/comentarios";
+import { CAT_LOGO } from "../domain/constants";
 import { accionesDetalle, puedeElegirPortadaFinal } from "../domain/estado-flujo";
 import { getSolicitudDetalle, type SolicitudDetalle } from "../application/get-solicitud-detalle";
 import {
@@ -242,8 +243,13 @@ export function SolicitudDetalleModal({
                 const mostrarSelector = c.portada_personalizada && !c.portada_diseno_propio && canElegir && opciones.length > 0;
                 return (
                   <div className={`cat-section cat-${c.catalogo}`} key={c.catalogo} style={{ marginBottom: ".75rem" }}>
-                    <div className="cat-header" style={{ cursor: "default" }}>
-                      <h3>{c.label}</h3>
+                    <div className="cat-header" style={{ cursor: "default", padding: ".6rem 1rem" }}>
+                      {CAT_LOGO[c.catalogo] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={CAT_LOGO[c.catalogo]} alt={c.label} style={{ height: 18, maxWidth: 70, objectFit: "contain" }} />
+                      ) : (
+                        <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: ".08em", color: c.color }}>{c.label}</span>
+                      )}
                       <div style={{ marginLeft: "auto", display: "flex", gap: 8, fontSize: 12, flexWrap: "wrap" }}>
                         <span>
                           Digital: <strong>{c.catalogo_digital === true ? "SI" : c.catalogo_digital === false ? "NO" : "—"}</strong>

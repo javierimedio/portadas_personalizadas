@@ -6,7 +6,10 @@ import { createClient } from "@/shared/infrastructure/supabase/server-client";
 // validaciones (PERF-05/06) y mismo comportamiento de cambio de email —
 // no se aplica al instante, requiere confirmación en el correo nuevo
 // (PERF-04, comportamiento por defecto de Supabase Auth).
-export type UpdateDatosState = { error?: string; success?: string } | null;
+// Réplica de perfilAlert(msg, 'ok'|'info', ...) (~5798-5843): "Datos
+// actualizados correctamente." usa el tipo 'ok' (verde); solo el aviso de
+// confirmación de email usa 'info' (azul) — no los dos por igual.
+export type UpdateDatosState = { error?: string; success?: string; successKind?: "ok" | "info" } | null;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -27,8 +30,8 @@ export async function updateDatos(_prev: UpdateDatosState, formData: FormData): 
   if (email !== data.user.email) {
     const { error: emailError } = await supabase.auth.updateUser({ email });
     if (emailError) return { error: `Error: ${emailError.message}` };
-    return { success: "Nombre actualizado. Revisa tu bandeja de entrada para confirmar el nuevo email." };
+    return { success: "Nombre actualizado. Revisa tu bandeja de entrada para confirmar el nuevo email.", successKind: "info" };
   }
 
-  return { success: "Datos actualizados correctamente." };
+  return { success: "Datos actualizados correctamente.", successKind: "ok" };
 }

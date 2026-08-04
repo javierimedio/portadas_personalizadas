@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { comercialesFiltro, filterPanelRows, sortPanelRows } from "@/features/panel-global/domain/table";
+import { comercialesFiltro, filterPanelRows, panelStats, sortPanelRows } from "@/features/panel-global/domain/table";
 import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 
 function sol(overrides: Partial<SolicitudListItem> = {}): SolicitudListItem {
@@ -105,5 +105,42 @@ describe("comercialesFiltro", () => {
   it("solo comerciales/responsables activos, ordenados por nombre", () => {
     const conInactivo = [...perfiles, { id: "u4", nombre: "Diego Inactivo", rol: "comercial_nacional", activo: false }];
     expect(comercialesFiltro(conInactivo).map((p) => p.nombre)).toEqual(["Ana García", "Bea López", "Carlos Resp"]);
+  });
+});
+
+describe("panelStats", () => {
+  const catalogosPorId = new Map<string, string[] | null>([["c1", ["roly"]]]);
+
+  it("cuenta por estado, filtrando solo por campaña (no por el resto de filtros de la tabla)", () => {
+    const rows = [
+      sol({ id: "a", campana_id: "c1", estado: "borrador" }),
+      sol({ id: "b", campana_id: "c1", estado: "enviada" }),
+      sol({ id: "c", campana_id: "c2", estado: "confirmada" }),
+      sol({ id: "d", campana_id: "c1", estado: "archivada" }),
+    ];
+    const stats = panelStats(rows, "c1", catalogosPorId);
+    expect(stats.map((s) => s.value)).toEqual([2, 1, 1, 0, 0, 0, 0, 0]);
+  });
+
+  it("sin campaña seleccionada, cuenta sobre todas las filas", () => {
+    const rows = [sol({ id: "a", campana_id: "c1", estado: "confirmada" }), sol({ id: "b", campana_id: "c2", estado: "confirmada" })];
+    const stats = panelStats(rows, "", catalogosPorId);
+    expect(stats.find((s) => s.label === "Confirmadas")?.value).toBe(2);
+  });
+
+  it("Incompletas cuenta las que fallan missingFields, usando los catálogos de la campaña de cada solicitud", () => {
+    const rows = [
+      sol({ id: "a", campana_id: "c1", provincia: "Madrid", estado: "confirmada" }),
+      sol({ id: "b", campana_id: "c1", provincia: null, estado: "confirmada" }),
+    ];
+    const stats = panelStats(rows, "c1", catalogosPorId);
+    expect(stats.find((s) => s.label === "Total")?.value).toBe(2);
+    expect(stats.find((s) => s.label === "Incompletas")?.value).toBe(1);
+  });
+
+  it("En diseño suma en_diseno + modificar_diseno", () => {
+    const rows = [sol({ id: "a", campana_id: "c1", estado: "en_diseno" }), sol({ id: "b", campana_id: "c1", estado: "modificar_diseno" })];
+    const stats = panelStats(rows, "c1", catalogosPorId);
+    expect(stats.find((s) => s.label === "En diseño")?.value).toBe(2);
   });
 });

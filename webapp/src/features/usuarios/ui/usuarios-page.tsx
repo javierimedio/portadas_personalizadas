@@ -55,9 +55,9 @@ export function UsuariosPageClient({ perfiles, rol }: { perfiles: PerfilUsuario[
         </div>
       </div>
 
-      <div className="stats-row" style={{ marginBottom: "1.5rem", display: "flex", gap: ".75rem", flexWrap: "wrap" }}>
+      <div className="stats-row" style={{ marginBottom: "1.5rem" }}>
         {stats.map((s) => (
-          <div key={s.rol} className="stat-card" style={{ flex: 1, minWidth: 100 }}>
+          <div key={s.rol} className="stat-card">
             <div className="stat-num" style={{ color: s.color }}>
               {s.count}
             </div>

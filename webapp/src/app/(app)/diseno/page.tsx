@@ -20,8 +20,6 @@ export default async function Diseno() {
 
   return (
     <div>
-      <div className="section-title">Diseño</div>
-      <div className="section-sub">Solicitudes en proceso de diseño.</div>
       <DisenoPage
         rows={data.rows}
         campanas={data.campanas}

@@ -40,34 +40,14 @@ export async function procesarCargaMasiva(
   let ok = 0;
   let errors = 0;
   const processedSols = new Set<string>();
-  // DIAGNÓSTICO TEMPORAL — investigación del 400 de Storage en carga
-  // masiva. Quitar en cuanto se confirme la causa exacta.
   const detalles: string[] = [];
 
   for (const { file, solId, catKey } of trabajos) {
     const path = `${solId}/diseno/${Date.now()}_${file.name}`;
     const uploadOptions = { upsert: true, contentType: file.type || undefined };
 
-    console.log("CARGA MASIVA — antes del upload", {
-      bucket: STORAGE_BUCKET,
-      path,
-      solId,
-      catKey,
-      file,
-      fileName: file?.name,
-      fileSize: file?.size,
-      fileType: file?.type,
-      isFileInstance: file instanceof File,
-      isBlobInstance: file instanceof Blob,
-      uploadOptions,
-    });
-
     try {
       const result = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, uploadOptions);
-      console.log("CARGA MASIVA — UPLOAD RESULT", result);
-      console.log("CARGA MASIVA — UPLOAD ERROR", result.error);
-      console.log("CARGA MASIVA — UPLOAD ERROR (JSON)", JSON.stringify(result.error, null, 2));
-
       if (result.error) throw result.error;
       const { data: pub } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
 

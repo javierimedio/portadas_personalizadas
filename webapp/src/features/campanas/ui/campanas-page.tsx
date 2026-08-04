@@ -52,12 +52,10 @@ export function CampanasPageClient({ campanas, activeCampanaId }: { campanas: Ca
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-        <div>
+      <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap", alignItems: "flex-start" }}>
+        <div style={{ flex: 1 }}>
           <div className="section-title">Campañas</div>
-          <div className="section-sub" style={{ marginBottom: 0 }}>
-            Gestiona las campañas y sus catálogos de portadas.
-          </div>
+          <div className="section-sub">Gestiona las campañas de portadas personalizadas por año.</div>
         </div>
         <button type="button" className="btn btn-amber" onClick={() => setModal({ mode: "new" })}>
           + Nueva campaña
@@ -71,8 +69,8 @@ export function CampanasPageClient({ campanas, activeCampanaId }: { campanas: Ca
               <tr>
                 <th>Nombre</th>
                 <th>Descripción</th>
-                <th>Fecha cierre</th>
-                <th style={{ textAlign: "center" }}>Solicitudes</th>
+                <th>Cierre</th>
+                <th>Solicitudes</th>
                 <th>Estado</th>
                 <th></th>
               </tr>
