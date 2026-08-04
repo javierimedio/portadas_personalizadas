@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useToast } from "@/shared/ui/toast";
 import { ALL_CATALOGOS } from "@/shared/domain/catalogos";
-import { IDIOMAS } from "@/shared/domain/idiomas";
+import { IDIOMAS_CON_INSTRUCCIONES_PROPIAS } from "@/shared/domain/idiomas";
 import { saveCampana, type SaveCampanaState } from "../application/save-campana.action";
 import type { CampanaListItem } from "../domain/types";
 import { CampanaFileDropZone } from "./campana-file-drop-zone";
@@ -16,11 +16,12 @@ const CAT_LABEL_MODAL: Record<string, string> = { roly: "Roly", roly_wrk: "Roly 
 
 // Réplica funcional de #modal-campana (index.html ~1274-1423), con el
 // cambio funcional solicitado: el PDF de "Instrucciones" pasa de ser uno
-// por catálogo a uno por catálogo Y por idioma. La lista de idiomas con
-// instrucciones no está fijada en código — cada catálogo tiene su propia
-// lista dinámica (se parte de los idiomas que ya tengan PDF y se pueden
-// añadir otros por nombre libre); `IDIOMAS` solo se usa como sugerencia de
-// autocompletado, nunca como límite.
+// por catálogo a uno por catálogo Y por idioma — pero solo para los 7
+// idiomas de `IDIOMAS_CON_INSTRUCCIONES_PROPIAS` (2026-08-04, a petición
+// del propietario del proyecto): cualquier otro idioma de los 24 de
+// `IDIOMAS` usa automáticamente el PDF de Inglés al consultarse
+// (`resolverInstruccionesUrl()`), así que no tiene sentido poder subir un
+// PDF para él aquí — evita duplicar archivos que nunca se mostrarían.
 export function CampanaForm({
   campana,
   onCancel,
@@ -38,10 +39,6 @@ export function CampanaForm({
     campana?.catalogos ?? ["roly", "roly_wrk", "stamina"]
   );
   const [expandido, setExpandido] = useState<Record<string, boolean>>({});
-  const [idiomasPorCatalogo, setIdiomasPorCatalogo] = useState<Record<string, string[]>>(() =>
-    Object.fromEntries(ALL_CATALOGOS.map((cat) => [cat.key, Object.keys(campana?.covers_instrucciones?.[cat.key] ?? {})]))
-  );
-  const [nuevoIdioma, setNuevoIdioma] = useState<Record<string, string>>({});
   const [subiendoMap, setSubiendoMap] = useState<Record<string, boolean>>({});
   const algoSubiendo = Object.values(subiendoMap).some(Boolean);
   function trackUploading(key: string) {
@@ -61,29 +58,9 @@ export function CampanaForm({
     setCatalogosSelected((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   }
 
-  function addIdioma(catKey: string) {
-    const nombre = (nuevoIdioma[catKey] ?? "").trim();
-    if (!nombre) return;
-    setIdiomasPorCatalogo((prev) => {
-      const actuales = prev[catKey] ?? [];
-      if (actuales.some((i) => i.toLowerCase() === nombre.toLowerCase())) return prev;
-      return { ...prev, [catKey]: [...actuales, nombre] };
-    });
-    setNuevoIdioma((prev) => ({ ...prev, [catKey]: "" }));
-  }
-
-  function removeIdiomaSinPdf(catKey: string, idioma: string) {
-    setIdiomasPorCatalogo((prev) => ({ ...prev, [catKey]: (prev[catKey] ?? []).filter((i) => i !== idioma) }));
-  }
-
   return (
     <form action={formAction}>
       {campana && <input type="hidden" name="editId" value={campana.id} />}
-      <datalist id="idiomas-sugeridos">
-        {IDIOMAS.map((i) => (
-          <option key={i} value={i} />
-        ))}
-      </datalist>
 
       <div className="form-group" style={{ marginBottom: ".75rem" }}>
         <label>
@@ -135,16 +112,14 @@ export function CampanaForm({
         PDFs de portadas e instrucciones <span className="req">*</span>
       </div>
       <div style={{ fontSize: 11, color: "var(--c-mid)", marginBottom: ".75rem" }}>
-        Por cada catálogo incluido, sube el PDF de opciones de portada y, para cada idioma que aplique, el PDF de
-        instrucciones correspondiente. Puedes añadir cualquier idioma por nombre — no hace falta que esté en una lista
-        fija. Los comerciales verán el botón &quot;Ver instrucciones&quot; solo si existe un PDF para el idioma que
-        hayan elegido.
+        Por cada catálogo incluido, sube el PDF de opciones de portada y, para cada uno de estos 7 idiomas, el PDF de
+        instrucciones correspondiente. El resto de idiomas de la solicitud usa automáticamente el PDF de Inglés — no
+        hace falta ni es posible subir un PDF para ellos.
       </div>
 
       {ALL_CATALOGOS.filter((cat) => catalogosSelected.includes(cat.key)).map((cat) => {
         const existingCover = campana?.covers?.[cat.key];
         const existingInstr = campana?.covers_instrucciones?.[cat.key] ?? {};
-        const idiomas = idiomasPorCatalogo[cat.key] ?? [];
         return (
           <div className={`cat-section cat-${cat.key}`} key={cat.key} style={{ marginBottom: "1rem" }}>
             <div className="cat-header">
@@ -170,7 +145,7 @@ export function CampanaForm({
                   className="btn btn-sm btn-outline"
                   onClick={() => setExpandido((prev) => ({ ...prev, [cat.key]: !prev[cat.key] }))}
                 >
-                  {expandido[cat.key] ? "▲ Ocultar" : "▼ Gestionar"} instrucciones ({idiomas.length} idioma(s))
+                  {expandido[cat.key] ? "▲ Ocultar" : "▼ Gestionar"} instrucciones (7 idiomas)
                 </button>
                 {expandido[cat.key] && (
                   <div
@@ -183,7 +158,7 @@ export function CampanaForm({
                       padding: ".5rem .75rem",
                     }}
                   >
-                    {idiomas.map((idioma) => {
+                    {IDIOMAS_CON_INSTRUCCIONES_PROPIAS.map((idioma) => {
                       const url = existingInstr[idioma];
                       return (
                         <div
@@ -208,39 +183,9 @@ export function CampanaForm({
                               onUploadingChange={trackUploading(`instr_${cat.key}_${idioma}`)}
                             />
                           </div>
-                          {!url && (
-                            <button
-                              type="button"
-                              className="file-chip"
-                              style={{ border: "none" }}
-                              onClick={() => removeIdiomaSinPdf(cat.key, idioma)}
-                              title="Quitar de la lista"
-                            >
-                              ✕
-                            </button>
-                          )}
                         </div>
                       );
                     })}
-                    <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                      <input
-                        type="text"
-                        list="idiomas-sugeridos"
-                        value={nuevoIdioma[cat.key] ?? ""}
-                        onChange={(e) => setNuevoIdioma((prev) => ({ ...prev, [cat.key]: e.target.value }))}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            addIdioma(cat.key);
-                          }
-                        }}
-                        placeholder="Añadir idioma (ej: Japonés)"
-                        style={{ fontSize: 12, flex: 1 }}
-                      />
-                      <button type="button" className="btn btn-sm btn-outline" onClick={() => addIdioma(cat.key)}>
-                        + Añadir
-                      </button>
-                    </div>
                   </div>
                 )}
               </div>

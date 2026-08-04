@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/shared/ui/toast";
 import { catalogosDeCampana, type CatalogoDef } from "@/shared/domain/catalogos";
 import { matchOptionCaseInsensitive } from "@/shared/domain/format";
+import { resolverInstruccionesUrl } from "@/shared/domain/idiomas";
 import { CAT_LOGO, IDIOMAS, POSICIONES_LOGO, PROVINCIAS, ROLES_POR_CANAL } from "../domain/constants";
 import { saveSolicitud, type SaveSolicitudState } from "../application/save-solicitud.action";
 import type { ExistingSolicitud, FormCampana, FormPerfil } from "../domain/types";
@@ -270,7 +271,7 @@ export function SolicitudForm({
         const personalizada = c.portadaPersonalizada === "si";
         const ocultaPorDisenoPropio = c.disenoPropio === "si";
         const coversUrl = selectedCampana?.covers?.[cat.key];
-        const instruccionesUrl = idioma ? selectedCampana?.coversInstrucciones?.[cat.key]?.[idioma] : undefined;
+        const instruccionesUrl = resolverInstruccionesUrl(selectedCampana?.coversInstrucciones, cat.key, idioma);
         const expanded = expandedCats[cat.key] ?? false;
         const existingDisenoFiles = (solicitud?.adjuntos ?? []).filter((a) => a.tipo === `${cat.key}_diseno`);
 
