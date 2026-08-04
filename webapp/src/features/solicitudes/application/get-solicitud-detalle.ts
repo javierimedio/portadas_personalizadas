@@ -48,7 +48,16 @@ export type SolicitudDetalle = {
 // Réplica funcional de openDetalle() (index.html ~3061-3113): carga la
 // solicitud, auto-asigna el diseñador si aplica (~3074-3084), y trae
 // catálogos/adjuntos/logs/nombres relacionados en paralelo.
-export async function getSolicitudDetalle(solicitudId: string): Promise<SolicitudDetalle | null> {
+//
+// `rolEfectivo` es el rol real O el impersonado (ver `getEffectiveRole()`,
+// el mismo que ya decide qué botones se muestran en este mismo modal) — el
+// original usa `currentPerfil.rol` en `openDetalle()`, una variable global
+// que SÍ cambia al impersonar (`impersonateRol()` la reemplaza por
+// completo). Consultar el rol real desde `perfiles` en vez de recibir este
+// parámetro haría que la autoasignación nunca se disparase mientras un
+// admin impersona un rol de diseño para probar el flujo, aunque el resto
+// del modal (botones, acciones) sí reflejase correctamente ese rol.
+export async function getSolicitudDetalle(solicitudId: string, rolEfectivo?: string | null): Promise<SolicitudDetalle | null> {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
 
@@ -62,6 +71,7 @@ export async function getSolicitudDetalle(solicitudId: string): Promise<Solicitu
   const { data: perfilActual } = userData.user
     ? await supabase.from("perfiles").select("rol, nombre").eq("id", userData.user.id).maybeSingle()
     : { data: null };
+  const rolParaAutoasignar = rolEfectivo ?? perfilActual?.rol;
 
   // Auto-asignación: diseñador/responsable_diseño que abre una solicitud en
   // en_diseno sin diseñador asignado se autoasigna (~3074-3084).
@@ -69,7 +79,7 @@ export async function getSolicitudDetalle(solicitudId: string): Promise<Solicitu
     sol.estado === "en_diseno" &&
     !sol.asignado_id &&
     userData.user &&
-    (perfilActual?.rol === "disenador" || perfilActual?.rol === "responsable_diseno")
+    (rolParaAutoasignar === "disenador" || rolParaAutoasignar === "responsable_diseno")
   ) {
     await supabase.from("solicitudes").update({ asignado_id: userData.user.id }).eq("id", sol.id);
     await supabase.from("logs").insert({

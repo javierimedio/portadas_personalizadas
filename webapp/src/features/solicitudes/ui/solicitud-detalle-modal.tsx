@@ -137,7 +137,7 @@ export function SolicitudDetalleModal({
   async function cargar() {
     setLoading(true);
     try {
-      const data = await getSolicitudDetalle(solicitudId);
+      const data = await getSolicitudDetalle(solicitudId, rol);
       setDetalle(data);
     } catch {
       formAlert("No se ha podido cargar la solicitud. Inténtalo de nuevo.");
