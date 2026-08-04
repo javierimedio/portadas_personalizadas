@@ -6,6 +6,7 @@ import { ALL_CATALOGOS } from "@/shared/domain/catalogos";
 import { IDIOMAS } from "@/shared/domain/idiomas";
 import { saveCampana, type SaveCampanaState } from "../application/save-campana.action";
 import type { CampanaListItem } from "../domain/types";
+import { CampanaFileDropZone } from "./campana-file-drop-zone";
 
 // Réplica de #modal-campana (index.html ~1299-1394): a diferencia del resto
 // de la app (que usa las etiquetas en mayúsculas de ALL_CATALOGOS), este
@@ -147,16 +148,7 @@ export function CampanaForm({
             <div className="cat-body">
               <div className="form-group" style={{ marginBottom: ".75rem" }}>
                 <label className="field-label-sm">Portadas disponibles</label>
-                <input type="file" name={`cover_${cat.key}`} accept=".pdf" />
-                {existingCover && (
-                  <div style={{ fontSize: 11, marginTop: 4 }}>
-                    ✅ PDF cargado{" "}
-                    <a href={existingCover} target="_blank" rel="noreferrer" style={{ color: "var(--c-blue)" }}>
-                      Ver
-                    </a>{" "}
-                    · <span style={{ color: "var(--c-mid)" }}>Sube otro para reemplazar</span>
-                  </div>
-                )}
+                <CampanaFileDropZone name={`cover_${cat.key}`} accept=".pdf" existingUrl={existingCover} icon="📄" />
               </div>
 
               <div className="form-group">
@@ -194,12 +186,9 @@ export function CampanaForm({
                           }}
                         >
                           <span style={{ flex: 1 }}>{idioma}</span>
-                          {url && (
-                            <a href={url} target="_blank" rel="noreferrer" style={{ color: "var(--c-blue)", fontSize: 11 }}>
-                              Ver actual
-                            </a>
-                          )}
-                          <input type="file" name={`instr_${cat.key}_${idioma}`} accept=".pdf" style={{ fontSize: 11, maxWidth: 180 }} />
+                          <div style={{ width: 220 }}>
+                            <CampanaFileDropZone name={`instr_${cat.key}_${idioma}`} accept=".pdf" existingUrl={url} icon="📋" />
+                          </div>
                           {!url && (
                             <button
                               type="button"
