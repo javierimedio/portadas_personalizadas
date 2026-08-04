@@ -12,7 +12,9 @@ const STORAGE_BUCKET = "portadas-adjuntos";
 // archivos que resuelven a 'ok'. La notificación por solicitud (CM-08) la
 // dispara cambiarEstado() al cambiar el estado — una sola vez por
 // solicitud, aunque tenga varios archivos, igual que el original.
-export async function procesarCargaMasiva(formData: FormData): Promise<{ ok: number; errors: number } | { error: string }> {
+export async function procesarCargaMasiva(
+  formData: FormData
+): Promise<{ ok: number; errors: number; detalles?: string[] } | { error: string }> {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return { error: "Sesión no válida." };
@@ -38,14 +40,35 @@ export async function procesarCargaMasiva(formData: FormData): Promise<{ ok: num
   let ok = 0;
   let errors = 0;
   const processedSols = new Set<string>();
+  // DIAGNÓSTICO TEMPORAL — investigación del 400 de Storage en carga
+  // masiva. Quitar en cuanto se confirme la causa exacta.
+  const detalles: string[] = [];
 
   for (const { file, solId, catKey } of trabajos) {
+    const path = `${solId}/diseno/${Date.now()}_${file.name}`;
+    const uploadOptions = { upsert: true, contentType: file.type || undefined };
+
+    console.log("CARGA MASIVA — antes del upload", {
+      bucket: STORAGE_BUCKET,
+      path,
+      solId,
+      catKey,
+      file,
+      fileName: file?.name,
+      fileSize: file?.size,
+      fileType: file?.type,
+      isFileInstance: file instanceof File,
+      isBlobInstance: file instanceof Blob,
+      uploadOptions,
+    });
+
     try {
-      const path = `${solId}/diseno/${Date.now()}_${file.name}`;
-      const { error: upErr } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(path, file, { upsert: true, contentType: file.type || undefined });
-      if (upErr) throw upErr;
+      const result = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, uploadOptions);
+      console.log("CARGA MASIVA — UPLOAD RESULT", result);
+      console.log("CARGA MASIVA — UPLOAD ERROR", result.error);
+      console.log("CARGA MASIVA — UPLOAD ERROR (JSON)", JSON.stringify(result.error, null, 2));
+
+      if (result.error) throw result.error;
       const { data: pub } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
 
       await supabase.from("adjuntos").insert({
@@ -71,10 +94,13 @@ export async function procesarCargaMasiva(formData: FormData): Promise<{ ok: num
         await cambiarEstado(solId, "diseno_en_revision_comercial");
       }
       ok++;
-    } catch {
+    } catch (e) {
+      console.error("CARGA MASIVA — error procesando archivo", { fileName: file.name, path, error: e });
       errors++;
+      const mensaje = e instanceof Error ? e.message : JSON.stringify(e);
+      detalles.push(`${file.name}: ${mensaje}`);
     }
   }
 
-  return { ok, errors };
+  return { ok, errors, detalles: detalles.length ? detalles : undefined };
 }
