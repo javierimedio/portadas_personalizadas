@@ -2,6 +2,7 @@
 
 import { createClient } from "@/shared/infrastructure/supabase/server-client";
 import { catalogosDeCampana } from "@/shared/domain/catalogos";
+import { campanaCerrada } from "@/shared/domain/campanas";
 import { enviarNotificacion } from "@/features/notificaciones/application/enviar-notificacion";
 import {
   formatearErrores,
@@ -89,12 +90,8 @@ export async function saveSolicitud(_prev: SaveSolicitudState, formData: FormDat
 
   if (!campanaId) return { error: "Selecciona una campaña." };
 
-  if (campana?.fecha_cierre) {
-    const cierre = new Date(campana.fecha_cierre);
-    cierre.setHours(23, 59, 59);
-    if (new Date() > cierre) {
-      return { error: `La campaña ${campana.nombre} está cerrada (${campana.fecha_cierre.slice(0, 10)}). Selecciona otra campaña.` };
-    }
+  if (campanaCerrada(campana?.fecha_cierre ?? null)) {
+    return { error: `La campaña ${campana?.nombre} está cerrada (${campana?.fecha_cierre?.slice(0, 10)}). Selecciona otra campaña.` };
   }
 
   if (!solicitudId) {

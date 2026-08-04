@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { campanaCerrada } from "@/shared/domain/campanas";
+import { useToast } from "@/shared/ui/toast";
 import { SolicitudesTable } from "./solicitudes-table";
 import { SolicitudModal } from "./solicitud-modal";
 import { SolicitudDetalleModal } from "./solicitud-detalle-modal";
@@ -34,6 +36,7 @@ export function MisSolicitudes({
   const verId = searchParams.get("ver");
   const [modal, setModal] = useState<ModalState>(verId ? { mode: "detalle", solicitudId: verId } : null);
   const router = useRouter();
+  const { toast } = useToast();
 
   function handleSaved() {
     setModal(null);
@@ -45,6 +48,19 @@ export function MisSolicitudes({
     if (verId) router.replace("/solicitudes");
   }
 
+  // Réplica de checkCampanaAndOpen() (~2662-2673, SOL-09): aviso temprano
+  // antes de abrir el formulario — el guardado (SOL-10) sigue siendo quien
+  // realmente lo impide.
+  function handleNueva() {
+    const campana = campanas.find((c) => c.id === defaultCampanaId);
+    if (campana && campanaCerrada(campana.fecha_cierre)) {
+      toast(`La campaña ${campana.nombre} está cerrada. Crea una nueva campaña.`);
+      router.push("/campanas");
+      return;
+    }
+    setModal({ mode: "new" });
+  }
+
   return (
     <div>
       <SolicitudesTable
@@ -52,7 +68,7 @@ export function MisSolicitudes({
         campanas={campanas}
         defaultCampanaId={defaultCampanaId}
         rol={rol}
-        onNueva={() => setModal({ mode: "new" })}
+        onNueva={handleNueva}
         onEditar={(solicitud) => setModal({ mode: "edit", solicitud })}
         onVer={(solicitud) => setModal({ mode: "detalle", solicitudId: solicitud.id })}
       />

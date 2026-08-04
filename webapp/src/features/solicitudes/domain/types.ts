@@ -10,6 +10,7 @@ export type FormCampana = {
   id: string;
   nombre: string;
   activa: boolean;
+  fecha_cierre: string | null;
   catalogos: string[] | null;
   covers: Record<string, string> | null;
   coversInstrucciones: Record<string, Record<string, string>> | null;

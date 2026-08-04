@@ -100,7 +100,7 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | SOL-06 | Comentarios generales opcionales | Implementada | 2 | Bloque 1 |
 | SOL-07 | Selector de campaña en el formulario (solo activas o la propia si está cerrada) | Implementada | 2 | Marca "(cerrada)" si aplica. Bloque 1 |
 | SOL-08 | Recalculo de catálogos al cambiar de campaña en el formulario | Implementada | 2 | **Caso límite** replicado tal cual: pierde datos no guardados de catálogos ya rellenados si se cambia de campaña a mitad de formulario. Bloque 1 |
-| SOL-09 | Bloqueo de creación en campaña cerrada | Pendiente | 2 | El guard del botón "+ Nueva solicitud" (`checkCampanaAndOpen()`, toast + redirección a Campañas) se difiere — la comprobación real ya existe en el guardado (SOL-10), este es solo un aviso temprano de UX |
+| SOL-09 | Bloqueo de creación en campaña cerrada | Implementada | 2 | `handleNueva()` en `mis-solicitudes.tsx` — toast + redirección a Campañas, igual que `checkCampanaAndOpen()`; la comprobación real en el guardado (SOL-10) sigue siendo la que de verdad lo impide |
 | SOL-10 | Revalidación de cierre de campaña al guardar | Implementada | 2 | Doble check por si la campaña cerró entre apertura del formulario y el guardado. Bloque 1 |
 | SOL-11 | Detección de código SAP duplicado en la misma campaña | Implementada | 2 | Solo al crear, no al editar. Corregido (H-09): la comparación normaliza a mayúsculas en ambos lados, ya no depende de cómo se haya escrito el código |
 | SOL-12 | Campo canal+comercial asignado solo visible para admin/marketing | Implementada | 2 | Para el resto de roles, `comercial_id` se autoasigna al usuario actual. Bloque 1 |
@@ -109,14 +109,14 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | SOL-15 | Guardar como borrador vs enviada con validaciones distintas | Implementada | 2 | Un borrador puede guardarse vacío; enviar exige validación completa de catálogos. Bloque 1 (validación mínima digital/impreso/unidades — la sección rica de catálogos es Bloque 2) |
 | SOL-16 | `enviada_at` se fija solo al pasar a "enviada" | Implementada | 2 | Bloque 1 |
 | SOL-17 | Toast final distinto según destino (enviada/borrador) | Implementada | 2 | Bloque 2: ya incluye el conteo de archivos adjuntados en el caso de envío |
-| SOL-18 | Indicador visual de progreso de subida de adjuntos | Pendiente | 2 | El estado `pending` de `useActionState` ya deshabilita los botones mientras se guarda, pero no hay un indicador específico de "subiendo archivos" separado del guardado general |
+| SOL-18 | Indicador visual de progreso de subida de adjuntos | Implementada | 2 | Texto "⏳ Subiendo archivos..." junto a los botones, visible solo cuando `pending` y hay archivos seleccionados (logo o diseño propio) — igual que el original, que solo lo muestra `if (allFilesToUpload.length > 0)` |
 | SOL-19 | Log de creación/edición con detalle de estado y SAP | Implementada | 2 | Bloque 1 |
 | SOL-20 | Log por cada adjunto subido | Implementada | 2 | Bloque 2 |
-| SOL-21 | Notificación automática al guardar (si no es borrador) | Pendiente | 2 | Ver módulo Notificaciones — diferido a un bloque posterior |
+| SOL-21 | Notificación automática al guardar (si no es borrador) | Implementada | 2 | `enviarNotificacion()` desde `saveSolicitud()` cuando `intent === "enviada"` |
 | SOL-22 | Fallo de subida de un archivo no aborta el resto | Implementada | 2 | Bloque 2. Sin el toast individual por archivo fallido del original (~3016) — el fallo simplemente se omite en silencio |
 | SOL-23 | Badge de campaña distinta en tabla comercial | Implementada | 2 | Si la solicitud no pertenece a la campaña activa seleccionada. Bloque 1 |
 | SOL-24 | Resumen compacto de catálogo en tablas (`catSummary`) | Implementada | 2 | "—" / "No" / "{unidades} uds" + chip de portada. Bloque 1 |
-| SOL-25 | Cálculo de campos incompletos (`missingFields`) | Pendiente | 2 | Es del detalle de una solicitud (bloque posterior), no de "Mis solicitudes" ni del formulario |
+| SOL-25 | Cálculo de campos incompletos (`missingFields`) | Pendiente | 5 | Corrección de fase: es la columna "Campos incompletos" de `#page-panel` (Panel Global), no de "Mis solicitudes" ni del formulario — pertenece a la Fase 5 (`06-roadmap.md`), estaba mal etiquetada como Fase 2 |
 
 ## Solicitudes — catálogos — Fase 2
 
@@ -138,9 +138,9 @@ Inventario completo de las funcionalidades existentes en `index.html`, incluidas
 | CAT-14 | Restauración completa de catálogos al editar | Implementada | 2 | Expande automáticamente las secciones con datos |
 | CAT-15 | Guardado usa catálogos de la campaña del formulario, no la global activa | Implementada | 2 | Evita guardar catálogos de otra campaña |
 | CAT-16 | `portada_diseno_propio` siempre `false`, nunca `null` | Implementada | 2 | A diferencia del resto de booleanos del catálogo |
-| CAT-17 | Selección de portada final ("Portada elegida") inline | Pendiente | 2 | Solo marketing/admin, solo en `en_revision_marketing`/`en_diseno`, solo si hay preferencia registrada y no es diseño propio |
-| CAT-18 | Auto-adjudicación de portadas (`autoAdjudicar`) | Pendiente | 2 | Solo marketing/admin; ordena por antigüedad, asigna 1ª opción libre evitando repetir en la misma provincia; **excluye XMAS del reparto automático** — preservar esta exclusión; usa `confirm()`/`alert()` nativos del navegador |
-| CAT-19 | Auto-asignación de diseñador al abrir el detalle | Pendiente | 2 | Si está en `en_diseno` sin `asignado_id` y quien abre es diseñador/responsable_diseno |
+| CAT-17 | Selección de portada final ("Portada elegida") inline | Implementada | 2 | `guardarPortadaElegida()`, en el modal de detalle — `mostrarSelector`/`puedeElegirPortadaFinal()` |
+| CAT-18 | Auto-adjudicación de portadas (`autoAdjudicar`) | Pendiente | 5 | Corrección de fase: vive en `renderMktTable()` de `#page-panel` (Panel Global), no en el detalle de una solicitud — pertenece a la Fase 5. Solo marketing/admin; ordena por antigüedad, asigna 1ª opción libre evitando repetir en la misma provincia; **excluye XMAS del reparto automático** — preservar esta exclusión; usa `confirm()`/`alert()` nativos del navegador |
+| CAT-19 | Auto-asignación de diseñador al abrir el detalle | Implementada | 2 | `getSolicitudDetalle()` — si está en `en_diseno` sin `asignado_id` y quien abre es diseñador/responsable_diseno |
 
 ## Solicitudes — flujo de estados — Fase 2
 

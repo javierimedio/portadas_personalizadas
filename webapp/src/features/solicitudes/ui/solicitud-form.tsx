@@ -129,6 +129,9 @@ export function SolicitudForm({
   );
   const [logoFiles, setLogoFiles] = useState<File[]>([]);
   const [disenoFiles, setDisenoFiles] = useState<Record<string, File[]>>({});
+  // Réplica de "if (allFilesToUpload.length > 0) ..." (~2989-2992, SOL-18):
+  // el indicador solo aparece cuando hay algo que subir, no en cada guardado.
+  const hasFilesToUpload = logoFiles.length > 0 || Object.values(disenoFiles).some((files) => files.length > 0);
 
   const comercialesDelCanal = useMemo(() => {
     if (!canal) return [];
@@ -578,6 +581,7 @@ export function SolicitudForm({
         <button type="submit" name="intent" value="enviada" disabled={pending} className="btn btn-amber">
           Enviar solicitud
         </button>
+        {pending && hasFilesToUpload && <span style={{ fontSize: 12, color: "var(--c-mid)" }}>⏳ Subiendo archivos...</span>}
       </div>
     </form>
   );

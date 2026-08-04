@@ -54,6 +54,7 @@ export async function getSolicitudesList(rolEfectivo: string | null | undefined)
       id: c.id,
       nombre: c.nombre,
       activa: c.activa,
+      fecha_cierre: c.fecha_cierre,
       catalogos: c.catalogos,
       covers: c.covers ?? null,
       coversInstrucciones: c.covers_instrucciones ?? null,

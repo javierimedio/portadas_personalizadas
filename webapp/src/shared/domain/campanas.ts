@@ -18,3 +18,13 @@ export function getDefaultCampanaId(campanas: CampanaLike[]): string {
   });
   return sorted[0]?.id ?? "";
 }
+
+// Réplica de la comprobación de cierre repetida en checkCampanaAndOpen()
+// (~2663-2666) y saveSolicitud() (~2856-2861): una campaña cierra al final
+// del día de su fecha_cierre (23:59:59), no a las 00:00.
+export function campanaCerrada(fechaCierre: string | null): boolean {
+  if (!fechaCierre) return false;
+  const cierre = new Date(fechaCierre);
+  cierre.setHours(23, 59, 59);
+  return new Date() > cierre;
+}
