@@ -42,6 +42,11 @@ export function CampanaForm({
     Object.fromEntries(ALL_CATALOGOS.map((cat) => [cat.key, Object.keys(campana?.covers_instrucciones?.[cat.key] ?? {})]))
   );
   const [nuevoIdioma, setNuevoIdioma] = useState<Record<string, string>>({});
+  const [subiendoMap, setSubiendoMap] = useState<Record<string, boolean>>({});
+  const algoSubiendo = Object.values(subiendoMap).some(Boolean);
+  function trackUploading(key: string) {
+    return (subiendo: boolean) => setSubiendoMap((prev) => ({ ...prev, [key]: subiendo }));
+  }
 
   useEffect(() => {
     if (state?.error) formAlert(state.error);
@@ -148,7 +153,14 @@ export function CampanaForm({
             <div className="cat-body">
               <div className="form-group" style={{ marginBottom: ".75rem" }}>
                 <label className="field-label-sm">Portadas disponibles</label>
-                <CampanaFileDropZone name={`cover_${cat.key}`} accept=".pdf" existingUrl={existingCover} icon="📄" />
+                <CampanaFileDropZone
+                  name={`cover_${cat.key}`}
+                  accept=".pdf"
+                  existingUrl={existingCover}
+                  carpeta={`campanas/${cat.key}/covers`}
+                  icon="📄"
+                  onUploadingChange={trackUploading(`cover_${cat.key}`)}
+                />
               </div>
 
               <div className="form-group">
@@ -187,7 +199,14 @@ export function CampanaForm({
                         >
                           <span style={{ flex: 1 }}>{idioma}</span>
                           <div style={{ width: 220 }}>
-                            <CampanaFileDropZone name={`instr_${cat.key}_${idioma}`} accept=".pdf" existingUrl={url} icon="📋" />
+                            <CampanaFileDropZone
+                              name={`instr_${cat.key}_${idioma}`}
+                              accept=".pdf"
+                              existingUrl={url}
+                              carpeta={`campanas/${cat.key}/instrucciones`}
+                              icon="📋"
+                              onUploadingChange={trackUploading(`instr_${cat.key}_${idioma}`)}
+                            />
                           </div>
                           {!url && (
                             <button
@@ -234,9 +253,10 @@ export function CampanaForm({
         <button type="button" onClick={onCancel} className="btn btn-outline">
           Cancelar
         </button>
-        <button type="submit" disabled={pending} className="btn btn-amber">
+        <button type="submit" disabled={pending || algoSubiendo} className="btn btn-amber">
           {campana ? "Guardar cambios" : "Crear campaña"}
         </button>
+        {algoSubiendo && <span style={{ fontSize: 12, color: "var(--c-mid)" }}>⏳ Subiendo archivos...</span>}
       </div>
     </form>
   );

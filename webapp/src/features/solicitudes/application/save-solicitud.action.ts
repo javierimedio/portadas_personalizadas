@@ -10,6 +10,7 @@ import {
   validateDatosGenerales,
   type CatalogoFormInput,
 } from "../domain/validation";
+import type { UploadedFile } from "@/shared/storage/types";
 
 // Réplica funcional de saveSolicitud() en index.html (~2816-3057) —
 // SOL-01/02/11, CAT-01 a CAT-16, EST-01 (transición borrador→enviada), con
@@ -19,18 +20,27 @@ import {
 // estado).
 export type SaveSolicitudState = { error?: string; success?: string; solicitudId?: string } | null;
 
-const STORAGE_BUCKET = "portadas-adjuntos";
-
 function triState(value: FormDataEntryValue | null): boolean | null {
   if (value === "si") return true;
   if (value === "no") return false;
   return null;
 }
 
-function filesFrom(formData: FormData, key: string): File[] {
-  return formData
-    .getAll(key)
-    .filter((v): v is File => v instanceof File && v.size > 0);
+// Arquitectura de subida (docs/09-matriz-paridad-funcional.md § "Arquitectura
+// de subida de archivos", 2026-08-04): `FileDropZone` sube cada archivo a
+// Storage nada más elegirlo y manda aquí solo la metadata resultante
+// (path/url/nombre/tipo/size) como JSON en un input oculto — nunca el
+// binario, eliminando el límite de 1MB de Server Actions como origen del
+// error 413.
+function metaFrom(formData: FormData, key: string): UploadedFile[] {
+  const raw = formData.get(key);
+  if (typeof raw !== "string" || !raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function saveSolicitud(_prev: SaveSolicitudState, formData: FormData): Promise<SaveSolicitudState> {
@@ -166,29 +176,24 @@ export async function saveSolicitud(_prev: SaveSolicitudState, formData: FormDat
     detalle: { estado: intent, cod_sap: codSap },
   });
 
-  // Subida de adjuntos (~2981-3042): logo del cliente y diseño de portada
-  // propio — ahora simétrico para cualquier catálogo con `hasDisenoProp`
-  // (Stamina y XMAS), no solo Stamina (docs/09-matriz-paridad-funcional.md
-  // § H-10, corregido).
-  const filesToUpload: { file: File; tipo: string }[] = [
-    ...filesFrom(formData, "logoGeneralFiles").map((file) => ({ file, tipo: "logo_general" })),
+  // Adjuntos (~2981-3042): logo del cliente y diseño de portada propio —
+  // simétrico para cualquier catálogo con `hasDisenoProp` (Stamina y XMAS),
+  // no solo Stamina (docs/09-matriz-paridad-funcional.md § H-10,
+  // corregido). Los archivos ya están en Storage (subidos desde el
+  // navegador antes de este envío) — aquí solo se registra su metadata.
+  const filesToUpload: { meta: UploadedFile; tipo: string }[] = [
+    ...metaFrom(formData, "logoGeneralFiles").map((meta) => ({ meta, tipo: "logo_general" })),
     ...cats
       .filter((cat) => cat.hasDisenoProp)
-      .flatMap((cat) => filesFrom(formData, `cat_${cat.key}_disenoFiles`).map((file) => ({ file, tipo: `${cat.key}_diseno` }))),
+      .flatMap((cat) => metaFrom(formData, `cat_${cat.key}_disenoFiles`).map((meta) => ({ meta, tipo: `${cat.key}_diseno` }))),
   ];
 
   for (const entry of filesToUpload) {
-    const path = `${solId}/${entry.tipo}/${Date.now()}_${entry.file.name}`;
-    const { error: uploadError } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(path, entry.file, { upsert: true, contentType: entry.file.type || undefined });
-    if (uploadError) continue;
-    const { data: pub } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
     await supabase.from("adjuntos").insert({
       solicitud_id: solId,
-      nombre: entry.file.name,
+      nombre: entry.meta.nombre,
       tipo: entry.tipo,
-      url: pub.publicUrl,
+      url: entry.meta.url,
       subido_por: userData.user.id,
       subido_por_nombre: perfil?.nombre,
     });
@@ -197,7 +202,7 @@ export async function saveSolicitud(_prev: SaveSolicitudState, formData: FormDat
       usuario_id: userData.user.id,
       usuario_nombre: perfil?.nombre,
       accion: "adjunto",
-      detalle: { nombre: entry.file.name, tipo: entry.tipo, url: pub.publicUrl },
+      detalle: { nombre: entry.meta.nombre, tipo: entry.tipo, url: entry.meta.url },
     });
   }
 

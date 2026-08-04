@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/shared/ui/toast";
 import { useEscapeToClose } from "@/shared/ui/use-escape-to-close";
+import { subirArchivo, borrarArchivoSubido } from "@/shared/storage/upload-client";
+import type { UploadedFile } from "@/shared/storage/types";
 import { fmtDate } from "@/shared/domain/format";
 import { ESTADO_LABEL } from "@/shared/domain/estados";
 import { segmentarComentario } from "../domain/comentarios";
@@ -63,13 +65,34 @@ export function SolicitudDetalleModal({
 
   const [modificacionAbierta, setModificacionAbierta] = useState(false);
   const [comentarioModificacion, setComentarioModificacion] = useState("");
-  const [archivoModificacion, setArchivoModificacion] = useState<File | null>(null);
+  // Arquitectura de subida (docs/09-matriz-paridad-funcional.md §
+  // "Arquitectura de subida de archivos", 2026-08-04): el archivo se sube a
+  // Storage nada más elegirlo, directamente desde el navegador — las
+  // acciones `solicitarModificacion()`/`marcarDisenoListo()` solo reciben
+  // la metadata resultante, nunca un `File`.
+  const [archivoModificacion, setArchivoModificacion] = useState<
+    { nombre: string; size: number; estado: "subiendo" | "ok" | "error"; meta?: UploadedFile } | null
+  >(null);
   const modifInputRef = useRef<HTMLInputElement>(null);
 
-  const [disenoFiles, setDisenoFiles] = useState<File[]>([]);
+  function elegirArchivoModificacion(f: File) {
+    setArchivoModificacion({ nombre: f.name, size: f.size, estado: "subiendo" });
+    subirArchivo(f, `solicitudes/${solicitudId}/modificaciones`)
+      .then((meta) => setArchivoModificacion({ nombre: f.name, size: f.size, estado: "ok", meta }))
+      .catch(() => setArchivoModificacion({ nombre: f.name, size: f.size, estado: "error" }));
+  }
+
+  type DisenoEntry = { id: string; nombre: string; size: number; estado: "subiendo" | "ok" | "error"; meta?: UploadedFile };
+  const [disenoFiles, setDisenoFiles] = useState<DisenoEntry[]>([]);
   const disenoInputRef = useRef<HTMLInputElement>(null);
   function addDisenoFiles(newFiles: File[]) {
-    if (newFiles.length) setDisenoFiles((prev) => [...prev, ...newFiles]);
+    for (const file of newFiles) {
+      const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      setDisenoFiles((prev) => [...prev, { id, nombre: file.name, size: file.size, estado: "subiendo" }]);
+      subirArchivo(file, `solicitudes/${solicitudId}/diseno`)
+        .then((meta) => setDisenoFiles((prev) => prev.map((e) => (e.id === id ? { ...e, estado: "ok", meta } : e))))
+        .catch(() => setDisenoFiles((prev) => prev.map((e) => (e.id === id ? { ...e, estado: "error" } : e))));
+    }
   }
 
   // Réplica de checkMention()/insertMention()/handleCommentKey() (index.html
@@ -397,9 +420,12 @@ export function SolicitudDetalleModal({
                           {disenoFiles.length} archivo{disenoFiles.length > 1 ? "s" : ""} seleccionado{disenoFiles.length > 1 ? "s" : ""}
                         </div>
                         <div style={{ maxHeight: 120, overflowY: "auto", padding: "0 4px" }}>
-                          {disenoFiles.map((f, i) => (
-                            <div key={`${f.name}-${i}`} style={{ fontSize: 12, color: "#92400e", padding: "2px 0", textAlign: "left" }}>
-                              📄 <strong>{f.name}</strong> <span style={{ color: "var(--c-mid)" }}>({(f.size / 1024).toFixed(0)}kb)</span>
+                          {disenoFiles.map((f) => (
+                            <div key={f.id} style={{ fontSize: 12, color: f.estado === "error" ? "var(--c-red)" : "#92400e", padding: "2px 0", textAlign: "left" }}>
+                              {f.estado === "subiendo" ? "⏳" : f.estado === "error" ? "⚠️" : "📄"} <strong>{f.nombre}</strong>{" "}
+                              <span style={{ color: "var(--c-mid)" }}>
+                                {f.estado === "subiendo" ? "subiendo..." : f.estado === "error" ? "error al subir" : `(${(f.size / 1024).toFixed(0)}kb)`}
+                              </span>
                             </div>
                           ))}
                         </div>
@@ -703,11 +729,11 @@ export function SolicitudDetalleModal({
                   onDrop={(e) => {
                     e.preventDefault();
                     const f = e.dataTransfer.files?.[0];
-                    if (f) setArchivoModificacion(f);
+                    if (f) elegirArchivoModificacion(f);
                   }}
                   style={{
-                    border: `2px dashed ${archivoModificacion ? "var(--c-green)" : "var(--c-line)"}`,
-                    background: archivoModificacion ? "var(--c-green-l)" : "var(--c-white)",
+                    border: `2px dashed ${archivoModificacion?.estado === "ok" ? "var(--c-green)" : "var(--c-line)"}`,
+                    background: archivoModificacion?.estado === "ok" ? "var(--c-green-l)" : "var(--c-white)",
                     borderRadius: "var(--radius)",
                     padding: "0.75rem",
                     cursor: "pointer",
@@ -716,12 +742,21 @@ export function SolicitudDetalleModal({
                 >
                   {archivoModificacion ? (
                     <span>
-                      <span style={{ color: "var(--c-green)" }}>✅ {archivoModificacion.name}</span>{" "}
-                      <span style={{ color: "var(--c-mid)" }}>({(archivoModificacion.size / 1024).toFixed(0)} KB)</span>
+                      {archivoModificacion.estado === "subiendo" ? (
+                        <span style={{ color: "var(--c-mid)" }}>⏳ Subiendo {archivoModificacion.nombre}...</span>
+                      ) : archivoModificacion.estado === "error" ? (
+                        <span style={{ color: "var(--c-red)" }}>⚠️ Error al subir {archivoModificacion.nombre}</span>
+                      ) : (
+                        <>
+                          <span style={{ color: "var(--c-green)" }}>✅ {archivoModificacion.nombre}</span>{" "}
+                          <span style={{ color: "var(--c-mid)" }}>({(archivoModificacion.size / 1024).toFixed(0)} KB)</span>
+                        </>
+                      )}
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (archivoModificacion.meta) borrarArchivoSubido(archivoModificacion.meta.path);
                           setArchivoModificacion(null);
                         }}
                         style={{ background: "none", border: "none", cursor: "pointer", color: "var(--c-red)", fontSize: 12, marginLeft: 6 }}
@@ -740,7 +775,7 @@ export function SolicitudDetalleModal({
                   style={{ display: "none" }}
                   onChange={(e) => {
                     const f = e.target.files?.[0];
-                    if (f) setArchivoModificacion(f);
+                    if (f) elegirArchivoModificacion(f);
                     e.target.value = "";
                   }}
                 />
@@ -752,11 +787,10 @@ export function SolicitudDetalleModal({
                 <button
                   type="button"
                   className="btn btn-danger"
-                  disabled={busy || !comentarioModificacion.trim()}
+                  disabled={busy || !comentarioModificacion.trim() || archivoModificacion?.estado === "subiendo"}
                   onClick={() => {
-                    const fd = new FormData();
-                    if (archivoModificacion) fd.set("adjunto", archivoModificacion);
-                    ejecutarYcerrar(() => solicitarModificacion(detalle.id, comentarioModificacion, fd), "Modificación solicitada al equipo de diseño.");
+                    const adjunto = archivoModificacion?.estado === "ok" ? archivoModificacion.meta ?? null : null;
+                    ejecutarYcerrar(() => solicitarModificacion(detalle.id, comentarioModificacion, adjunto), "Modificación solicitada al equipo de diseño.");
                   }}
                 >
                   Solicitar modificación
@@ -810,11 +844,10 @@ export function SolicitudDetalleModal({
             <button
               type="button"
               className="btn btn-amber btn-sm"
-              disabled={busy}
+              disabled={busy || disenoFiles.some((f) => f.estado === "subiendo")}
               onClick={() => {
-                const fd = new FormData();
-                disenoFiles.forEach((f) => fd.append("disenoFiles", f));
-                ejecutarYcerrar(() => marcarDisenoListo(detalle.id, fd), "Estado: Revisión cliente");
+                const archivos = disenoFiles.filter((f) => f.estado === "ok").map((f) => f.meta!);
+                ejecutarYcerrar(() => marcarDisenoListo(detalle.id, archivos), "Estado: Revisión cliente");
               }}
             >
               Diseño listo → Revisión cliente

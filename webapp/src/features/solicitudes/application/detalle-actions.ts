@@ -7,8 +7,7 @@ import {
   enviarNotificacionAsignacion,
   enviarNotificacionesMencion,
 } from "@/features/notificaciones/application/enviar-notificacion";
-
-const STORAGE_BUCKET = "portadas-adjuntos";
+import type { UploadedFile } from "@/shared/storage/types";
 
 async function currentUserAndPerfil() {
   const supabase = await createClient();
@@ -103,23 +102,22 @@ export async function asignarDisenadorYEnviar(solicitudId: string, disenadorId: 
   return {};
 }
 
-// Réplica de marcarDisenoListo() (~5532-5556): sube los diseños y avanza a
-// "Revisión cliente".
-export async function marcarDisenoListo(solicitudId: string, formData: FormData): Promise<{ error?: string }> {
+// Réplica de marcarDisenoListo() (~5532-5556): registra los diseños ya
+// subidos y avanza a "Revisión cliente". Arquitectura de subida
+// (docs/09-matriz-paridad-funcional.md § "Arquitectura de subida de
+// archivos", 2026-08-04): los archivos ya están en Storage — subidos desde
+// el navegador por `SolicitudDetalleModal` antes de llamar aquí — así que
+// esta acción solo recibe su metadata, nunca un `File`.
+export async function marcarDisenoListo(solicitudId: string, archivos: UploadedFile[]): Promise<{ error?: string }> {
   const { supabase, user, perfil } = await currentUserAndPerfil();
   if (!user) return { error: "Sesión no válida." };
 
-  const files = formData.getAll("disenoFiles").filter((v): v is File => v instanceof File && v.size > 0);
-  for (const file of files) {
-    const path = `${solicitudId}/diseno/${Date.now()}_${file.name}`;
-    const { error: upErr } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, { upsert: true, contentType: file.type || undefined });
-    if (upErr) continue;
-    const { data: pub } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+  for (const archivo of archivos) {
     await supabase.from("adjuntos").insert({
       solicitud_id: solicitudId,
-      nombre: file.name,
+      nombre: archivo.nombre,
       tipo: "diseno_portada",
-      url: pub.publicUrl,
+      url: archivo.url,
       subido_por: user.id,
       subido_por_nombre: perfil?.nombre,
     });
@@ -130,27 +128,18 @@ export async function marcarDisenoListo(solicitudId: string, formData: FormData)
 
 // Réplica de enviarModificacion() (~3462-3520), sin el resto de lógica de
 // modales del original (aquí ya viene con el comentario y el archivo
-// resueltos desde el cliente).
-export async function solicitarModificacion(solicitudId: string, comentario: string, formData: FormData): Promise<{ error?: string }> {
+// resueltos desde el cliente). El adjunto, si lo hay, ya está subido a
+// Storage — se recibe su metadata, no un `File`.
+export async function solicitarModificacion(
+  solicitudId: string,
+  comentario: string,
+  adjunto: UploadedFile | null
+): Promise<{ error?: string }> {
   if (!comentario.trim()) return { error: "Escribe un comentario antes de enviar." };
   const { supabase, user, perfil } = await currentUserAndPerfil();
   if (!user) return { error: "Sesión no válida." };
 
-  const file = formData.get("adjunto");
-  let adjuntoUrl: string | null = null;
-  let adjuntoNombre: string | null = null;
-  if (file instanceof File && file.size > 0) {
-    const ext = file.name.split(".").pop();
-    const path = `modificaciones/${solicitudId}/${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, { upsert: true, contentType: file.type || undefined });
-    if (!upErr) {
-      const { data: pub } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-      adjuntoUrl = pub.publicUrl;
-      adjuntoNombre = file.name;
-    }
-  }
-
-  const texto = adjuntoUrl ? `${comentario}\n📎 Adjunto: [${adjuntoNombre}](${adjuntoUrl})` : comentario;
+  const texto = adjunto ? `${comentario}\n📎 Adjunto: [${adjunto.nombre}](${adjunto.url})` : comentario;
   await supabase.from("logs").insert({
     solicitud_id: solicitudId,
     usuario_id: user.id,
@@ -158,11 +147,11 @@ export async function solicitarModificacion(solicitudId: string, comentario: str
     accion: "comentario",
     detalle: { texto, fecha: new Date().toISOString() },
   });
-  if (adjuntoUrl && adjuntoNombre) {
+  if (adjunto) {
     await supabase.from("adjuntos").insert({
       solicitud_id: solicitudId,
-      url: adjuntoUrl,
-      nombre: adjuntoNombre,
+      url: adjunto.url,
+      nombre: adjunto.nombre,
       tipo: "modificacion",
       subido_por: user.id,
       subido_por_nombre: perfil?.nombre,

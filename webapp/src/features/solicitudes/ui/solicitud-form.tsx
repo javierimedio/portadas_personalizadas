@@ -128,11 +128,16 @@ export function SolicitudForm({
     () => (solicitud?.adjuntos ?? []).filter((a) => a.tipo === "logo_general"),
     [solicitud]
   );
-  const [logoFiles, setLogoFiles] = useState<File[]>([]);
-  const [disenoFiles, setDisenoFiles] = useState<Record<string, File[]>>({});
   // Réplica de "if (allFilesToUpload.length > 0) ..." (~2989-2992, SOL-18):
-  // el indicador solo aparece cuando hay algo que subir, no en cada guardado.
-  const hasFilesToUpload = logoFiles.length > 0 || Object.values(disenoFiles).some((files) => files.length > 0);
+  // el indicador solo aparece cuando hay algo subiéndose — ahora la subida
+  // ocurre al elegir el archivo (arquitectura de subida directa a Storage,
+  // docs/09-matriz-paridad-funcional.md, 2026-08-04), no al enviar el
+  // formulario, así que se rastrea el estado "subiendo" de cada zona.
+  const [subiendoMap, setSubiendoMap] = useState<Record<string, boolean>>({});
+  const algoSubiendo = Object.values(subiendoMap).some(Boolean);
+  function trackUploading(key: string) {
+    return (subiendo: boolean) => setSubiendoMap((prev) => ({ ...prev, [key]: subiendo }));
+  }
 
   const comercialesDelCanal = useMemo(() => {
     if (!canal) return [];
@@ -250,10 +255,10 @@ export function SolicitudForm({
         <FileDropZone
           name="logoGeneralFiles"
           accept=".pdf,.png,.jpg,.jpeg,.ai,.eps"
-          files={logoFiles}
-          onFilesChange={setLogoFiles}
+          carpeta="solicitudes/logos"
           existingFiles={existingLogoFiles}
           hint="PDF o imagen · máxima calidad · 300 dpi"
+          onUploadingChange={trackUploading("logo")}
         />
       </div>
 
@@ -556,11 +561,11 @@ export function SolicitudForm({
                       <FileDropZone
                         name={`cat_${cat.key}_disenoFiles`}
                         accept=".pdf,.ai,.eps"
-                        files={disenoFiles[cat.key] ?? []}
-                        onFilesChange={(files) => setDisenoFiles((prev) => ({ ...prev, [cat.key]: files }))}
+                        carpeta={`solicitudes/disenos/${cat.key}`}
                         existingFiles={existingDisenoFiles}
                         hint="PDF · 300 dpi · textos trazados"
                         icon="🎨"
+                        onUploadingChange={trackUploading(`diseno_${cat.key}`)}
                       />
                     </div>
                   </div>
@@ -581,13 +586,13 @@ export function SolicitudForm({
         <button type="button" onClick={onCancel} className="btn btn-outline">
           Cancelar
         </button>
-        <button type="submit" name="intent" value="borrador" disabled={pending} className="btn btn-outline">
+        <button type="submit" name="intent" value="borrador" disabled={pending || algoSubiendo} className="btn btn-outline">
           Guardar borrador
         </button>
-        <button type="submit" name="intent" value="enviada" disabled={pending} className="btn btn-amber">
+        <button type="submit" name="intent" value="enviada" disabled={pending || algoSubiendo} className="btn btn-amber">
           Enviar solicitud
         </button>
-        {pending && hasFilesToUpload && <span style={{ fontSize: 12, color: "var(--c-mid)" }}>⏳ Subiendo archivos...</span>}
+        {algoSubiendo && <span style={{ fontSize: 12, color: "var(--c-mid)" }}>⏳ Subiendo archivos...</span>}
       </div>
     </form>
   );
