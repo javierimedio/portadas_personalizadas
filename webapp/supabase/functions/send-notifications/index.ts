@@ -89,7 +89,9 @@ Deno.serve(async (req: Request) => {
 
   // ⚠️ DIAGNÓSTICO TEMPORAL — eliminar una vez resuelto el 401 de producción.
   // No registra nunca el secreto completo ni el token completo.
-  console.log("[send-notifications][diag]", {
+  // Usa console.error (no console.log) porque Supabase filtra los niveles
+  // info/log en el visor del Dashboard por defecto.
+  console.error("[send-notifications][diag]", {
     secreto_configurado: !!cronSecret,
     longitud_secreto: cronSecret.length,
     longitud_token_recibido: token.length,
