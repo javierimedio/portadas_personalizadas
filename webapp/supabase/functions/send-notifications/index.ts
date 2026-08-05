@@ -87,6 +87,17 @@ Deno.serve(async (req: Request) => {
   const authHeader = req.headers.get("Authorization") ?? "";
   const token = (authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : authHeader).trim();
 
+  // ⚠️ DIAGNÓSTICO TEMPORAL — eliminar una vez resuelto el 401 de producción.
+  // No registra nunca el secreto completo ni el token completo.
+  console.log("[send-notifications][diag]", {
+    secreto_configurado: !!cronSecret,
+    longitud_secreto: cronSecret.length,
+    longitud_token_recibido: token.length,
+    longitud_auth_header_raw: authHeader.length,
+    primeros8_esperado: cronSecret.length >= 8 ? cronSecret.slice(0, 8) : `(longitud ${cronSecret.length})`,
+    primeros8_recibido: token.length >= 8 ? token.slice(0, 8) : `(longitud ${token.length})`,
+  });
+
   if (!cronSecret) {
     console.error(`[send-notifications] invocación rechazada: ${CONFIG.CRON_SECRET_ENV} no configurado en Edge Functions → Secrets`);
     return Response.json({ error: "No autorizado" }, { status: 401 });
