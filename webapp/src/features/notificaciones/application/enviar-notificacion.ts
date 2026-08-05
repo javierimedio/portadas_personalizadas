@@ -44,7 +44,8 @@ export async function enviarNotificacion(supabase: Supabase, solicitudId: string
   });
   if (!filas.length) return;
 
-  await supabase.from("notificaciones").insert(filas);
+  const { error } = await supabase.from("notificaciones").insert(filas);
+  if (error) console.error("[enviarNotificacion] fallo al insertar en notificaciones", { solicitudId, estado, error });
 }
 
 // Réplica del aviso directo de confirmAsignar() (~3690-3695) — un único
@@ -58,7 +59,7 @@ export async function enviarNotificacionAsignacion(supabase: Supabase, solicitud
   if (!crear) return;
 
   const mensaje = buildAsignacionNotificacion({ codSap: sol.cod_sap, nombreEmpresa: sol.nombre_empresa, disenadorEmail });
-  await supabase.from("notificaciones").insert({
+  const { error } = await supabase.from("notificaciones").insert({
     solicitud_id: solicitudId,
     destinatario: mensaje.destinatario,
     asunto: mensaje.asunto,
@@ -66,6 +67,7 @@ export async function enviarNotificacionAsignacion(supabase: Supabase, solicitud
     enviado: entregada,
     enviado_at: entregada ? new Date().toISOString() : null,
   });
+  if (error) console.error("[enviarNotificacionAsignacion] fallo al insertar en notificaciones", { solicitudId, disenadorEmail, error });
 }
 
 // Réplica del aviso a mencionados de addComentario() (~3393-3405, COM-07) —
@@ -89,5 +91,6 @@ export async function enviarNotificacionesMencion(
   });
   if (!filas.length) return;
 
-  await supabase.from("notificaciones").insert(filas);
+  const { error } = await supabase.from("notificaciones").insert(filas);
+  if (error) console.error("[enviarNotificacionesMencion] fallo al insertar en notificaciones", { solicitudId, error });
 }
