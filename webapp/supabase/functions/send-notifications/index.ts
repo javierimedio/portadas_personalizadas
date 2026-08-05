@@ -74,6 +74,11 @@ async function marcarResultado(supabaseAdmin: SupabaseClient, id: string, patch:
 }
 
 Deno.serve(async (req: Request) => {
+  // ⚠️ DIAGNÓSTICO TEMPORAL [A] — primera línea absoluta del handler, antes
+  // de leer ningún env var ni header. Si esta línea no aparece en los logs,
+  // el handler no se está ejecutando en absoluto.
+  console.error("[send-notifications][diag-A] handler invocado");
+
   // Solo pg_cron debe poder invocar esta función. La autenticación usa un
   // secreto propio (CONFIG.CRON_SECRET_ENV) en vez de depender de cómo
   // Supabase inyecta sus propias claves internas (SUPABASE_SERVICE_ROLE_KEY,
@@ -87,18 +92,16 @@ Deno.serve(async (req: Request) => {
   const authHeader = req.headers.get("Authorization") ?? "";
   const token = (authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : authHeader).trim();
 
-  // ⚠️ DIAGNÓSTICO TEMPORAL — eliminar una vez resuelto el 401 de producción.
-  // No registra nunca el secreto completo ni el token completo.
-  // Usa console.error (no console.log) porque Supabase filtra los niveles
-  // info/log en el visor del Dashboard por defecto.
-  console.error("[send-notifications][diag]", {
-    secreto_configurado: !!cronSecret,
-    longitud_secreto: cronSecret.length,
-    longitud_token_recibido: token.length,
-    longitud_auth_header_raw: authHeader.length,
-    primeros8_esperado: cronSecret.length >= 8 ? cronSecret.slice(0, 8) : `(longitud ${cronSecret.length})`,
-    primeros8_recibido: token.length >= 8 ? token.slice(0, 8) : `(longitud ${token.length})`,
-  });
+  // ⚠️ DIAGNÓSTICO TEMPORAL [B] — cadena plana, sin objeto, para evitar
+  // cualquier problema de serialización en el colector de logs de Supabase.
+  // Si [A] aparece pero [B] no, hay un crash en las líneas entre ambos.
+  // Si [B] aparece pero no aparecía antes, el problema era la serialización
+  // del objeto en la versión anterior.
+  const p8exp = cronSecret.length > 0 ? cronSecret.slice(0, Math.min(8, cronSecret.length)) : "(vacio)";
+  const p8recv = token.length > 0 ? token.slice(0, Math.min(8, token.length)) : "(vacio)";
+  console.error(
+    `[send-notifications][diag-B] secreto=${!!cronSecret} lenS=${cronSecret.length} lenT=${token.length} lenH=${authHeader.length} p8exp=${p8exp} p8recv=${p8recv}`
+  );
 
   if (!cronSecret) {
     console.error(`[send-notifications] invocación rechazada: ${CONFIG.CRON_SECRET_ENV} no configurado en Edge Functions → Secrets`);
