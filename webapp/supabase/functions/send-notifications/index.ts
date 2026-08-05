@@ -35,7 +35,6 @@
 // AMBOS archivos, `index.ts` importa `./config.ts`. Un cambio aquí no tiene
 // ningún efecto hasta hacer ese paso.
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
-import * as jose from "npm:jose@5";
 import nodemailer from "npm:nodemailer@6";
 import { CONFIG } from "./config.ts";
 
@@ -75,36 +74,24 @@ async function marcarResultado(supabaseAdmin: SupabaseClient, id: string, patch:
 }
 
 Deno.serve(async (req: Request) => {
-  // Solo pg_cron (que llama con la service_role key, ver docs/10) debe poder
-  // invocar esta función — no tiene sentido que un usuario autenticado
-  // cualquiera pueda disparar el envío de email a demanda.
-  //
-  // Validación definitiva: verifica la firma del JWT entrante con
-  // SUPABASE_JWT_SECRET (inyectado automáticamente por Supabase en todas las
-  // Edge Functions, independientemente de secrets manuales) y comprueba que
-  // el claim `role` sea exactamente `"service_role"`. Este enfoque es más
-  // robusto que comparar strings literales contra SUPABASE_SERVICE_ROLE_KEY,
-  // porque no depende de cómo Supabase inyecta ese valor en tiempo de
-  // ejecución — solo depende de la firma criptográfica del token, que es la
-  // única fuente de verdad del proyecto.
+  // Solo pg_cron debe poder invocar esta función. La autenticación usa un
+  // secreto propio (CRON_SECRET) en vez de depender de cómo Supabase inyecta
+  // sus propias claves internas (SUPABASE_SERVICE_ROLE_KEY,
+  // SUPABASE_JWT_SECRET) en tiempo de ejecución, cuyo formato varía entre
+  // versiones de la plataforma y no es controlable desde el código.
+  // CRON_SECRET es un valor arbitrario que el propietario del proyecto
+  // genera, almacena en Edge Functions → Secrets y pone también en la
+  // cabecera Authorization del cron.schedule() — ver docs/10.
+  const cronSecret = (Deno.env.get("CRON_SECRET") ?? "").trim();
   const authHeader = req.headers.get("Authorization") ?? "";
   const token = (authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : authHeader).trim();
 
-  if (!token) {
-    console.error("[send-notifications] invocación rechazada: cabecera Authorization ausente o vacía");
+  if (!cronSecret) {
+    console.error("[send-notifications] invocación rechazada: CRON_SECRET no configurado en Edge Functions → Secrets");
     return Response.json({ error: "No autorizado" }, { status: 401 });
   }
-
-  try {
-    const jwtSecret = new TextEncoder().encode(Deno.env.get("SUPABASE_JWT_SECRET")!);
-    const { payload } = await jose.jwtVerify(token, jwtSecret);
-    if (payload["role"] !== "service_role") {
-      console.error("[send-notifications] invocación rechazada: el token no tiene role=service_role", { role: payload["role"] });
-      return Response.json({ error: "No autorizado" }, { status: 401 });
-    }
-  } catch (err) {
-    const mensaje = err instanceof Error ? err.message : String(err);
-    console.error("[send-notifications] invocación rechazada: JWT inválido o firma incorrecta", { error: mensaje });
+  if (!token || token !== cronSecret) {
+    console.error("[send-notifications] invocación rechazada: Authorization no coincide con CRON_SECRET");
     return Response.json({ error: "No autorizado" }, { status: 401 });
   }
 
