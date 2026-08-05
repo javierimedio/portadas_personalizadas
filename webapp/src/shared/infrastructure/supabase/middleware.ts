@@ -16,18 +16,6 @@ function isPublicPath(pathname: string) {
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
-  // INSTRUMENTACIÓN TEMPORAL (2026-08-05) — diagnóstico del 500
-  // MIDDLEWARE_INVOCATION_FAILED / "Invalid supabaseUrl" en producción. No
-  // imprime el valor completo ni la anon key. Quitar en cuanto se confirme
-  // la causa exacta.
-  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  console.log("[middleware-diag] NEXT_PUBLIC_SUPABASE_URL", {
-    existe: rawUrl !== undefined,
-    tipo: typeof rawUrl,
-    longitud: rawUrl?.length ?? null,
-    primerosCaracteres: rawUrl?.slice(0, 12) ?? null,
-  });
-
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
