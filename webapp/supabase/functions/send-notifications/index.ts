@@ -3,7 +3,9 @@
 // Toda la lógica de negocio (qué evento genera qué mensaje, a quién, según
 // qué preferencia) vive en Next.js y solo deja filas en `notificaciones`;
 // esta función únicamente consume las pendientes (`enviado = false`) y las
-// entrega — es la ÚNICA pieza que sabe de SMTP y de la plantilla HTML.
+// entrega — es la ÚNICA pieza que sabe de SMTP y de la plantilla HTML. Toda
+// su configuración (tamaño de lote, reintentos, remitente...) vive en
+// `./config.ts`, no como literales sueltos aquí.
 //
 // Disparador: pg_cron, una vez por minuto, sin ningún otro mecanismo de
 // disparo (decisión explícita: un solo camino de envío es más simple, más
@@ -15,20 +17,21 @@
 // habilitadas (Database → Extensions) — no se activan desde una migración,
 // es un paso de Dashboard.
 //
-// ⚠️ Igual que `create-user`: este archivo vive en el repositorio, pero la
-// función real que se ejecuta en cada proyecto Supabase es la copia pegada a
-// mano en el Dashboard (Edge Functions → send-notifications → editor →
-// Deploy). Un cambio aquí no tiene ningún efecto hasta hacer ese paso.
+// ⚠️ Igual que `create-user`: este archivo (y `config.ts`, en el mismo
+// directorio) viven en el repositorio, pero la función real que se ejecuta
+// en cada proyecto Supabase es la copia pegada a mano en el Dashboard (Edge
+// Functions → send-notifications → editor → Deploy) — hace falta copiar
+// AMBOS archivos, `index.ts` importa `./config.ts`. Un cambio aquí no tiene
+// ningún efecto hasta hacer ese paso.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import nodemailer from "npm:nodemailer@6";
-
-const LOTE = 50;
-const MAX_INTENTOS = 5;
-const LEASE_MINUTOS = 2;
+import { CONFIG } from "./config.ts";
 
 function renderPlantilla(asunto: string, cuerpo: string): string {
   // Plantilla corporativa ÚNICA de todos los emails de la aplicación —
-  // cualquier cambio visual futuro se hace aquí, nunca en Next.js.
+  // cualquier cambio visual futuro se hace aquí, nunca en Next.js. Diseño
+  // provisional a definir con el propietario del proyecto (2026-08-05: no
+  // replica ninguna plantilla anterior, no existía ninguna recuperable).
   const escapar = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return `<!doctype html>
 <html>
@@ -37,7 +40,7 @@ function renderPlantilla(asunto: string, cuerpo: string): string {
       <div style="font-weight:700;font-size:16px;color:#1a1a1a;margin-bottom:16px;">${escapar(asunto)}</div>
       <div style="font-size:14px;line-height:1.6;color:#333333;white-space:pre-line;">${escapar(cuerpo)}</div>
       <hr style="margin:28px 0;border:none;border-top:1px solid #e5e5e5;" />
-      <div style="font-size:11px;color:#999999;">Portadas GOR — notificación automática, no respondas a este correo.</div>
+      <div style="font-size:11px;color:#999999;">${escapar(CONFIG.REMITENTE_NOMBRE)} — notificación automática, no respondas a este correo.</div>
     </div>
   </body>
 </html>`;
@@ -47,9 +50,9 @@ Deno.serve(async () => {
   const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   const { data: pendientes, error: claimError } = await supabaseAdmin.rpc("reclamar_notificaciones_pendientes", {
-    p_lote: LOTE,
-    p_max_intentos: MAX_INTENTOS,
-    p_lease_minutos: LEASE_MINUTOS,
+    p_lote: CONFIG.LOTE,
+    p_max_intentos: CONFIG.MAX_INTENTOS,
+    p_lease_minutos: CONFIG.LEASE_MINUTOS,
   });
   if (claimError) {
     console.error("[send-notifications] fallo al reclamar el lote", claimError);
@@ -60,11 +63,12 @@ Deno.serve(async () => {
   }
   console.log("[send-notifications] lote reclamado", { procesadas: pendientes.length });
 
+  const smtpUser = Deno.env.get("SMTP_USER");
   const transporter = nodemailer.createTransport({
     host: Deno.env.get("SMTP_HOST"),
     port: Number(Deno.env.get("SMTP_PORT") ?? 587),
     secure: Number(Deno.env.get("SMTP_PORT") ?? 587) === 465,
-    auth: { user: Deno.env.get("SMTP_USER"), pass: Deno.env.get("SMTP_PASS") },
+    auth: { user: smtpUser, pass: Deno.env.get("SMTP_PASS") },
   });
 
   let enviadas = 0;
@@ -73,7 +77,7 @@ Deno.serve(async () => {
   for (const n of pendientes) {
     try {
       await transporter.sendMail({
-        from: Deno.env.get("SMTP_USER"),
+        from: `"${CONFIG.REMITENTE_NOMBRE}" <${smtpUser}>`,
         to: n.destinatario,
         subject: n.asunto,
         html: renderPlantilla(n.asunto, n.cuerpo),
