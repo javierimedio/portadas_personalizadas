@@ -1,7 +1,37 @@
 import type { createClient } from "@/shared/infrastructure/supabase/server-client";
-import { buildAsignacionNotificacion, buildMencionNotificacion, buildNotificaciones, resolverEntrega } from "../domain/enviar-notificacion";
+import { buildAsignacionNotificacion, buildMencionNotificacion, buildNotificaciones, resolverEntrega, type NotifMensaje } from "../domain/enviar-notificacion";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+// Único punto de inserción en `notificaciones` de toda la aplicación
+// (arquitectura de notificaciones por email, 2026-08-05): decide, por cada
+// mensaje, si se crea la fila y si cuenta como ya entregada (resolverEntrega,
+// según `notif_preferencia` del destinatario) y la inserta. Los tres
+// generadores de eventos de abajo son deliberadamente delgados — solo
+// resuelven "qué mensaje(s) produce este evento y con qué preferencia por
+// destinatario"; cualquier evento nuevo (reasignación, archivado, lo que
+// venga) se añade como un generador más que llama a esto, sin duplicar la
+// lógica de inserción. El envío real por email lo hace un proceso
+// completamente aparte (Edge Function `send-notifications` vía pg_cron) que
+// consume las filas con `enviado = false` — este módulo nunca envía nada,
+// solo deja la fila lista en la cola.
+async function insertarNotificaciones(
+  supabase: Supabase,
+  solicitudId: string,
+  mensajes: NotifMensaje[],
+  preferenciaPorEmail: Map<string, string | null | undefined>,
+  logTag: string
+): Promise<void> {
+  const filas = mensajes.flatMap((m) => {
+    const { crear, entregada } = resolverEntrega(preferenciaPorEmail.get(m.destinatario));
+    if (!crear) return [];
+    return [{ solicitud_id: solicitudId, destinatario: m.destinatario, asunto: m.asunto, cuerpo: m.cuerpo, enviado: entregada, enviado_at: entregada ? new Date().toISOString() : null }];
+  });
+  if (!filas.length) return;
+
+  const { error } = await supabase.from("notificaciones").insert(filas);
+  if (error) console.error(`[${logTag}] fallo al insertar en notificaciones`, { solicitudId, error });
+}
 
 // Réplica de enviarNotificacion() (index.html ~5561-5649), resuelta contra la
 // BD en vez de contra el caché en memoria del cliente: como esto corre en un
@@ -35,17 +65,7 @@ export async function enviarNotificacion(supabase: Supabase, solicitudId: string
     mktAdminEmails,
     disenadorEmails,
   });
-  if (!mensajes.length) return;
-
-  const filas = mensajes.flatMap((m) => {
-    const { crear, entregada } = resolverEntrega(preferenciaPorEmail.get(m.destinatario));
-    if (!crear) return [];
-    return [{ solicitud_id: solicitudId, destinatario: m.destinatario, asunto: m.asunto, cuerpo: m.cuerpo, enviado: entregada, enviado_at: entregada ? new Date().toISOString() : null }];
-  });
-  if (!filas.length) return;
-
-  const { error } = await supabase.from("notificaciones").insert(filas);
-  if (error) console.error("[enviarNotificacion] fallo al insertar en notificaciones", { solicitudId, estado, error });
+  await insertarNotificaciones(supabase, solicitudId, mensajes, preferenciaPorEmail, "enviarNotificacion");
 }
 
 // Réplica del aviso directo de confirmAsignar() (~3690-3695) — un único
@@ -55,19 +75,14 @@ export async function enviarNotificacionAsignacion(supabase: Supabase, solicitud
   if (!sol) return;
 
   const { data: disenadorPerfil } = await supabase.from("perfiles").select("notif_preferencia").eq("email", disenadorEmail).maybeSingle();
-  const { crear, entregada } = resolverEntrega(disenadorPerfil?.notif_preferencia);
-  if (!crear) return;
-
   const mensaje = buildAsignacionNotificacion({ codSap: sol.cod_sap, nombreEmpresa: sol.nombre_empresa, disenadorEmail });
-  const { error } = await supabase.from("notificaciones").insert({
-    solicitud_id: solicitudId,
-    destinatario: mensaje.destinatario,
-    asunto: mensaje.asunto,
-    cuerpo: mensaje.cuerpo,
-    enviado: entregada,
-    enviado_at: entregada ? new Date().toISOString() : null,
-  });
-  if (error) console.error("[enviarNotificacionAsignacion] fallo al insertar en notificaciones", { solicitudId, disenadorEmail, error });
+  await insertarNotificaciones(
+    supabase,
+    solicitudId,
+    [mensaje],
+    new Map([[disenadorEmail, disenadorPerfil?.notif_preferencia]]),
+    "enviarNotificacionAsignacion"
+  );
 }
 
 // Réplica del aviso a mencionados de addComentario() (~3393-3405, COM-07) —
@@ -83,14 +98,7 @@ export async function enviarNotificacionesMencion(
   const { data: sol } = await supabase.from("solicitudes").select("cod_sap").eq("id", solicitudId).maybeSingle();
   if (!sol) return;
 
-  const filas = destinatarios.flatMap((d) => {
-    const { crear, entregada } = resolverEntrega(d.notif_preferencia);
-    if (!crear) return [];
-    const m = buildMencionNotificacion({ autorNombre, codSap: sol.cod_sap, texto, destinatarioEmail: d.email });
-    return [{ solicitud_id: solicitudId, destinatario: m.destinatario, asunto: m.asunto, cuerpo: m.cuerpo, enviado: entregada, enviado_at: entregada ? new Date().toISOString() : null }];
-  });
-  if (!filas.length) return;
-
-  const { error } = await supabase.from("notificaciones").insert(filas);
-  if (error) console.error("[enviarNotificacionesMencion] fallo al insertar en notificaciones", { solicitudId, error });
+  const mensajes = destinatarios.map((d) => buildMencionNotificacion({ autorNombre, codSap: sol.cod_sap, texto, destinatarioEmail: d.email }));
+  const preferenciaPorEmail = new Map(destinatarios.map((d) => [d.email, d.notif_preferencia]));
+  await insertarNotificaciones(supabase, solicitudId, mensajes, preferenciaPorEmail, "enviarNotificacionesMencion");
 }
