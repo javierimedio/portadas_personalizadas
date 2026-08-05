@@ -1,0 +1,47 @@
+{
+  "name": "portadas-personalizadas-webapp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Migración de arquitectura de index.html a Next.js — ver /docs en la raíz del repositorio. Entorno de DESARROLLO únicamente hasta el cutover (docs/06-roadmap.md).",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:types": "supabase gen types typescript --project-id \"$SUPABASE_DEV_PROJECT_ID\" > src/shared/infrastructure/supabase/database.types.ts",
+    "seed": "tsx scripts/seed.ts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.7.0",
+    "@supabase/supabase-js": "^2.58.0",
+    "chart.js": "^4.4.0",
+    "clsx": "^2.1.1",
+    "exceljs": "^4.4.0",
+    "next": "^15.5.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-hook-form": "^7.63.0",
+    "tailwind-merge": "^3.6.0",
+    "xlsx": "^0.18.5",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.0",
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^9.36.0",
+    "eslint-config-next": "^15.5.0",
+    "jsdom": "^26.0.0",
+    "tailwindcss": "^4.1.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vite-tsconfig-paths": "^5.1.0",
+    "vitest": "^3.1.0"
+  }
+}
