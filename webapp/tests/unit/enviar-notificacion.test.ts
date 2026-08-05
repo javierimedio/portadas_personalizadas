@@ -69,10 +69,10 @@ describe("buildNotificaciones", () => {
 });
 
 describe("buildAsignacionNotificacion", () => {
-  it("mensaje único al diseñador asignado", () => {
+  it("mensaje único al diseñador asignado, con el mismo prefijo de asunto que el resto de generadores", () => {
     const n = buildAsignacionNotificacion({ codSap: "60239", nombreEmpresa: "ACME", disenadorEmail: "dis1@gor.es" });
     expect(n.destinatario).toBe("dis1@gor.es");
-    expect(n.asunto).toBe("Nueva portada asignada — 60239");
+    expect(n.asunto).toBe("[Portadas GOR] Nueva portada asignada — 60239");
     expect(n.cuerpo).toContain("ACME");
   });
 });

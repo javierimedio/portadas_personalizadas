@@ -1,3 +1,5 @@
+import { ASUNTO_BASE } from "./config";
+
 // Réplica de enviarNotificacion() (index.html ~5561-5649): el switch/case
 // que decide destinatarios y textos por transición de estado (NOT-02 a
 // NOT-08). Aquí es una función pura — la resolución de emails reales
@@ -29,7 +31,7 @@ function dedupeEmails(emails: (string | null | undefined)[]): string[] {
 // expande a un destinatario por email único (NOT-08).
 export function buildNotificaciones(estado: string, ctx: NotifRecipients): NotifMensaje[] {
   const notifs: NotifMensaje[] = [];
-  const base = `[Portadas GOR] ${ctx.codSap}`;
+  const base = `${ASUNTO_BASE} ${ctx.codSap}`;
   const nombre = ctx.nombreEmpresa || "";
 
   function push(emails: (string | null | undefined)[], asunto: string, cuerpo: string) {
@@ -95,11 +97,14 @@ export function buildNotificaciones(estado: string, ctx: NotifRecipients): Notif
 // Réplica del aviso de asignación directa de confirmAsignar() (~3690-3695):
 // un mensaje único al diseñador asignado, fuera del switch/case anterior —
 // "Asignar y enviar a diseño" no dispara el aviso general de NOT-03,
-// exactamente como en el original.
+// exactamente como en el original. Centralización del asunto (2026-08-05):
+// el original no llevaba el prefijo `ASUNTO_BASE` aquí, a diferencia de los
+// otros dos generadores — inconsistencia real detectada al centralizarlo,
+// corregida para que los tres se comporten igual.
 export function buildAsignacionNotificacion(ctx: { codSap: string; nombreEmpresa: string | null; disenadorEmail: string }): NotifMensaje {
   return {
     destinatario: ctx.disenadorEmail,
-    asunto: `Nueva portada asignada — ${ctx.codSap}`,
+    asunto: `${ASUNTO_BASE} Nueva portada asignada — ${ctx.codSap}`,
     cuerpo: `Se te ha asignado la solicitud de portada para ${ctx.codSap} (${ctx.nombreEmpresa || ""}). Accede a la herramienta para ver los detalles.`,
   };
 }
@@ -111,7 +116,7 @@ export function buildAsignacionNotificacion(ctx: { codSap: string; nombreEmpresa
 export function buildMencionNotificacion(ctx: { autorNombre: string | null; codSap: string; texto: string; destinatarioEmail: string }): NotifMensaje {
   return {
     destinatario: ctx.destinatarioEmail,
-    asunto: `[Portadas GOR] ${ctx.autorNombre ?? ""} te ha mencionado`,
+    asunto: `${ASUNTO_BASE} ${ctx.autorNombre ?? ""} te ha mencionado`,
     cuerpo: `${ctx.autorNombre ?? ""} te ha mencionado en un comentario de la solicitud ${ctx.codSap}:\n\n"${ctx.texto}"`,
   };
 }
@@ -122,15 +127,18 @@ export type NotifEntrega = { crear: boolean; entregada: boolean };
 // crea y si cuenta como ya entregada — según su `notif_preferencia`
 // (perfiles.notif_preferencia, default 'ambas' en la base de datos):
 // - 'ninguna': no se crea ningún registro — no recibe nada.
-// - 'email': el canal de email real no está implementado en esta aplicación
-//   (docs/07-propuestas-futuras.md § 4, ni en el original ni aquí) — no se
-//   crea el registro, porque "solo email" pide explícitamente NO aparecer
-//   en la herramienta, y no hay ningún otro canal que ofrecerle hoy.
+// - 'email': **decisión pendiente, sin cambiar a propósito** (2026-08-05):
+//   ahora que el envío real existe (Outbox + `send-notifications`), "solo
+//   email, sin panel" ya sería técnicamente posible, pero requiere poder
+//   distinguir "visible en la herramienta" de "hay que enviarlo" — hoy es
+//   un único booleano (`enviado`/`crear`) que no permite las dos cosas a la
+//   vez. Hasta que se decida ese modelo, se mantiene el comportamiento
+//   anterior: no se crea ningún registro.
 // - 'herramienta': se crea y se marca como ya entregada (nada más pendiente).
 // - 'ambas' (y cualquier valor no reconocido, igual que el default de la
-//   columna): se crea, visible en la herramienta, pero NO se marca como
-//   entregada — sigue pendiente el envío real por email, que esta
-//   aplicación no implementa todavía.
+//   columna): se crea, visible en la herramienta, y NO se marca como
+//   entregada — queda pendiente en la cola para que `send-notifications`
+//   la envíe por email de verdad.
 export function resolverEntrega(preferencia: string | null | undefined): NotifEntrega {
   switch (preferencia) {
     case "ninguna":

@@ -14,9 +14,9 @@ Hoy vive en `localStorage` (`portadas_notifs_read`), por lo que no sincroniza en
 
 `campanas.covers` y `campanas.covers_instrucciones` son objetos JSON (`{catalogo_key: url}`). Una tabla `campana_documentos` (campana_id, catalogo, tipo, storage_path, subido_por, created_at) permitiría auditar quién subió qué y cuándo, y versionar si se sube un PDF nuevo. No es necesaria para que Next.js lea/escriba lo mismo que hoy.
 
-## 4. Envío real de email para notificaciones
+## 4. Envío real de email para notificaciones — **implementado (2026-08-05)**
 
-La tabla `notificaciones` se rellena pero nunca se envía un correo real — está literalmente comentado en el código actual ("para envío real, configurar Edge Function con Resend"). Añadir esto es una funcionalidad nueva, no una migración de arquitectura, aunque sea una carencia evidente.
+~~La tabla `notificaciones` se rellena pero nunca se envía un correo real~~ — resuelto: arquitectura Outbox + `pg_cron` + Edge Function `send-notifications` (sin Resend, con el SMTP ya disponible). Detalle en `docs/10-auditoria-despliegue-manual.md` § "Puesta en marcha de `send-notifications`". Pendiente de decidir, no bloqueante: qué hacer con la preferencia `notif_preferencia = 'email'` (hoy sigue sin generar nada — ver comentario en `features/notificaciones/domain/enviar-notificacion.ts`).
 
 ## 5. Renovación automática de sesión
 
