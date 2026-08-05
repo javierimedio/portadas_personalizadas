@@ -74,10 +74,7 @@ async function marcarResultado(supabaseAdmin: SupabaseClient, id: string, patch:
 }
 
 Deno.serve(async (req: Request) => {
-  // ⚠️ DIAGNÓSTICO TEMPORAL [A] — primera línea absoluta del handler, antes
-  // de leer ningún env var ni header. Si esta línea no aparece en los logs,
-  // el handler no se está ejecutando en absoluto.
-  console.error("[send-notifications][diag-A] handler invocado");
+  console.error("AAAAAAAAAAAAAAAA");
 
   // Solo pg_cron debe poder invocar esta función. La autenticación usa un
   // secreto propio (CONFIG.CRON_SECRET_ENV) en vez de depender de cómo
