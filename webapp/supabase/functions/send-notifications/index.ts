@@ -75,23 +75,24 @@ async function marcarResultado(supabaseAdmin: SupabaseClient, id: string, patch:
 
 Deno.serve(async (req: Request) => {
   // Solo pg_cron debe poder invocar esta función. La autenticación usa un
-  // secreto propio (CRON_SECRET) en vez de depender de cómo Supabase inyecta
-  // sus propias claves internas (SUPABASE_SERVICE_ROLE_KEY,
+  // secreto propio (CONFIG.CRON_SECRET_ENV) en vez de depender de cómo
+  // Supabase inyecta sus propias claves internas (SUPABASE_SERVICE_ROLE_KEY,
   // SUPABASE_JWT_SECRET) en tiempo de ejecución, cuyo formato varía entre
   // versiones de la plataforma y no es controlable desde el código.
-  // CRON_SECRET es un valor arbitrario que el propietario del proyecto
-  // genera, almacena en Edge Functions → Secrets y pone también en la
-  // cabecera Authorization del cron.schedule() — ver docs/10.
-  const cronSecret = (Deno.env.get("CRON_SECRET") ?? "").trim();
+  // El nombre del secret vive en config.ts (CONFIG.CRON_SECRET_ENV); su
+  // valor es un string aleatorio que el propietario del proyecto genera,
+  // almacena en Edge Functions → Secrets y pone también en la cabecera
+  // Authorization del cron.schedule() — ver docs/10.
+  const cronSecret = (Deno.env.get(CONFIG.CRON_SECRET_ENV) ?? "").trim();
   const authHeader = req.headers.get("Authorization") ?? "";
   const token = (authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : authHeader).trim();
 
   if (!cronSecret) {
-    console.error("[send-notifications] invocación rechazada: CRON_SECRET no configurado en Edge Functions → Secrets");
+    console.error(`[send-notifications] invocación rechazada: ${CONFIG.CRON_SECRET_ENV} no configurado en Edge Functions → Secrets`);
     return Response.json({ error: "No autorizado" }, { status: 401 });
   }
   if (!token || token !== cronSecret) {
-    console.error("[send-notifications] invocación rechazada: Authorization no coincide con CRON_SECRET");
+    console.error(`[send-notifications] invocación rechazada: Authorization no coincide con ${CONFIG.CRON_SECRET_ENV}`);
     return Response.json({ error: "No autorizado" }, { status: 401 });
   }
 
