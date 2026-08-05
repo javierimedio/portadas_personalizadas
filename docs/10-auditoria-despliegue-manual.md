@@ -68,10 +68,12 @@ Cambiar una no cambia la otra. Si alguna vez se apunta la app de Next.js a un pr
 
 ## Checklist para no repetir este tipo de incidente
 
+**Regla permanente mientras no se introduzca la CLI de Supabase** (decisión explícita del propietario del proyecto, 2026-08-05: flujo manual — código y Edge Functions versionados en el repo, migraciones por SQL Editor, despliegue de Edge Functions por Dashboard, sin `supabase db push` ni `supabase functions deploy`): cualquier Edge Function nueva o modificada actualiza la fila correspondiente de la tabla del principio de este documento con el **listado exacto y completo** de los archivos de su carpeta que hay que copiar — no asumir que es solo `index.ts`.
+
 Antes de dar por buena cualquier corrección que toque uno de estos componentes, comprobar explícitamente cuál de estas acciones manuales hace falta repetir:
 
-- [ ] ¿Cambié `webapp/supabase/functions/create-user/index.ts`? → copiar el archivo completo en Dashboard → Edge Functions → `create-user` → Deploy, en **cada** proyecto Supabase afectado (desarrollo y producción son proyectos distintos con Edge Functions independientes).
-- [ ] ¿Añadí o cambié un archivo en `webapp/supabase/migrations/`? → aplicarlo a mano (SQL Editor o `supabase db push` con el proyecto enlazado) en **cada** proyecto Supabase afectado, en orden.
+- [ ] ¿Cambié algo dentro de `webapp/supabase/functions/create-user/` o `webapp/supabase/functions/send-notifications/`? → copiar **todos los archivos de esa carpeta** (no solo `index.ts` si tiene más, como `send-notifications/config.ts`) en Dashboard → Edge Functions → esa función → editor → Deploy, en **cada** proyecto Supabase afectado (desarrollo y producción son proyectos distintos con Edge Functions independientes).
+- [ ] ¿Añadí o cambié un archivo en `webapp/supabase/migrations/`? → aplicarlo a mano en el SQL Editor en **cada** proyecto Supabase afectado, en orden. Mientras no se use la CLI de Supabase (decisión vigente, 2026-08-05), esta es la única vía — no hay `supabase db push` en este flujo.
 - [ ] ¿Necesito un bucket de Storage nuevo? → crearlo a mano desde Dashboard → Storage antes de escribir cualquier política RLS que lo referencie — no hay ningún mecanismo en este repo que lo haga por ti.
 - [ ] ¿Cambié una variable `NEXT_PUBLIC_*` o añadí una nueva? → actualizar Vercel → Environment Variables y volver a desplegar (un cambio de env var en Vercel normalmente no redespliega solo).
 - [ ] ¿La Edge Function necesita un secreto nuevo? → añadirlo en Dashboard → Edge Functions → Secrets, no en `.env` de Next.js — no lo va a leer desde ahí.
