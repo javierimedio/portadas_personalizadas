@@ -17,13 +17,24 @@
 // habilitadas (Database → Extensions) — no se activan desde una migración,
 // es un paso de Dashboard.
 //
+// Semántica de entrega — "al menos una vez", no "exactamente una vez"
+// (revisión 2026-08-05): si el envío SMTP tiene éxito pero el proceso muere
+// antes de completar el `UPDATE enviado=true` posterior, la fila sigue
+// `enviado=false` y se reintenta más adelante — puede producir, en ese caso
+// límite concreto, un email duplicado. Es una decisión consciente: evitarlo
+// del todo exigiría un protocolo de dos fases (marcar antes de enviar,
+// deshacer si falla) que no se justifica para notificaciones informativas
+// como estas. Si en el futuro se envían notificaciones donde un duplicado
+// sea inaceptable, revisar esto explícitamente antes de reutilizar el mismo
+// mecanismo.
+//
 // ⚠️ Igual que `create-user`: este archivo (y `config.ts`, en el mismo
 // directorio) viven en el repositorio, pero la función real que se ejecuta
 // en cada proyecto Supabase es la copia pegada a mano en el Dashboard (Edge
 // Functions → send-notifications → editor → Deploy) — hace falta copiar
 // AMBOS archivos, `index.ts` importa `./config.ts`. Un cambio aquí no tiene
 // ningún efecto hasta hacer ese paso.
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import nodemailer from "npm:nodemailer@6";
 import { CONFIG } from "./config.ts";
 
@@ -32,6 +43,10 @@ function renderPlantilla(asunto: string, cuerpo: string): string {
   // cualquier cambio visual futuro se hace aquí, nunca en Next.js. Diseño
   // provisional a definir con el propietario del proyecto (2026-08-05: no
   // replica ninguna plantilla anterior, no existía ninguna recuperable).
+  // Solo se escapa texto que va como contenido (nunca como atributo HTML),
+  // así que basta con &/</> — asunto/cuerpo pueden venir de texto libre de
+  // usuario (p. ej. un comentario con mención), de ahí que este escapado no
+  // sea opcional.
   const escapar = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return `<!doctype html>
 <html>
@@ -46,8 +61,31 @@ function renderPlantilla(asunto: string, cuerpo: string): string {
 </html>`;
 }
 
-Deno.serve(async () => {
-  const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+// Único punto de escritura del resultado de procesar una fila — centraliza
+// el `bloqueado_hasta: null` (liberar el reclamo) para que ningún camino
+// nuevo que se añada en el futuro pueda olvidarlo por descuido.
+async function marcarResultado(supabaseAdmin: SupabaseClient, id: string, patch: Record<string, unknown>): Promise<boolean> {
+  const { error } = await supabaseAdmin
+    .from("notificaciones")
+    .update({ bloqueado_hasta: null, ...patch })
+    .eq("id", id);
+  if (error) console.error("[send-notifications] fallo al actualizar la notificación tras procesarla", { id, patch, error });
+  return !error;
+}
+
+Deno.serve(async (req: Request) => {
+  // Solo pg_cron (que llama con la service_role key, ver docs/10) debe poder
+  // invocar esta función — no tiene sentido que un usuario autenticado
+  // cualquiera pueda disparar el envío de email a demanda. La verificación
+  // de JWT de la plataforma solo comprueba que el token es válido, no quién
+  // es su titular, así que se comprueba aquí explícitamente.
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  if (req.headers.get("Authorization") !== `Bearer ${serviceRoleKey}`) {
+    console.error("[send-notifications] invocación rechazada: Authorization no coincide con la service_role key");
+    return Response.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, serviceRoleKey);
 
   const { data: pendientes, error: claimError } = await supabaseAdmin.rpc("reclamar_notificaciones_pendientes", {
     p_lote: CONFIG.LOTE,
@@ -63,41 +101,44 @@ Deno.serve(async () => {
   }
   console.log("[send-notifications] lote reclamado", { procesadas: pendientes.length });
 
-  const smtpUser = Deno.env.get("SMTP_USER");
-  const transporter = nodemailer.createTransport({
-    host: Deno.env.get("SMTP_HOST"),
-    port: Number(Deno.env.get("SMTP_PORT") ?? 587),
-    secure: Number(Deno.env.get("SMTP_PORT") ?? 587) === 465,
-    auth: { user: smtpUser, pass: Deno.env.get("SMTP_PASS") },
-  });
-
   let enviadas = 0;
   let fallidas = 0;
 
-  for (const n of pendientes) {
-    try {
-      await transporter.sendMail({
-        from: `"${CONFIG.REMITENTE_NOMBRE}" <${smtpUser}>`,
-        to: n.destinatario,
-        subject: n.asunto,
-        html: renderPlantilla(n.asunto, n.cuerpo),
-      });
-      const { error } = await supabaseAdmin
-        .from("notificaciones")
-        .update({ enviado: true, enviado_at: new Date().toISOString(), bloqueado_hasta: null })
-        .eq("id", n.id);
-      if (error) {
-        console.error("[send-notifications] enviado pero fallo al marcar enviado=true", { id: n.id, error });
-      } else {
-        enviadas++;
+  try {
+    const smtpUser = Deno.env.get("SMTP_USER");
+    const transporter = nodemailer.createTransport({
+      host: Deno.env.get("SMTP_HOST"),
+      port: Number(Deno.env.get("SMTP_PORT") ?? 587),
+      secure: Number(Deno.env.get("SMTP_PORT") ?? 587) === 465,
+      auth: { user: smtpUser, pass: Deno.env.get("SMTP_PASS") },
+    });
+
+    for (const n of pendientes) {
+      try {
+        await transporter.sendMail({
+          from: `"${CONFIG.REMITENTE_NOMBRE}" <${smtpUser}>`,
+          to: n.destinatario,
+          subject: n.asunto,
+          html: renderPlantilla(n.asunto, n.cuerpo),
+        });
+        const ok = await marcarResultado(supabaseAdmin, n.id, { enviado: true, enviado_at: new Date().toISOString() });
+        if (ok) enviadas++;
+      } catch (err) {
+        fallidas++;
+        const mensaje = err instanceof Error ? err.message : String(err);
+        console.error("[send-notifications] fallo al enviar", { id: n.id, destinatario: n.destinatario, error: mensaje });
+        await marcarResultado(supabaseAdmin, n.id, { ultimo_error: mensaje });
       }
-    } catch (err) {
-      fallidas++;
-      const mensaje = err instanceof Error ? err.message : String(err);
-      console.error("[send-notifications] fallo al enviar", { id: n.id, destinatario: n.destinatario, error: mensaje });
-      const { error } = await supabaseAdmin.from("notificaciones").update({ ultimo_error: mensaje, bloqueado_hasta: null }).eq("id", n.id);
-      if (error) console.error("[send-notifications] fallo también al registrar ultimo_error", { id: n.id, error });
     }
+  } catch (err) {
+    // Fallo fuera del try/catch por fila (p. ej. al construir el
+    // transporter) — sin esto, las filas ya reclamadas se quedarían
+    // "bloqueadas" hasta que expire el lease, sin ningún rastro de qué
+    // pasó. Se liberan todas explícitamente y se deja constancia del motivo.
+    const mensaje = err instanceof Error ? err.message : String(err);
+    console.error("[send-notifications] fallo inesperado procesando el lote — liberando filas reclamadas", { error: mensaje });
+    await Promise.all(pendientes.map((n) => marcarResultado(supabaseAdmin, n.id, { ultimo_error: mensaje })));
+    return Response.json({ error: mensaje, procesadas: pendientes.length }, { status: 500 });
   }
 
   console.log("[send-notifications] lote procesado", { procesadas: pendientes.length, enviadas, fallidas });
