@@ -38,4 +38,12 @@ export const CONFIG = {
   // porque la mayoría de proveedores SMTP exigen enviar desde la propia
   // cuenta autenticada o un alias verificado — no un valor libre.
   REMITENTE_NOMBRE: "Portadas GOR",
+
+  // Nombre del secret de autenticación del cron (Dashboard → Edge Functions
+  // → Secrets). Su VALOR no vive aquí — es un string aleatorio que el
+  // propietario del proyecto genera, almacena en Secrets y pone también en
+  // la cabecera Authorization del cron.schedule(). Solo el nombre del secret
+  // se centraliza aquí para que index.ts y docs/10 sean siempre coherentes
+  // sin repetir el literal "CRON_SECRET" en varios sitios.
+  CRON_SECRET_ENV: "CRON_SECRET",
 };

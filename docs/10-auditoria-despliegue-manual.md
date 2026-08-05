@@ -19,7 +19,7 @@ Motivada directamente por el hallazgo del error de importación masiva de usuari
 | Cron jobs (`pg_cron` o cualquier tarea programada en Postgres/Supabase) | Ninguno — no hay ninguna mención de un cron job real en ningún archivo de código ni de migración de este repositorio | **No aplica** — no se ha encontrado evidencia de que exista ninguno, ni en el repo ni en la documentación de fases; no verificado contra la base de datos real (requeriría `select * from cron.job;` en el SQL Editor, no ejecutado desde este entorno) |
 | Vínculo del repo con un proyecto Supabase concreto (`supabase link` / `supabase/config.toml`) | **No existe ningún `config.toml` de la CLI de Supabase en el repositorio** | **No aplica al despliegue** — significa que ni siquiera hay un "proyecto por defecto" registrado en el repo para la CLI; cualquiera que quiera correr `supabase db push`/`supabase functions deploy` desde su máquina tiene que enlazar el proyecto a mano primero (`supabase link --project-ref ...`) |
 | Edge Function `send-notifications` (2026-08-05: implementada en DEV, arquitectura Outbox + pg_cron acordada explícitamente — ver detalle abajo) | `webapp/supabase/functions/send-notifications/index.ts` **y** `config.ts` (dos archivos, `index.ts` importa `./config.ts`) | **No** — mismo mecanismo que `create-user`, pero hay que copiar **ambos archivos** en Dashboard → Edge Functions → `send-notifications` → editor → *Deploy*, en cada proyecto. Olvidar `config.ts` rompe el `import` |
-| Secrets de `send-notifications` (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`) — ya existían en producción (confirmado por el propietario, 2026-08-04); no usar `RESEND_API_KEY`, descartado explícitamente | No viven en el repo, igual que los de `create-user` | **No** — Dashboard → Edge Functions → Secrets, por proyecto. Confirmar que también existen en el proyecto DEV antes de desplegar la función ahí |
+| Secrets de `send-notifications` (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, **`CRON_SECRET`**) — los SMTP ya existían en producción (confirmado, 2026-08-04); `CRON_SECRET` es nuevo (2026-08-05): ver detalle abajo. No usar `RESEND_API_KEY`, descartado explícitamente | No viven en el repo | **No** — Dashboard → Edge Functions → Secrets, **por proyecto**. `CRON_SECRET` debe existir en cada proyecto donde se despliegue `send-notifications` (DEV y Producción son proyectos distintos con Secrets independientes). Sin él la función arranca pero rechaza todas las invocaciones del cron con 401. |
 | pg_cron + extensión `pg_net` (disparador único de `send-notifications`, una vez por minuto) | SQL de referencia en este documento (más abajo) — **no** en `webapp/supabase/migrations/`, porque `cron.schedule()` no es DDL de esquema, es una tarea programada que vive en el catálogo del propio proyecto | **No** — (1) habilitar las extensiones `pg_cron` y `pg_net` en Database → Extensions (no se pueden activar desde una migración), (2) ejecutar una vez el `select cron.schedule(...)` de este documento en el SQL Editor, sustituyendo URL y service_role key del proyecto en cuestión |
 | `vercel.json` (raíz del repo) | Cabeceras de caché HTTP | **Sí, pero no afecta a `webapp/`** — es del despliegue del `index.html` legacy en la raíz del repo, un target de Vercel totalmente distinto (confirmado por el propio comentario de `webapp-ci.yml`: "No toca ni despliega index.html/vercel.json de la raíz") |
 
@@ -39,18 +39,48 @@ Aplicar siempre primero en DEV y validar antes de llevarlas a producción — cu
 
 ## Puesta en marcha de `send-notifications` (una vez por proyecto)
 
-Además de desplegar la Edge Function (Dashboard → Edge Functions → `send-notifications` → Deploy) y confirmar sus secrets SMTP, hay que programar el disparador. Habilitar antes las extensiones `pg_cron` y `pg_net` (Database → Extensions → Enable, ambas), y ejecutar una sola vez, sustituyendo `<URL_DEL_PROYECTO>` y `<SERVICE_ROLE_KEY>` por los valores reales del proyecto:
+### 1 · Generar el valor de `CRON_SECRET`
+
+`send-notifications` se autentica con un secreto propio (`CRON_SECRET`) en vez de depender de las claves internas de Supabase, cuyo formato de inyección varía entre versiones de la plataforma. El valor es un string aleatorio que el propietario del proyecto controla por completo en ambos extremos (secret de la función **y** cabecera del cron). Generarlo en el SQL Editor del proyecto:
+
+```sql
+select encode(gen_random_bytes(32), 'hex');
+```
+
+Guardar el resultado — se necesita en los pasos 2 y 3.
+
+### 2 · Añadir `CRON_SECRET` a los secrets de la función
+
+Dashboard → Edge Functions → Secrets → añadir:
+- **Nombre**: `CRON_SECRET` (exactamente — es el valor de `CONFIG.CRON_SECRET_ENV` en `config.ts`)
+- **Valor**: el string generado en el paso anterior
+
+⚠️ **Este secret es independiente por proyecto.** DEV y Producción son proyectos Supabase distintos con Secrets completamente separados. Añadir el secret en un proyecto no lo crea en el otro. Sin él, la función arranca correctamente pero rechaza todas las invocaciones del cron con 401 y el mensaje `CRON_SECRET no configurado en Edge Functions → Secrets`.
+
+### 3 · Desplegar la Edge Function
+
+Dashboard → Edge Functions → `send-notifications` → editor → copiar **ambos archivos** del repo y hacer Deploy:
+- `webapp/supabase/functions/send-notifications/index.ts`
+- `webapp/supabase/functions/send-notifications/config.ts`
+
+### 4 · Habilitar extensiones y programar el cron
+
+Habilitar `pg_cron` y `pg_net` en Database → Extensions (si no están ya activas). Luego ejecutar una sola vez en el SQL Editor, sustituyendo los dos placeholders por los valores reales del proyecto:
 
 ```sql
 select cron.schedule(
   'send-notifications',
   '* * * * *',
-  $$
-    select net.http_post(
-      url := '<URL_DEL_PROYECTO>/functions/v1/send-notifications',
-      headers := jsonb_build_object('Authorization', 'Bearer <SERVICE_ROLE_KEY>')
-    );
-  $$
+  format(
+    $$
+      select net.http_post(
+        url := '%s/functions/v1/send-notifications',
+        headers := jsonb_build_object('Authorization', 'Bearer %s')
+      );
+    $$,
+    '<URL_DEL_PROYECTO>',
+    '<VALOR_DE_CRON_SECRET>'
+  )
 );
 ```
 
