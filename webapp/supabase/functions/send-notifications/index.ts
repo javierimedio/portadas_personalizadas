@@ -35,6 +35,7 @@
 // AMBOS archivos, `index.ts` importa `./config.ts`. Un cambio aquí no tiene
 // ningún efecto hasta hacer ese paso.
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
+import * as jose from "npm:jose@5";
 import nodemailer from "npm:nodemailer@6";
 import { CONFIG } from "./config.ts";
 
@@ -76,15 +77,38 @@ async function marcarResultado(supabaseAdmin: SupabaseClient, id: string, patch:
 Deno.serve(async (req: Request) => {
   // Solo pg_cron (que llama con la service_role key, ver docs/10) debe poder
   // invocar esta función — no tiene sentido que un usuario autenticado
-  // cualquiera pueda disparar el envío de email a demanda. La verificación
-  // de JWT de la plataforma solo comprueba que el token es válido, no quién
-  // es su titular, así que se comprueba aquí explícitamente.
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  if (req.headers.get("Authorization") !== `Bearer ${serviceRoleKey}`) {
-    console.error("[send-notifications] invocación rechazada: Authorization no coincide con la service_role key");
+  // cualquiera pueda disparar el envío de email a demanda.
+  //
+  // Validación definitiva: verifica la firma del JWT entrante con
+  // SUPABASE_JWT_SECRET (inyectado automáticamente por Supabase en todas las
+  // Edge Functions, independientemente de secrets manuales) y comprueba que
+  // el claim `role` sea exactamente `"service_role"`. Este enfoque es más
+  // robusto que comparar strings literales contra SUPABASE_SERVICE_ROLE_KEY,
+  // porque no depende de cómo Supabase inyecta ese valor en tiempo de
+  // ejecución — solo depende de la firma criptográfica del token, que es la
+  // única fuente de verdad del proyecto.
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const token = (authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : authHeader).trim();
+
+  if (!token) {
+    console.error("[send-notifications] invocación rechazada: cabecera Authorization ausente o vacía");
     return Response.json({ error: "No autorizado" }, { status: 401 });
   }
 
+  try {
+    const jwtSecret = new TextEncoder().encode(Deno.env.get("SUPABASE_JWT_SECRET")!);
+    const { payload } = await jose.jwtVerify(token, jwtSecret);
+    if (payload["role"] !== "service_role") {
+      console.error("[send-notifications] invocación rechazada: el token no tiene role=service_role", { role: payload["role"] });
+      return Response.json({ error: "No autorizado" }, { status: 401 });
+    }
+  } catch (err) {
+    const mensaje = err instanceof Error ? err.message : String(err);
+    console.error("[send-notifications] invocación rechazada: JWT inválido o firma incorrecta", { error: mensaje });
+    return Response.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL")!, serviceRoleKey);
 
   const { data: pendientes, error: claimError } = await supabaseAdmin.rpc("reclamar_notificaciones_pendientes", {
