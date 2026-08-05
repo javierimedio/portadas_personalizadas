@@ -74,31 +74,17 @@ async function marcarResultado(supabaseAdmin: SupabaseClient, id: string, patch:
 }
 
 Deno.serve(async (req: Request) => {
-  console.error("AAAAAAAAAAAAAAAA");
-
   // Solo pg_cron debe poder invocar esta función. La autenticación usa un
-  // secreto propio (CONFIG.CRON_SECRET_ENV) en vez de depender de cómo
-  // Supabase inyecta sus propias claves internas (SUPABASE_SERVICE_ROLE_KEY,
-  // SUPABASE_JWT_SECRET) en tiempo de ejecución, cuyo formato varía entre
-  // versiones de la plataforma y no es controlable desde el código.
-  // El nombre del secret vive en config.ts (CONFIG.CRON_SECRET_ENV); su
-  // valor es un string aleatorio que el propietario del proyecto genera,
-  // almacena en Edge Functions → Secrets y pone también en la cabecera
-  // Authorization del cron.schedule() — ver docs/10.
+  // secreto propio (CONFIG.CRON_SECRET_ENV) controlado por completo por el
+  // propietario del proyecto: su valor vive en Edge Functions → Secrets y en
+  // la cabecera Authorization del cron.schedule() — ver docs/10.
+  // ⚠️ La gateway de Supabase valida por defecto que el Bearer token sea un
+  // JWT firmado. Como CRON_SECRET es una cadena hexadecimal (no un JWT), hay
+  // que desactivar "Verify JWT" en la configuración de la función en el
+  // Dashboard; sin ese paso, la petición no llega a este handler.
   const cronSecret = (Deno.env.get(CONFIG.CRON_SECRET_ENV) ?? "").trim();
   const authHeader = req.headers.get("Authorization") ?? "";
   const token = (authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : authHeader).trim();
-
-  // ⚠️ DIAGNÓSTICO TEMPORAL [B] — cadena plana, sin objeto, para evitar
-  // cualquier problema de serialización en el colector de logs de Supabase.
-  // Si [A] aparece pero [B] no, hay un crash en las líneas entre ambos.
-  // Si [B] aparece pero no aparecía antes, el problema era la serialización
-  // del objeto en la versión anterior.
-  const p8exp = cronSecret.length > 0 ? cronSecret.slice(0, Math.min(8, cronSecret.length)) : "(vacio)";
-  const p8recv = token.length > 0 ? token.slice(0, Math.min(8, token.length)) : "(vacio)";
-  console.error(
-    `[send-notifications][diag-B] secreto=${!!cronSecret} lenS=${cronSecret.length} lenT=${token.length} lenH=${authHeader.length} p8exp=${p8exp} p8recv=${p8recv}`
-  );
 
   if (!cronSecret) {
     console.error(`[send-notifications] invocación rechazada: ${CONFIG.CRON_SECRET_ENV} no configurado en Edge Functions → Secrets`);
