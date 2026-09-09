@@ -7,6 +7,7 @@ import { matchOptionCaseInsensitive } from "@/shared/domain/format";
 import { resolverInstruccionesUrl } from "@/shared/domain/idiomas";
 import { CAT_LOGO, IDIOMAS, POSICIONES_LOGO, PROVINCIAS, ROLES_POR_CANAL } from "../domain/constants";
 import { saveSolicitud, type SaveSolicitudState } from "../application/save-solicitud.action";
+import { UNIDADES_MINIMAS } from "../domain/validation";
 import type { ExistingSolicitud, FormCampana, FormPerfil } from "../domain/types";
 import { FileDropZone } from "./file-drop-zone";
 
@@ -432,8 +433,16 @@ export function SolicitudForm({
                         value={c.unidades}
                         onChange={(e) => setCatField(cat.key, "unidades", e.target.value)}
                         placeholder="ej: 100"
-                        min={1}
+                        min={UNIDADES_MINIMAS}
                       />
+                      {(() => {
+                        const n = Number(c.unidades);
+                        return c.unidades !== "" && n > 0 && n < UNIDADES_MINIMAS ? (
+                          <p style={{ color: "var(--c-error, #d32f2f)", fontSize: 12, margin: "4px 0 0" }}>
+                            La cantidad mínima es de {UNIDADES_MINIMAS} unidades.
+                          </p>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
                 </div>

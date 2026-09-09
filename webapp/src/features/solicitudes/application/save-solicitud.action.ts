@@ -8,6 +8,7 @@ import {
   formatearErrores,
   validateCatalogosParaEnvio,
   validateDatosGenerales,
+  validateUnidadesMinimas,
   type CatalogoFormInput,
 } from "../domain/validation";
 import type { UploadedFile } from "@/shared/storage/types";
@@ -88,11 +89,15 @@ export async function saveSolicitud(_prev: SaveSolicitudState, formData: FormDat
     };
   }
 
+  // catInputs se construye aquí (fuera del bloque enviada) porque
+  // validateUnidadesMinimas debe ejecutarse también al guardar como borrador.
+  const catInputs: CatalogoFormInput[] = cats.map((cat) => {
+    const c = readCat(cat);
+    return { key: cat.key, label: cat.label, hasDisenoProp: cat.hasDisenoProp, ...c };
+  });
+  errors.push(...validateUnidadesMinimas(catInputs));
+
   if (intent === "enviada") {
-    const catInputs: CatalogoFormInput[] = cats.map((cat) => {
-      const c = readCat(cat);
-      return { key: cat.key, label: cat.label, hasDisenoProp: cat.hasDisenoProp, ...c };
-    });
     errors.push(...validateCatalogosParaEnvio(catInputs));
   }
 

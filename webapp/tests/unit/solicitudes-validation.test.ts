@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { IDIOMAS, PROVINCIAS } from "@/features/solicitudes/domain/constants";
 import {
   formatearErrores,
+  UNIDADES_MINIMAS,
   validateCatalogosParaEnvio,
   validateDatosGenerales,
+  validateUnidadesMinimas,
   type CatalogoFormInput,
 } from "@/features/solicitudes/domain/validation";
 import { catSummary } from "@/features/solicitudes/domain/cat-summary";
@@ -53,6 +55,66 @@ function cat(overrides: Partial<CatalogoFormInput> = {}): CatalogoFormInput {
     ...overrides,
   };
 }
+
+describe("validateUnidadesMinimas", () => {
+  it(`UNIDADES_MINIMAS es ${100}`, () => {
+    expect(UNIDADES_MINIMAS).toBe(100);
+  });
+
+  it("impreso=true con unidades < 100 → error por catálogo", () => {
+    expect(validateUnidadesMinimas([cat({ label: "ROLY", impreso: true, unidades: 50 })])).toEqual([
+      "ROLY — mínimo 100 unidades",
+    ]);
+  });
+
+  it("impreso=true con unidades = 1 → error", () => {
+    expect(validateUnidadesMinimas([cat({ label: "ROLY WRK", impreso: true, unidades: 1 })])).toEqual([
+      "ROLY WRK — mínimo 100 unidades",
+    ]);
+  });
+
+  it("impreso=true con unidades = 99 → error", () => {
+    expect(validateUnidadesMinimas([cat({ label: "STAMINA", impreso: true, unidades: 99 })])).toEqual([
+      "STAMINA — mínimo 100 unidades",
+    ]);
+  });
+
+  it("impreso=true con unidades = 100 → sin error", () => {
+    expect(validateUnidadesMinimas([cat({ impreso: true, unidades: 100 })])).toEqual([]);
+  });
+
+  it("impreso=true con unidades > 100 → sin error", () => {
+    expect(validateUnidadesMinimas([cat({ impreso: true, unidades: 200 })])).toEqual([]);
+  });
+
+  it("impreso=true con unidades = null → sin error (la ausencia la detecta validateCatalogosParaEnvio)", () => {
+    expect(validateUnidadesMinimas([cat({ impreso: true, unidades: null })])).toEqual([]);
+  });
+
+  it("impreso=false → sin error aunque unidades < 100", () => {
+    expect(validateUnidadesMinimas([cat({ impreso: false, unidades: 50 })])).toEqual([]);
+  });
+
+  it("impreso=null (no tocado) → sin error", () => {
+    expect(validateUnidadesMinimas([cat({ impreso: null, unidades: 50 })])).toEqual([]);
+  });
+
+  it("error por catálogo independiente: ROLY 50 + STAMINA 150 → solo ROLY en error", () => {
+    const errors = validateUnidadesMinimas([
+      cat({ key: "roly", label: "ROLY", impreso: true, unidades: 50 }),
+      cat({ key: "stamina", label: "STAMINA", impreso: true, unidades: 150 }),
+    ]);
+    expect(errors).toEqual(["ROLY — mínimo 100 unidades"]);
+  });
+
+  it("ROLY 200 + STAMINA 100 → sin error", () => {
+    const errors = validateUnidadesMinimas([
+      cat({ key: "roly", label: "ROLY", impreso: true, unidades: 200 }),
+      cat({ key: "stamina", label: "STAMINA", impreso: true, unidades: 100 }),
+    ]);
+    expect(errors).toEqual([]);
+  });
+});
 
 describe("validateCatalogosParaEnvio", () => {
   it("exige al menos un catálogo tocado para enviar", () => {

@@ -3,6 +3,10 @@
 // cierre de campaña se hacen en la Server Action, que sí tiene acceso a la
 // base de datos) — SOL-01/03/04, y la parte de "al menos un catálogo" de
 // EST-01 cuando el destino es 'enviada'.
+
+// Mínimo de unidades aceptado por catálogo con impreso = SI.
+// Se aplica en borrador Y en enviada (validateUnidadesMinimas).
+export const UNIDADES_MINIMAS = 100;
 export type DatosGeneralesInput = {
   codSap: string;
   idioma: string;
@@ -34,6 +38,19 @@ export type CatalogoFormInput = {
   opcion1?: string | null;
   posicionLogo?: string | null;
 };
+
+// Valida el mínimo de unidades por catálogo (borrador y enviada).
+// Aplica solo a catálogos con impreso = true que ya tienen un valor de
+// unidades; la ausencia de unidades la detecta validateCatalogosParaEnvio.
+export function validateUnidadesMinimas(catalogos: CatalogoFormInput[]): string[] {
+  const errors: string[] = [];
+  for (const cat of catalogos) {
+    if (cat.impreso === true && cat.unidades !== null && cat.unidades < UNIDADES_MINIMAS) {
+      errors.push(`${cat.label} — mínimo ${UNIDADES_MINIMAS} unidades`);
+    }
+  }
+  return errors;
+}
 
 export function validateCatalogosParaEnvio(catalogos: CatalogoFormInput[]): string[] {
   const errors: string[] = [];
