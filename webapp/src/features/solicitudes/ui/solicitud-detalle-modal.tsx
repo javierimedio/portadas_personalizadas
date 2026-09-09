@@ -351,7 +351,7 @@ export function SolicitudDetalleModal({
               {detalle.comentarios && (
                 <div className="card" style={{ marginBottom: "1rem" }}>
                   <div className="card-title">Comentarios generales</div>
-                  <p style={{ fontSize: 13 }}>{detalle.comentarios}</p>
+                  <p style={{ fontSize: 13, whiteSpace: "pre-line" }}>{detalle.comentarios}</p>
                 </div>
               )}
 
