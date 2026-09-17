@@ -148,7 +148,8 @@ export async function reasignarDisenador(solicitudId: string, disenadorId: strin
     accion: "asignacion",
     detalle: { disenador: disenador?.nombre },
   });
-  if (disenador?.email) await enviarNotificacionAsignacion(supabase, solicitudId, disenador.email);
+  // No notificar al diseñador cuando se asigna a sí mismo
+  if (disenador?.email && user.id !== disenadorId) await enviarNotificacionAsignacion(supabase, solicitudId, disenador.email);
   revalidatePath("/diseno");
   return {};
 }
