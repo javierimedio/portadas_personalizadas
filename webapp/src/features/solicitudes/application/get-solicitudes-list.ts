@@ -30,7 +30,7 @@ export async function getSolicitudesList(rolEfectivo: string | null | undefined)
     supabase
       .from("solicitudes")
       .select(
-        `id, cod_sap, nombre_empresa, provincia, idioma, comentarios, canal, comercial_id, campana_id, asignado_id, estado, updated_at,
+        `id, cod_sap, nombre_empresa, provincia, idioma, comentarios, canal, comercial_id, campana_id, asignado_id, estado, enviada_at, updated_at,
          solicitud_catalogos(catalogo, catalogo_digital, catalogo_impreso, unidades, portada_personalizada, portada_diseno_propio, portada_opcion_1, portada_opcion_2, portada_opcion_3, portada_elegida, posicion_logo, con_precios),
          adjuntos(nombre, url, tipo)`
       ),

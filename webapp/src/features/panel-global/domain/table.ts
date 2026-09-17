@@ -1,8 +1,20 @@
-import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
+import type { SolicitudCatalogoRow, SolicitudListItem } from "@/features/solicitudes/domain/table";
 import type { FormPerfil } from "@/features/solicitudes/domain/types";
 import { missingFields } from "./missing-fields";
 
-export type PanelFilters = { q: string; estado: string; comercialId: string; provincia: string; campanaId: string };
+export type PanelFilters = { q: string; estado: string; comercialId: string; provincia: string; campanaId: string; soloSinPortada?: boolean };
+
+export type PortadasStatus = { necesitan: number; asignadas: number; pendientes: string[] };
+
+// Detecta catálogos con portada personalizada (no diseño propio) donde
+// portada_elegida todavía es null — usada en el indicador de adjudicación
+// del Panel Global y en el filtro "Solo con portadas pendientes".
+export function portadasAdjudicacion(catalogos: SolicitudCatalogoRow[]): PortadasStatus {
+  const conPortada = catalogos.filter((c) => c.portada_personalizada === true && !c.portada_diseno_propio);
+  const asignadas = conPortada.filter((c) => c.portada_elegida !== null).length;
+  const pendientes = conPortada.filter((c) => c.portada_elegida === null).map((c) => c.catalogo);
+  return { necesitan: conPortada.length, asignadas, pendientes };
+}
 export type PanelSort = { col: string; dir: "asc" | "desc" };
 
 // Réplica de renderMktTable() (index.html ~2192-2223): PAN-01 a PAN-05,
@@ -45,6 +57,10 @@ export function filterPanelRows(
   if (filters.provincia.trim()) {
     const p = filters.provincia.trim().toLowerCase();
     result = result.filter((s) => s.provincia?.toLowerCase().includes(p));
+  }
+
+  if (filters.soloSinPortada === true) {
+    result = result.filter((s) => s.estado === "en_revision_marketing" && portadasAdjudicacion(s.solicitud_catalogos).pendientes.length > 0);
   }
 
   return result;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { comercialesFiltro, filterPanelRows, panelStats, sortPanelRows } from "@/features/panel-global/domain/table";
+import { comercialesFiltro, filterPanelRows, panelStats, portadasAdjudicacion, sortPanelRows } from "@/features/panel-global/domain/table";
+import type { SolicitudCatalogoRow } from "@/features/solicitudes/domain/table";
 import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 
 function sol(overrides: Partial<SolicitudListItem> = {}): SolicitudListItem {
@@ -15,6 +16,7 @@ function sol(overrides: Partial<SolicitudListItem> = {}): SolicitudListItem {
     campana_id: "c1",
     asignado_id: null,
     estado: "enviada",
+    enviada_at: null,
     updated_at: "2026-01-01T00:00:00Z",
     solicitud_catalogos: [],
     adjuntos: [],
@@ -105,6 +107,66 @@ describe("comercialesFiltro", () => {
   it("solo comerciales/responsables activos, ordenados por nombre", () => {
     const conInactivo = [...perfiles, { id: "u4", nombre: "Diego Inactivo", rol: "comercial_nacional", activo: false }];
     expect(comercialesFiltro(conInactivo).map((p) => p.nombre)).toEqual(["Ana García", "Bea López", "Carlos Resp"]);
+  });
+});
+
+describe("portadasAdjudicacion", () => {
+  function cat(overrides: Partial<SolicitudCatalogoRow> = {}): SolicitudCatalogoRow {
+    return {
+      catalogo: "roly",
+      catalogo_digital: null,
+      catalogo_impreso: true,
+      unidades: 200,
+      portada_personalizada: true,
+      portada_diseno_propio: false,
+      portada_opcion_1: "P01",
+      portada_opcion_2: null,
+      portada_opcion_3: null,
+      portada_elegida: null,
+      posicion_logo: null,
+      con_precios: null,
+      ...overrides,
+    };
+  }
+
+  it("sin catálogos devuelve todo a cero", () => {
+    expect(portadasAdjudicacion([])).toEqual({ necesitan: 0, asignadas: 0, pendientes: [] });
+  });
+
+  it("diseño propio no cuenta como pendiente", () => {
+    expect(portadasAdjudicacion([cat({ portada_diseno_propio: true })])).toEqual({ necesitan: 0, asignadas: 0, pendientes: [] });
+  });
+
+  it("portada_personalizada=false no cuenta", () => {
+    expect(portadasAdjudicacion([cat({ portada_personalizada: false })])).toEqual({ necesitan: 0, asignadas: 0, pendientes: [] });
+  });
+
+  it("portada_elegida null → pendiente", () => {
+    const r = portadasAdjudicacion([cat({ catalogo: "roly", portada_elegida: null })]);
+    expect(r).toEqual({ necesitan: 1, asignadas: 0, pendientes: ["roly"] });
+  });
+
+  it("portada_elegida asignada → completa", () => {
+    const r = portadasAdjudicacion([cat({ catalogo: "roly", portada_elegida: "P01" })]);
+    expect(r).toEqual({ necesitan: 1, asignadas: 1, pendientes: [] });
+  });
+
+  it("mezcla: roly asignado, stamina pendiente → 1/2, falta stamina", () => {
+    const r = portadasAdjudicacion([
+      cat({ catalogo: "roly", portada_elegida: "P01" }),
+      cat({ catalogo: "stamina", portada_elegida: null }),
+    ]);
+    expect(r).toEqual({ necesitan: 2, asignadas: 1, pendientes: ["stamina"] });
+  });
+
+  it("filtro soloSinPortada solo incluye en_revision_marketing con pendientes", () => {
+    const rows = [
+      sol({ id: "a", estado: "en_revision_marketing", solicitud_catalogos: [cat({ portada_elegida: null })] }),
+      sol({ id: "b", estado: "en_revision_marketing", solicitud_catalogos: [cat({ portada_elegida: "P01" })] }),
+      sol({ id: "c", estado: "enviada", solicitud_catalogos: [cat({ portada_elegida: null })] }),
+    ];
+    const result = filterPanelRows(rows, { q: "", estado: "", comercialId: "", provincia: "", campanaId: "", soloSinPortada: true }, "admin", perfiles);
+    expect(result.map((r) => r.id)).toEqual(["a"]);
   });
 });
 

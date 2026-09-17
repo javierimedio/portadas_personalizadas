@@ -30,6 +30,7 @@ export type SolicitudListItem = {
   campana_id: string | null;
   asignado_id: string | null;
   estado: string;
+  enviada_at: string | null;
   updated_at: string;
   solicitud_catalogos: SolicitudCatalogoRow[];
   adjuntos: { nombre: string; url: string; tipo: string }[];

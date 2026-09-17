@@ -8,6 +8,7 @@ import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 import type { FormPerfil } from "@/features/solicitudes/domain/types";
 import { disenadorStats, disenadoresActivos, filterDisenoTareas, ROLES_FILTRO_DISENADOR_VISIBLE } from "../domain/table";
 import { buildDisenoCsv, disenoCsvFilename, filasParaCsv } from "../domain/csv";
+import { fmtDate } from "@/shared/domain/format";
 
 const STAT_COLOR: Record<string, string> = { mid: "var(--c-mid)", red: "var(--c-red)", green: "var(--c-green)" };
 
@@ -37,8 +38,18 @@ export function DisenoTable({
 }) {
   const [campanaId, setCampanaId] = useState(defaultCampanaId);
   const [disenadorId, setDisenadorId] = useState("");
+  const [sortFecha, setSortFecha] = useState<"asc" | "desc">("asc");
 
   const filtered = useMemo(() => filterDisenoTareas(rows, { campanaId, disenadorId }), [rows, campanaId, disenadorId]);
+  const sorted = useMemo(
+    () =>
+      [...filtered].sort((a, b) => {
+        const da = a.enviada_at ?? a.updated_at ?? "";
+        const db = b.enviada_at ?? b.updated_at ?? "";
+        return sortFecha === "asc" ? da.localeCompare(db) : db.localeCompare(da);
+      }),
+    [filtered, sortFecha]
+  );
   const stats = useMemo(() => disenadorStats(filtered, perfiles), [filtered, perfiles]);
   const disenadores = useMemo(() => disenadoresActivos(perfiles), [perfiles]);
   const mostrarFiltroDisenador = ROLES_FILTRO_DISENADOR_VISIBLE.includes(rol ?? "");
@@ -129,14 +140,20 @@ export function DisenoTable({
                   <th key={c.key}>{c.label}</th>
                 ))}
                 <th>Estado</th>
+                <th
+                  onClick={() => setSortFecha((d) => (d === "asc" ? "desc" : "asc"))}
+                  style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+                >
+                  Fecha <span>{sortFecha === "asc" ? "↑" : "↓"}</span>
+                </th>
                 <th>Diseñador</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={6 + ALL_CATALOGOS.length}>
+                  <td colSpan={7 + ALL_CATALOGOS.length}>
                     <div className="empty-state">
                       <div className="icon">🎨</div>
                       <p>No hay solicitudes asignadas.</p>
@@ -144,7 +161,7 @@ export function DisenoTable({
                   </td>
                 </tr>
               ) : (
-                filtered.map((s) => (
+                sorted.map((s) => (
                   <tr key={s.id}>
                     <td>
                       <strong>{s.cod_sap}</strong>
@@ -180,6 +197,7 @@ export function DisenoTable({
                     <td>
                       <span className={`status s-${s.estado}`}>{ESTADO_LABEL[s.estado] ?? s.estado}</span>
                     </td>
+                    <td className="text-mid text-sm">{fmtDate(s.enviada_at ?? s.updated_at)}</td>
                     <td style={{ fontSize: 12, color: "var(--c-mid)" }}>{nombreDisenador(s.asignado_id)}</td>
                     <td>
                       <button type="button" onClick={() => onVer(s)} className="btn btn-sm btn-outline">
