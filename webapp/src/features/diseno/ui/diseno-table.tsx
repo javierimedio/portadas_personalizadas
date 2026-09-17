@@ -1,11 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ALL_CATALOGOS } from "@/shared/domain/catalogos";
 import { ESTADO_LABEL } from "@/shared/domain/estados";
 import { catSummary } from "@/features/solicitudes/domain/cat-summary";
 import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 import type { FormPerfil } from "@/features/solicitudes/domain/types";
+import { DISENO_ROLES } from "@/features/solicitudes/domain/estado-flujo";
+import { reasignarDisenador } from "@/features/solicitudes/application/detalle-actions";
 import { disenadorStats, disenadoresActivos, filterDisenoTareas, ROLES_FILTRO_DISENADOR_VISIBLE } from "../domain/table";
 import { buildDisenoCsv, disenoCsvFilename, filasParaCsv } from "../domain/csv";
 import { fmtDate } from "@/shared/domain/format";
@@ -36,9 +39,24 @@ export function DisenoTable({
   onVer: (solicitud: SolicitudListItem) => void;
   onCargaMasiva: () => void;
 }) {
+  const router = useRouter();
   const [campanaId, setCampanaId] = useState(defaultCampanaId);
   const [disenadorId, setDisenadorId] = useState("");
   const [sortFecha, setSortFecha] = useState<"asc" | "desc">("asc");
+  const [autoAssignBusy, setAutoAssignBusy] = useState<string | null>(null);
+
+  const puedeAutoAsignar = currentUserId !== null && currentUserId !== undefined && (DISENO_ROLES as readonly string[]).includes(rol ?? "");
+
+  async function handleAutoAssign(solicitudId: string) {
+    if (!currentUserId) return;
+    setAutoAssignBusy(solicitudId);
+    try {
+      const res = await reasignarDisenador(solicitudId, currentUserId);
+      if (!res.error) router.refresh();
+    } finally {
+      setAutoAssignBusy(null);
+    }
+  }
 
   const filtered = useMemo(() => filterDisenoTareas(rows, { campanaId, disenadorId }), [rows, campanaId, disenadorId]);
   const sorted = useMemo(
@@ -200,9 +218,22 @@ export function DisenoTable({
                     <td className="text-mid text-sm">{fmtDate(s.enviada_at ?? s.updated_at)}</td>
                     <td style={{ fontSize: 12, color: "var(--c-mid)" }}>{nombreDisenador(s.asignado_id)}</td>
                     <td>
-                      <button type="button" onClick={() => onVer(s)} className="btn btn-sm btn-outline">
-                        Ver
-                      </button>
+                      <div style={{ display: "flex", gap: 4, flexWrap: "nowrap" }}>
+                        {puedeAutoAsignar && s.asignado_id !== currentUserId && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline"
+                            style={{ color: "var(--c-amber)", borderColor: "var(--c-amber)" }}
+                            disabled={autoAssignBusy === s.id}
+                            onClick={() => handleAutoAssign(s.id)}
+                          >
+                            {autoAssignBusy === s.id ? "..." : "Asignarme"}
+                          </button>
+                        )}
+                        <button type="button" onClick={() => onVer(s)} className="btn btn-sm btn-outline">
+                          Ver
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
