@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/shared/infrastructure/supabase/server-client";
 import { perfilesMencionados } from "../domain/comentarios";
 import {
@@ -123,6 +124,33 @@ export async function asignarDisenadorYEnviar(solicitudId: string, disenadorId: 
     detalle: { disenador: disenador?.nombre },
   });
   if (disenador?.email) await enviarNotificacionAsignacion(supabase, solicitudId, disenador.email);
+  revalidatePath("/diseno");
+  return {};
+}
+
+// Auto-asignación desde la tabla de Diseño: solo actualiza `asignado_id`
+// sin tocar el estado (a diferencia de `asignarDisenadorYEnviar`, que
+// siempre fuerza `en_diseno`). Pensada para que un diseñador pueda
+// reclamar una tarea directamente desde la fila de la tabla.
+export async function reasignarDisenador(solicitudId: string, disenadorId: string): Promise<{ error?: string }> {
+  if (!disenadorId) return { error: "Selecciona un diseñador." };
+  const { supabase, user, perfil } = await currentUserAndPerfil();
+  if (!user) return { error: "Sesión no válida." };
+
+  const { error } = await supabase.from("solicitudes").update({ asignado_id: disenadorId }).eq("id", solicitudId);
+  if (error) return { error: `Error: ${error.message}` };
+
+  const { data: disenador } = await supabase.from("perfiles").select("nombre, email").eq("id", disenadorId).maybeSingle();
+  await supabase.from("logs").insert({
+    solicitud_id: solicitudId,
+    usuario_id: user.id,
+    usuario_nombre: perfil?.nombre,
+    accion: "asignacion",
+    detalle: { disenador: disenador?.nombre },
+  });
+  // No notificar al diseñador cuando se asigna a sí mismo
+  if (disenador?.email && user.id !== disenadorId) await enviarNotificacionAsignacion(supabase, solicitudId, disenador.email);
+  revalidatePath("/diseno");
   return {};
 }
 
