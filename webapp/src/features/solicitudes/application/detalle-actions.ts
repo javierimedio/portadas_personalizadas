@@ -49,6 +49,30 @@ export async function cambiarEstado(solicitudId: string, nuevoEstado: string): P
   return {};
 }
 
+// Variante de cambiarEstado() para "Devolver al comercial": acepta un motivo
+// opcional que se incluye en la notificación de vuelta a borrador.
+export async function devolverAlComercial(solicitudId: string, motivo: string): Promise<{ error?: string }> {
+  const { supabase, user, perfil } = await currentUserAndPerfil();
+  if (!user) return { error: "Sesión no válida." };
+
+  const { data: sol } = await supabase.from("solicitudes").select("estado").eq("id", solicitudId).maybeSingle();
+  if (!sol) return { error: "Solicitud no encontrada." };
+  if (sol.estado === "borrador") return {};
+
+  const { error } = await supabase.from("solicitudes").update({ estado: "borrador" }).eq("id", solicitudId);
+  if (error) return { error: `Error: ${error.message}` };
+
+  await supabase.from("logs").insert({
+    solicitud_id: solicitudId,
+    usuario_id: user.id,
+    usuario_nombre: perfil?.nombre,
+    accion: "cambio_estado",
+    detalle: { estado_anterior: sol.estado, estado_nuevo: "borrador", motivo: motivo.trim() || null },
+  });
+  await enviarNotificacion(supabase, solicitudId, "borrador", motivo.trim() || null);
+  return {};
+}
+
 // Réplica de eliminarSolicitud() (~3561-3572): borrado manual en cascada —
 // RLS ya decide si el usuario puede borrar cada fila (docs/03-modelo-datos.md § 3.5).
 export async function eliminarSolicitud(solicitudId: string): Promise<{ error?: string }> {

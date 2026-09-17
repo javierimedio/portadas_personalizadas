@@ -41,7 +41,7 @@ async function insertarNotificaciones(
 // — ese problema es propio de un SPA con caché de cliente y no existe aquí.
 // No es una llamada "use server" independiente: solo se invoca desde dentro
 // de otros Server Actions que ya tienen su propio cliente de Supabase.
-export async function enviarNotificacion(supabase: Supabase, solicitudId: string, estado: string): Promise<void> {
+export async function enviarNotificacion(supabase: Supabase, solicitudId: string, estado: string, motivo?: string | null): Promise<void> {
   const { data: sol } = await supabase
     .from("solicitudes")
     .select("cod_sap, nombre_empresa, comercial_id")
@@ -64,6 +64,7 @@ export async function enviarNotificacion(supabase: Supabase, solicitudId: string
     comercialEmail: comercial?.email ?? null,
     mktAdminEmails,
     disenadorEmails,
+    motivoDevolucion: motivo,
   });
   await insertarNotificaciones(supabase, solicitudId, mensajes, preferenciaPorEmail, "enviarNotificacion");
 }

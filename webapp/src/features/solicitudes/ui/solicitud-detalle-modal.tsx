@@ -16,6 +16,7 @@ import {
   asignarCanalYComercial,
   asignarDisenadorYEnviar,
   cambiarEstado,
+  devolverAlComercial,
   eliminarSolicitud,
   guardarPortadaElegida,
   marcarDisenoListo,
@@ -62,6 +63,9 @@ export function SolicitudDetalleModal({
 
   const [asignarDisenadorAbierto, setAsignarDisenadorAbierto] = useState(false);
   const [disenadorId, setDisenadorId] = useState("");
+
+  const [devolverAbierto, setDevolverAbierto] = useState(false);
+  const [motivoDevolucion, setMotivoDevolucion] = useState("");
 
   const [modificacionAbierta, setModificacionAbierta] = useState(false);
   const [comentarioModificacion, setComentarioModificacion] = useState("");
@@ -711,6 +715,33 @@ export function SolicitudDetalleModal({
             </div>
           )}
 
+          {devolverAbierto && (
+            <div style={{ marginTop: "1.25rem", borderTop: "1px solid var(--c-line)", paddingTop: "1rem" }}>
+              <div className="card-title">Devolver al comercial</div>
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label>Motivo (opcional)</label>
+                <textarea
+                  value={motivoDevolucion}
+                  onChange={(e) => setMotivoDevolucion(e.target.value)}
+                  placeholder="Indica qué debe corregir el comercial..."
+                  rows={3}
+                />
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button type="button" className="btn btn-outline" onClick={() => setDevolverAbierto(false)}>
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  disabled={busy}
+                  onClick={() => ejecutarYcerrar(() => devolverAlComercial(detalle.id, motivoDevolucion), "Estado: Borrador")}
+                >
+                  Devolver al comercial
+                </button>
+              </div>
+            </div>
+          )}
           {modificacionAbierta && (
             <div style={{ marginTop: "1.25rem", borderTop: "1px solid var(--c-line)", paddingTop: "1rem" }}>
               <div className="card-title">Solicitar modificación</div>
@@ -830,7 +861,7 @@ export function SolicitudDetalleModal({
             </button>
           )}
           {acciones.puedeDevolverABorrador && (
-            <button type="button" className="btn btn-outline btn-danger btn-sm" disabled={busy} onClick={() => ejecutarYcerrar(() => cambiarEstado(detalle.id, "borrador"), "Estado: Borrador")}>
+            <button type="button" className="btn btn-outline btn-danger btn-sm" onClick={() => setDevolverAbierto((v) => !v)}>
               Devolver al comercial
             </button>
           )}
