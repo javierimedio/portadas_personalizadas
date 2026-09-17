@@ -19,6 +19,7 @@ export type NotifRecipients = {
   comercialEmail: string | null;
   mktAdminEmails: (string | null | undefined)[];
   disenadorEmails: (string | null | undefined)[];
+  motivoDevolucion?: string | null;
 };
 
 export type NotifMensaje = { destinatario: string; asunto: string; cuerpo: string };
@@ -82,13 +83,17 @@ export function buildNotificaciones(estado: string, ctx: NotifRecipients): Notif
       push([ctx.comercialEmail, ...ctx.mktAdminEmails], `${base} — ✓ Confirmada`, `La solicitud de portada para el cliente ${ctx.codSap} (${nombre}) ha sido confirmada.`);
       break;
 
-    case "borrador":
+    case "borrador": {
+      const motivoTexto = ctx.motivoDevolucion?.trim()
+        ? `\n\nMotivo indicado: "${ctx.motivoDevolucion.trim()}"`
+        : "";
       push(
         [ctx.comercialEmail],
-        `${base} — Devuelta para completar`,
-        `Tu solicitud de portada para el cliente ${ctx.codSap} (${nombre}) ha sido devuelta. Accede a la herramienta para editarla y reenviarla.`
+        `${base} — Devuelta al comercial`,
+        `Tu solicitud de portada para el cliente ${ctx.codSap} (${nombre}) ha sido devuelta para su revisión.${motivoTexto}\n\nAccede a la herramienta para editarla y reenviarla.`
       );
       break;
+    }
   }
 
   return notifs;

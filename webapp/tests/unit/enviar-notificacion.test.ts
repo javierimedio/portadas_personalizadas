@@ -48,8 +48,21 @@ describe("buildNotificaciones", () => {
     expect(buildNotificaciones("confirmada", ctx()).map((n) => n.destinatario)).toEqual(["juan@gor.es", "mkt1@gor.es", "mkt2@gor.es"]);
   });
 
-  it("borrador: solo el comercial", () => {
-    expect(buildNotificaciones("borrador", ctx()).map((n) => n.destinatario)).toEqual(["juan@gor.es"]);
+  it("borrador: solo el comercial, asunto diferenciado de 'Nueva solicitud'", () => {
+    const notifs = buildNotificaciones("borrador", ctx());
+    expect(notifs.map((n) => n.destinatario)).toEqual(["juan@gor.es"]);
+    expect(notifs[0]?.asunto).toContain("Devuelta al comercial");
+    expect(notifs[0]?.asunto).not.toContain("Nueva solicitud");
+  });
+
+  it("borrador con motivo: incluye el motivo en el cuerpo", () => {
+    const notifs = buildNotificaciones("borrador", ctx({ motivoDevolucion: "Falta la provincia" }));
+    expect(notifs[0]?.cuerpo).toContain("Falta la provincia");
+  });
+
+  it("borrador sin motivo: no incluye 'Motivo indicado' en el cuerpo", () => {
+    const notifs = buildNotificaciones("borrador", ctx({ motivoDevolucion: null }));
+    expect(notifs[0]?.cuerpo).not.toContain("Motivo indicado");
   });
 
   it("archivada: sin caso en el switch, no genera notificaciones", () => {
