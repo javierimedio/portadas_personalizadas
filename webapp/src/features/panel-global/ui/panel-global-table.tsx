@@ -7,7 +7,7 @@ import { catSummary } from "@/features/solicitudes/domain/cat-summary";
 import { fmtDate } from "@/shared/domain/format";
 import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 import type { FormCampana, FormPerfil } from "@/features/solicitudes/domain/types";
-import { comercialesFiltro, filterPanelRows, panelStats, sortPanelRows, type PanelSort } from "../domain/table";
+import { comercialesFiltro, filterPanelRows, panelStats, portadasAdjudicacion, sortPanelRows, type PanelSort } from "../domain/table";
 import { missingFields } from "../domain/missing-fields";
 import { buildExportRows, buildResumenRows, exportCatalogos, exportFilename, type CampanaCatalogosPorId } from "../domain/export-excel";
 import { buildWorkbook } from "../infrastructure/excel-workbook";
@@ -45,14 +45,15 @@ export function PanelGlobalTable({
   const [comercialId, setComercialId] = useState("");
   const [provincia, setProvincia] = useState("");
   const [campanaId, setCampanaId] = useState(defaultCampanaId);
+  const [soloSinPortada, setSoloSinPortada] = useState(false);
   const [sort, setSort] = useState<PanelSort>({ col: "updated_at", dir: "desc" });
   const [adjudicando, setAdjudicando] = useState(false);
 
   const campanaCatalogosPorId: CampanaCatalogosPorId = useMemo(() => new Map(campanas.map((c) => [c.id, c.catalogos])), [campanas]);
 
   const filtered = useMemo(
-    () => filterPanelRows(rows, { q, estado, comercialId, provincia, campanaId }, rol, perfiles),
-    [rows, q, estado, comercialId, provincia, campanaId, rol, perfiles]
+    () => filterPanelRows(rows, { q, estado, comercialId, provincia, campanaId, soloSinPortada }, rol, perfiles),
+    [rows, q, estado, comercialId, provincia, campanaId, soloSinPortada, rol, perfiles]
   );
   const sorted = useMemo(() => sortPanelRows(filtered, sort, perfiles), [filtered, sort, perfiles]);
   const comerciales = useMemo(() => comercialesFiltro(perfiles), [perfiles]);
@@ -169,6 +170,14 @@ export function PanelGlobalTable({
           ))}
         </select>
         <input type="text" value={provincia} onChange={(e) => setProvincia(e.target.value)} placeholder="Provincia..." style={{ minWidth: 120 }} />
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}>
+          <input
+            type="checkbox"
+            checked={soloSinPortada}
+            onChange={(e) => setSoloSinPortada(e.target.checked)}
+          />
+          Portadas pendientes
+        </label>
         <button type="button" className="btn btn-sm" style={{ background: "var(--c-green-l)", color: "var(--c-green)", border: "1px solid var(--c-green)", fontWeight: 600 }} onClick={exportarExcel}>
           ↓ Exportar Excel
         </button>
@@ -202,6 +211,7 @@ export function PanelGlobalTable({
                 <th onClick={() => toggleSort("updated_at")} style={{ cursor: "pointer", userSelect: "none" }}>
                   Actualizado <span>{sortIndicator("updated_at")}</span>
                 </th>
+                <th>Adjudicación</th>
                 <th>Campos incompletos</th>
                 <th></th>
               </tr>
@@ -209,7 +219,7 @@ export function PanelGlobalTable({
             <tbody>
               {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={7 + ALL_CATALOGOS.length}>
+                  <td colSpan={8 + ALL_CATALOGOS.length}>
                     <div className="empty-state">
                       <div className="icon">📊</div>
                       <p>No hay solicitudes que mostrar.</p>
@@ -256,6 +266,22 @@ export function PanelGlobalTable({
                         <span className={`status s-${s.estado}`}>{ESTADO_LABEL[s.estado] ?? s.estado}</span>
                       </td>
                       <td className="text-mid text-sm">{fmtDate(s.updated_at)}</td>
+                      <td style={{ fontSize: 11 }}>
+                        {s.estado === "en_revision_marketing" && (() => {
+                          const adj = portadasAdjudicacion(s.solicitud_catalogos);
+                          if (adj.necesitan === 0) return <span className="text-mid">—</span>;
+                          if (adj.pendientes.length === 0) {
+                            return <span style={{ color: "var(--c-green)", fontWeight: 600 }}>✓ Completa</span>;
+                          }
+                          const labels = adj.pendientes.map((k) => ALL_CATALOGOS.find((c) => c.key === k)?.label ?? k.toUpperCase()).join(" ");
+                          return (
+                            <span style={{ color: "var(--c-amber)", fontWeight: 600 }}>
+                              {adj.asignadas}/{adj.necesitan} · Falta {labels}
+                            </span>
+                          );
+                        })()}
+                        {s.estado !== "en_revision_marketing" && <span className="text-mid">—</span>}
+                      </td>
                       <td style={{ maxWidth: 180, fontSize: 11, color: "var(--c-red)" }}>
                         {missing.length ? missing.join(", ") : <span style={{ color: "var(--c-green)" }}>✓ Completa</span>}
                       </td>

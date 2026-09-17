@@ -210,7 +210,7 @@ export function SolicitudesTable({
                     <td className="text-mid text-sm">{fmtDate(s.updated_at)}</td>
                     <td>
                       <div className="gap-8">
-                        {s.estado === "borrador" && (
+                        {(s.estado === "borrador" || rol === "admin" || rol === "marketing") && (
                           <button type="button" onClick={() => onEditar(s)} className="btn btn-sm btn-outline">
                             Editar
                           </button>
