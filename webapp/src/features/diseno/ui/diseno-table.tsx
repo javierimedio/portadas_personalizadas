@@ -9,7 +9,7 @@ import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 import type { FormPerfil } from "@/features/solicitudes/domain/types";
 import { DISENO_ROLES } from "@/features/solicitudes/domain/estado-flujo";
 import { reasignarDisenador } from "@/features/solicitudes/application/detalle-actions";
-import { disenadorStats, disenadoresActivos, filterDisenoTareas, ROLES_FILTRO_DISENADOR_VISIBLE } from "../domain/table";
+import { disenadorStats, disenadoresActivos, filterDisenoTareas, ROLES_FILTRO_DISENADOR_VISIBLE, UNASSIGNED_DISENADOR } from "../domain/table";
 import { buildDisenoCsv, disenoCsvFilename, filasParaCsv } from "../domain/csv";
 import { fmtDate } from "@/shared/domain/format";
 
@@ -105,10 +105,12 @@ export function DisenoTable({
     [filtered, sortFecha]
   );
   // Las KPIs se calculan sobre rows completos (filtrados por campaña/diseñador,
-  // pero no por la búsqueda SAP) para reflejar el estado real de la campaña.
+  // pero no por la búsqueda SAP ni por el filtro "Sin asignar") para reflejar
+  // el estado real de la campaña.
+  const statsDisenadorId = disenadorId && disenadorId !== UNASSIGNED_DISENADOR ? disenadorId : undefined;
   const stats = useMemo(
-    () => disenadorStats(rows, perfiles, campanaId, disenadorId || undefined),
-    [rows, perfiles, campanaId, disenadorId]
+    () => disenadorStats(rows, perfiles, campanaId, statsDisenadorId),
+    [rows, perfiles, campanaId, statsDisenadorId]
   );
   const disenadores = useMemo(() => disenadoresActivos(perfiles), [perfiles]);
   const mostrarFiltroDisenador = ROLES_FILTRO_DISENADOR_VISIBLE.includes(rol ?? "");
@@ -141,18 +143,40 @@ export function DisenoTable({
           <button type="button" onClick={onCargaMasiva} className="btn btn-sm" style={{ background: "var(--c-amber)", color: "white", border: "none" }}>
             📦 Carga masiva
           </button>
-          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+          <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 13 13"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              style={{ position: "absolute", left: 8, pointerEvents: "none" }}
+              aria-hidden="true"
+            >
+              <circle cx="5.5" cy="5.5" r="4" stroke="var(--c-mid)" strokeWidth="1.4" />
+              <path d="M9 9L11.5 11.5" stroke="var(--c-mid)" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
             <input
               type="search"
-              placeholder="Buscar SAP…"
+              placeholder="Buscar por cód. SAP…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              style={{ fontSize: 13, minWidth: 140, paddingRight: 8 }}
+              style={{
+                fontSize: 13,
+                width: 200,
+                padding: "0.4rem 0.75rem 0.4rem 1.75rem",
+                border: "1px solid var(--c-line)",
+                borderRadius: "var(--radius)",
+                background: "var(--c-white)",
+                color: "var(--c-dark)",
+                fontFamily: "inherit",
+              }}
             />
           </div>
           {mostrarFiltroDisenador && (
             <select value={disenadorId} onChange={(e) => setDisenadorId(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>
               <option value="">Todos los diseñadores</option>
+              <option value={UNASSIGNED_DISENADOR}>Sin diseñador asignado</option>
               {disenadores.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.nombre}

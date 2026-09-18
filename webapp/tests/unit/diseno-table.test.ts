@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { disenadorStats, disenadoresActivos, filterDisenoTareas } from "@/features/diseno/domain/table";
+import { disenadorStats, disenadoresActivos, filterDisenoTareas, UNASSIGNED_DISENADOR } from "@/features/diseno/domain/table";
 import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 
 function sol(overrides: Partial<SolicitudListItem> = {}): SolicitudListItem {
@@ -54,6 +54,17 @@ describe("filterDisenoTareas", () => {
   it("la búsqueda SAP es insensible a mayúsculas", () => {
     const withSap = [sol({ id: "x", estado: "en_diseno", cod_sap: "60239" })];
     expect(filterDisenoTareas(withSap, { campanaId: "", disenadorId: "", q: "60239" }).map((r) => r.id)).toEqual(["x"]);
+  });
+
+  it("filtra solicitudes sin diseñador asignado con UNASSIGNED_DISENADOR", () => {
+    const mixed = [
+      sol({ id: "a", estado: "en_diseno", asignado_id: "d1" }),
+      sol({ id: "b", estado: "en_diseno", asignado_id: null }),
+      sol({ id: "c", estado: "modificar_diseno", asignado_id: null }),
+    ];
+    expect(
+      filterDisenoTareas(mixed, { campanaId: "", disenadorId: UNASSIGNED_DISENADOR, q: "" }).map((r) => r.id)
+    ).toEqual(["b", "c"]);
   });
 });
 
