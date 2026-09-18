@@ -17,11 +17,13 @@ import {
   asignarDisenadorYEnviar,
   cambiarEstado,
   devolverAlComercial,
+  eliminarAdjunto,
   eliminarSolicitud,
   guardarPortadaElegida,
   marcarDisenoListo,
   solicitarModificacion,
 } from "../application/detalle-actions";
+import { ELIMINAR_ADJUNTO_ROLES } from "../domain/estado-flujo";
 import type { FormPerfil } from "../domain/types";
 
 const ROLES_POR_CANAL_LOCAL: Record<"nacional" | "exportacion", string[]> = {
@@ -66,6 +68,8 @@ export function SolicitudDetalleModal({
 
   const [devolverAbierto, setDevolverAbierto] = useState(false);
   const [motivoDevolucion, setMotivoDevolucion] = useState("");
+
+  const [confirmarEliminarId, setConfirmarEliminarId] = useState<string | null>(null);
 
   const [modificacionAbierta, setModificacionAbierta] = useState(false);
   const [comentarioModificacion, setComentarioModificacion] = useState("");
@@ -157,6 +161,7 @@ export function SolicitudDetalleModal({
   }, [solicitudId]);
 
   const acciones = useMemo(() => accionesDetalle(rol, detalle?.estado ?? ""), [rol, detalle?.estado]);
+  const puedeEliminarAdjunto = (ELIMINAR_ADJUNTO_ROLES as readonly string[]).includes(rol ?? "");
   const comerciales = useMemo(() => {
     if (!canal) return [];
     const roles = ROLES_POR_CANAL_LOCAL[canal as "nacional" | "exportacion"];
@@ -367,9 +372,9 @@ export function SolicitudDetalleModal({
                 <div className="card" style={{ marginBottom: "1rem" }}>
                   <div className="card-title">Archivos adjuntos ({detalle.adjuntos.length})</div>
                   {[
-                    { label: "Logo del cliente", icon: "🏷", color: "var(--c-amber)", items: logosAdjuntos },
-                    { label: "Diseños de portada", icon: "🎨", color: "var(--c-purple)", items: disenosAdjuntos },
-                    { label: "Otros archivos", icon: "📎", color: "var(--c-mid)", items: otrosAdjuntos },
+                    { label: "Logo del cliente", icon: "🏷", color: "var(--c-amber)", items: logosAdjuntos, canDelete: false },
+                    { label: "Diseños de portada", icon: "🎨", color: "var(--c-purple)", items: disenosAdjuntos, canDelete: puedeEliminarAdjunto },
+                    { label: "Otros archivos", icon: "📎", color: "var(--c-mid)", items: otrosAdjuntos, canDelete: false },
                   ]
                     .filter((grupo) => grupo.items.length > 0)
                     .map((grupo) => (
@@ -378,16 +383,53 @@ export function SolicitudDetalleModal({
                           <span>{grupo.icon}</span> {grupo.label}
                         </div>
                         {grupo.items.map((a) => (
-                          <div key={a.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 10px", borderRadius: 6, background: `${grupo.color}20`, marginBottom: 4 }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontWeight: 500, fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.nombre}</div>
-                              <div style={{ fontSize: 10, color: "var(--c-mid)", marginTop: 1 }}>
-                                {fmtDate(a.created_at)} · {a.subido_por_nombre || ""}
+                          <div key={a.id} style={{ marginBottom: 4 }}>
+                            <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 10px", borderRadius: 6, background: `${grupo.color}20` }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: 500, fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.nombre}</div>
+                                <div style={{ fontSize: 10, color: "var(--c-mid)", marginTop: 1 }}>
+                                  {fmtDate(a.created_at)} · {a.subido_por_nombre || ""}
+                                </div>
                               </div>
+                              <a href={a.url} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline" style={{ flexShrink: 0, fontSize: 11 }}>
+                                ↗ Ver
+                              </a>
+                              {grupo.canDelete && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline"
+                                  style={{ flexShrink: 0, fontSize: 11, color: "var(--c-red)", borderColor: "var(--c-red)" }}
+                                  disabled={busy}
+                                  onClick={() => setConfirmarEliminarId(confirmarEliminarId === a.id ? null : a.id)}
+                                >
+                                  🗑
+                                </button>
+                              )}
                             </div>
-                            <a href={a.url} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline" style={{ flexShrink: 0, fontSize: 11 }}>
-                              ↗ Ver
-                            </a>
+                            {confirmarEliminarId === a.id && (
+                              <div style={{ margin: "4px 0 0 10px", background: "#fff5f5", border: "1px solid var(--c-red)", borderRadius: 6, padding: "10px 12px" }}>
+                                <div style={{ fontSize: 12, color: "var(--c-red)", marginBottom: 8, fontWeight: 500 }}>
+                                  ¿Eliminar esta portada? Esta acción no se puede deshacer.
+                                </div>
+                                <div style={{ display: "flex", gap: 6 }}>
+                                  <button type="button" className="btn btn-sm btn-outline" onClick={() => setConfirmarEliminarId(null)}>
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    style={{ background: "var(--c-red)", color: "white", border: "none" }}
+                                    disabled={busy}
+                                    onClick={() => {
+                                      setConfirmarEliminarId(null);
+                                      ejecutarYrecargar(() => eliminarAdjunto(a.id), "Portada eliminada.");
+                                    }}
+                                  >
+                                    Eliminar
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
