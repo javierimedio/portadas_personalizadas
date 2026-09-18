@@ -9,11 +9,46 @@ import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 import type { FormPerfil } from "@/features/solicitudes/domain/types";
 import { DISENO_ROLES } from "@/features/solicitudes/domain/estado-flujo";
 import { reasignarDisenador } from "@/features/solicitudes/application/detalle-actions";
-import { disenadorStats, disenadoresActivos, filterDisenoTareas, ROLES_FILTRO_DISENADOR_VISIBLE } from "../domain/table";
+import { disenadorStats, disenadoresActivos, filterDisenoTareas, ROLES_FILTRO_DISENADOR_VISIBLE, UNASSIGNED_DISENADOR } from "../domain/table";
 import { buildDisenoCsv, disenoCsvFilename, filasParaCsv } from "../domain/csv";
 import { fmtDate } from "@/shared/domain/format";
 
-const STAT_COLOR: Record<string, string> = { mid: "var(--c-mid)", red: "var(--c-red)", green: "var(--c-green)" };
+const KPI_COLOR = {
+  pendientes: "var(--c-red)",    // modificar_diseno: devueltas para corrección
+  enDiseno: "var(--c-amber)",    // en_diseno: diseño inicial en curso
+  mandadas: "var(--c-blue)",
+  aprobadas: "var(--c-green)",
+} as const;
+
+function KpiCell({
+  value,
+  label,
+  color,
+  borderRight,
+  borderBottom,
+}: {
+  value: number;
+  label: string;
+  color: string;
+  borderRight?: boolean;
+  borderBottom?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        padding: "10px 8px 9px",
+        textAlign: "center",
+        borderRight: borderRight ? "1px solid var(--c-line)" : undefined,
+        borderBottom: borderBottom ? "1px solid var(--c-line)" : undefined,
+      }}
+    >
+      <div style={{ fontSize: 20, fontWeight: 800, color: value > 0 ? color : "var(--c-mid)", lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: "var(--c-mid)", textTransform: "uppercase", letterSpacing: ".05em", marginTop: 4 }}>
+        {label}
+      </div>
+    </div>
+  );
+}
 
 // Réplica de #page-diseno (index.html ~696-720) y renderDisenoTable()
 // (~2244-2306): la cola de trabajo de diseño (DIS-01 a DIS-05, DIS-09,
@@ -42,6 +77,7 @@ export function DisenoTable({
   const router = useRouter();
   const [campanaId, setCampanaId] = useState(defaultCampanaId);
   const [disenadorId, setDisenadorId] = useState("");
+  const [q, setQ] = useState("");
   const [sortFecha, setSortFecha] = useState<"asc" | "desc">("asc");
   const [autoAssignBusy, setAutoAssignBusy] = useState<string | null>(null);
 
@@ -58,7 +94,7 @@ export function DisenoTable({
     }
   }
 
-  const filtered = useMemo(() => filterDisenoTareas(rows, { campanaId, disenadorId }), [rows, campanaId, disenadorId]);
+  const filtered = useMemo(() => filterDisenoTareas(rows, { campanaId, disenadorId, q }), [rows, campanaId, disenadorId, q]);
   const sorted = useMemo(
     () =>
       [...filtered].sort((a, b) => {
@@ -68,7 +104,14 @@ export function DisenoTable({
       }),
     [filtered, sortFecha]
   );
-  const stats = useMemo(() => disenadorStats(filtered, perfiles, rows, campanaId), [filtered, perfiles, rows, campanaId]);
+  // Las KPIs se calculan sobre rows completos (filtrados por campaña/diseñador,
+  // pero no por la búsqueda SAP ni por el filtro "Sin asignar") para reflejar
+  // el estado real de la campaña.
+  const statsDisenadorId = disenadorId && disenadorId !== UNASSIGNED_DISENADOR ? disenadorId : undefined;
+  const stats = useMemo(
+    () => disenadorStats(rows, perfiles, campanaId, statsDisenadorId),
+    [rows, perfiles, campanaId, statsDisenadorId]
+  );
   const disenadores = useMemo(() => disenadoresActivos(perfiles), [perfiles]);
   const mostrarFiltroDisenador = ROLES_FILTRO_DISENADOR_VISIBLE.includes(rol ?? "");
   const nombreDisenador = (id: string | null) => perfiles.find((p) => p.id === id)?.nombre ?? "—";
@@ -100,9 +143,40 @@ export function DisenoTable({
           <button type="button" onClick={onCargaMasiva} className="btn btn-sm" style={{ background: "var(--c-amber)", color: "white", border: "none" }}>
             📦 Carga masiva
           </button>
+          <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 13 13"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              style={{ position: "absolute", left: 8, pointerEvents: "none" }}
+              aria-hidden="true"
+            >
+              <circle cx="5.5" cy="5.5" r="4" stroke="var(--c-mid)" strokeWidth="1.4" />
+              <path d="M9 9L11.5 11.5" stroke="var(--c-mid)" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+            <input
+              type="search"
+              placeholder="Buscar por cód. SAP…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              style={{
+                fontSize: 13,
+                width: 200,
+                padding: "0.4rem 0.75rem 0.4rem 1.75rem",
+                border: "1px solid var(--c-line)",
+                borderRadius: "var(--radius)",
+                background: "var(--c-white)",
+                color: "var(--c-dark)",
+                fontFamily: "inherit",
+              }}
+            />
+          </div>
           {mostrarFiltroDisenador && (
             <select value={disenadorId} onChange={(e) => setDisenadorId(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>
               <option value="">Todos los diseñadores</option>
+              <option value={UNASSIGNED_DISENADOR}>Sin diseñador asignado</option>
               {disenadores.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.nombre}
@@ -134,7 +208,7 @@ export function DisenoTable({
                 border: "1px solid var(--c-line)",
                 borderRadius: "var(--radius)",
                 boxShadow: "var(--shadow)",
-                minWidth: 176,
+                minWidth: 188,
                 overflow: "hidden",
               }}
             >
@@ -153,20 +227,10 @@ export function DisenoTable({
                 {s.nombre}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
-                <div style={{ padding: "10px 8px 9px", textAlign: "center", borderRight: "1px solid var(--c-line)" }}>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: STAT_COLOR[s.color], lineHeight: 1 }}>{s.count}</div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: "var(--c-mid)", textTransform: "uppercase", letterSpacing: ".05em", marginTop: 4 }}>
-                    Pendientes
-                  </div>
-                </div>
-                <div style={{ padding: "10px 8px 9px", textAlign: "center" }}>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: s.completadas > 0 ? "var(--c-green)" : "var(--c-mid)", lineHeight: 1 }}>
-                    {s.completadas}
-                  </div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: "var(--c-mid)", textTransform: "uppercase", letterSpacing: ".05em", marginTop: 4 }}>
-                    Completadas
-                  </div>
-                </div>
+                <KpiCell value={s.pendientes} label="Pendientes" color={KPI_COLOR.pendientes} borderRight borderBottom />
+                <KpiCell value={s.enDiseno} label="En diseño" color={KPI_COLOR.enDiseno} borderBottom />
+                <KpiCell value={s.mandadas} label="Mandadas" color={KPI_COLOR.mandadas} borderRight />
+                <KpiCell value={s.aprobadas} label="Aprobadas" color={KPI_COLOR.aprobadas} />
               </div>
             </div>
           ))}

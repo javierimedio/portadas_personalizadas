@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { disenadorStats, disenadoresActivos, filterDisenoTareas } from "@/features/diseno/domain/table";
+import { disenadorStats, disenadoresActivos, filterDisenoTareas, UNASSIGNED_DISENADOR } from "@/features/diseno/domain/table";
 import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 
 function sol(overrides: Partial<SolicitudListItem> = {}): SolicitudListItem {
@@ -32,15 +32,39 @@ describe("filterDisenoTareas", () => {
   ];
 
   it("solo en_diseno/modificar_diseno, sin importar el rol", () => {
-    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "" }).map((r) => r.id)).toEqual(["a", "b"]);
+    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "" }).map((r) => r.id)).toEqual(["a", "b"]);
   });
 
   it("filtra por campaña", () => {
-    expect(filterDisenoTareas(rows, { campanaId: "c2", disenadorId: "" }).map((r) => r.id)).toEqual(["b"]);
+    expect(filterDisenoTareas(rows, { campanaId: "c2", disenadorId: "", q: "" }).map((r) => r.id)).toEqual(["b"]);
   });
 
   it("filtra por diseñador asignado", () => {
-    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "d1" }).map((r) => r.id)).toEqual(["a"]);
+    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "d1", q: "" }).map((r) => r.id)).toEqual(["a"]);
+  });
+
+  it("filtra por código SAP parcial", () => {
+    const withSap = [
+      sol({ id: "x", estado: "en_diseno", cod_sap: "60239" }),
+      sol({ id: "y", estado: "en_diseno", cod_sap: "70100" }),
+    ];
+    expect(filterDisenoTareas(withSap, { campanaId: "", disenadorId: "", q: "602" }).map((r) => r.id)).toEqual(["x"]);
+  });
+
+  it("la búsqueda SAP es insensible a mayúsculas", () => {
+    const withSap = [sol({ id: "x", estado: "en_diseno", cod_sap: "60239" })];
+    expect(filterDisenoTareas(withSap, { campanaId: "", disenadorId: "", q: "60239" }).map((r) => r.id)).toEqual(["x"]);
+  });
+
+  it("filtra solicitudes sin diseñador asignado con UNASSIGNED_DISENADOR", () => {
+    const mixed = [
+      sol({ id: "a", estado: "en_diseno", asignado_id: "d1" }),
+      sol({ id: "b", estado: "en_diseno", asignado_id: null }),
+      sol({ id: "c", estado: "modificar_diseno", asignado_id: null }),
+    ];
+    expect(
+      filterDisenoTareas(mixed, { campanaId: "", disenadorId: UNASSIGNED_DISENADOR, q: "" }).map((r) => r.id)
+    ).toEqual(["b", "c"]);
   });
 });
 
@@ -62,15 +86,48 @@ describe("disenadorStats", () => {
     { id: "d2", nombre: "Bea López", rol: "disenador", activo: true },
   ];
 
-  it("colorea por umbral: 0 = mid, >5 = red, resto = green", () => {
+  it("cuenta los 4 estados por diseñador", () => {
+    // pendientes=modificar_diseno, enDiseno=en_diseno, mandadas=diseno_en_revision_comercial, aprobadas=confirmada
     const rows = [
-      ...Array.from({ length: 6 }, (_, i) => sol({ id: `x${i}`, asignado_id: "d1" })),
-      sol({ id: "y1", asignado_id: "d2" }),
+      sol({ id: "a1", asignado_id: "d1", estado: "modificar_diseno" }),
+      sol({ id: "a2", asignado_id: "d1", estado: "en_diseno" }),
+      sol({ id: "a3", asignado_id: "d1", estado: "diseno_en_revision_comercial" }),
+      sol({ id: "a4", asignado_id: "d1", estado: "confirmada" }),
+      sol({ id: "b1", asignado_id: "d2", estado: "en_diseno" }),
     ];
-    const stats = disenadorStats(rows, perfiles);
+    const stats = disenadorStats(rows, perfiles, "");
     expect(stats).toEqual([
-      { id: "d1", nombre: "Ana García", count: 6, completadas: 0, color: "red" },
-      { id: "d2", nombre: "Bea López", count: 1, completadas: 0, color: "green" },
+      { id: "d1", nombre: "Ana García", pendientes: 1, enDiseno: 1, mandadas: 1, aprobadas: 1 },
+      { id: "d2", nombre: "Bea López", pendientes: 0, enDiseno: 1, mandadas: 0, aprobadas: 0 },
+    ]);
+  });
+
+  it("omite diseñadores sin ninguna solicitud asignada en las 4 fases", () => {
+    const rows = [sol({ id: "a1", asignado_id: "d1", estado: "en_diseno" })];
+    const stats = disenadorStats(rows, perfiles, "");
+    expect(stats.map((s) => s.id)).toEqual(["d1"]);
+  });
+
+  it("filtra por campaña", () => {
+    const rows = [
+      sol({ id: "a1", asignado_id: "d1", estado: "en_diseno", campana_id: "c1" }),
+      sol({ id: "a2", asignado_id: "d1", estado: "en_diseno", campana_id: "c2" }),
+    ];
+    const stats = disenadorStats(rows, perfiles, "c1");
+    // en_diseno → enDiseno; solo c1 pasa el filtro
+    expect(stats).toEqual([
+      { id: "d1", nombre: "Ana García", pendientes: 0, enDiseno: 1, mandadas: 0, aprobadas: 0 },
+    ]);
+  });
+
+  it("filtra por diseñador individual", () => {
+    const rows = [
+      sol({ id: "a1", asignado_id: "d1", estado: "modificar_diseno" }),
+      sol({ id: "b1", asignado_id: "d2", estado: "confirmada" }),
+    ];
+    const stats = disenadorStats(rows, perfiles, "", "d2");
+    expect(stats).toEqual([
+      { id: "d2", nombre: "Bea López", pendientes: 0, enDiseno: 0, mandadas: 0, aprobadas: 1 },
     ]);
   });
 });

@@ -3,18 +3,28 @@ import type { FormPerfil } from "@/features/solicitudes/domain/types";
 
 // Réplica de renderDisenoTable() (index.html ~2244-2306): todos los roles con
 // acceso a la pestaña Diseño ven en_diseno/modificar_diseno, acotado por
-// campaña y — opcionalmente, vía el mismo selector para cualquiera de esos
-// roles, no solo disenador — por diseñador asignado. RLS ya decide qué filas
-// llegan aquí (docs/03-modelo-datos.md § 3.5): disenador/responsable_diseno
-// tienen acceso total, así que este filtro es puramente de presentación.
-export type DisenoFilters = { campanaId: string; disenadorId: string };
+// campaña, diseñador y búsqueda SAP. RLS ya decide qué filas llegan aquí
+// (docs/03-modelo-datos.md § 3.5): estos filtros son puramente de presentación.
+export type DisenoFilters = { campanaId: string; disenadorId: string; q: string };
+
+// Valor centinela para el filtro "Sin diseñador asignado" en el selector.
+// No es un ID real; filterDisenoTareas lo interpreta como asignado_id === null.
+export const UNASSIGNED_DISENADOR = "__unassigned__";
 
 const ESTADOS_DISENO = ["en_diseno", "modificar_diseno"];
 
 export function filterDisenoTareas(rows: SolicitudListItem[], filters: DisenoFilters): SolicitudListItem[] {
   let result = filters.campanaId ? rows.filter((s) => s.campana_id === filters.campanaId) : rows;
   result = result.filter((s) => ESTADOS_DISENO.includes(s.estado));
-  if (filters.disenadorId) result = result.filter((s) => s.asignado_id === filters.disenadorId);
+  if (filters.disenadorId === UNASSIGNED_DISENADOR) {
+    result = result.filter((s) => !s.asignado_id);
+  } else if (filters.disenadorId) {
+    result = result.filter((s) => s.asignado_id === filters.disenadorId);
+  }
+  if (filters.q) {
+    const q = filters.q.trim().toLowerCase();
+    result = result.filter((s) => s.cod_sap?.toLowerCase().includes(q));
+  }
   return result;
 }
 
@@ -27,39 +37,47 @@ export function disenadoresActivos(perfiles: FormPerfil[]): FormPerfil[] {
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 }
 
-// Estados que cuentan como "portada completada" desde la perspectiva del
-// diseñador: diseno_en_revision_comercial (diseñador marcó listo, pendiente
-// de confirmación del cliente) y confirmada (cliente aceptó el diseño).
-// Ambos representan que el trabajo del diseñador está terminado; archivar
-// sin confirmar se excluye porque puede llegar desde cualquier estado.
-export const ESTADOS_DISENO_COMPLETADO = ["diseno_en_revision_comercial", "confirmada"] as const;
+// Correspondencia entre los 4 indicadores de KPI y los estados reales:
+//   pendientes  → modificar_diseno            (devueltas para corrección, pendientes de rehacer)
+//   enDiseno    → en_diseno                   (diseño inicial en curso o recién asignado)
+//   mandadas    → diseno_en_revision_comercial (enviadas al comercial para revisión)
+//   aprobadas   → confirmada                  (cliente confirmó el diseño)
+//
+// Nota: en_diseno engloba "pendiente de comenzar" y "trabajo iniciado",
+// ya que el flujo no distingue entre ambas subfases.
+export type DisenadorStat = {
+  id: string;
+  nombre: string;
+  pendientes: number;
+  enDiseno: number;
+  mandadas: number;
+  aprobadas: number;
+};
 
-export type DisenadorStat = { id: string; nombre: string; count: number; completadas: number; color: "mid" | "red" | "green" };
-
-// Réplica del contador por diseñador (~2274-2290): el umbral de color se
-// calcula sobre `rows` ya filtradas (incluido el propio filtro de
-// diseñador, si hay uno seleccionado) — es el mismo comportamiento del
-// original, no una simplificación.
-// `allRows` + `campanaId`: si se pasan, se calculan también las completadas
-// por campaña sin aplicar el filtro de diseñador (para que el contador de
-// completadas refleje el histórico de cada diseñador, no solo el que esté
-// seleccionado en el filtro).
+// Calcula los 4 indicadores por diseñador activo sobre el conjunto completo
+// de solicitudes (allRows), filtrando por campaña cuando campanaId está
+// definido, y opcionalmente por diseñador individual (disenadorId).
+// Los diseñadores sin ninguna solicitud en ninguna de las 4 fases se omiten.
+// El buscador SAP afecta únicamente a la tabla — no a estas KPIs.
 export function disenadorStats(
-  rows: SolicitudListItem[],
+  allRows: SolicitudListItem[],
   perfiles: FormPerfil[],
-  allRows?: SolicitudListItem[],
-  campanaId?: string
+  campanaId: string,
+  disenadorId?: string
 ): DisenadorStat[] {
-  const completadasRows =
-    allRows?.filter(
-      (s) =>
-        (ESTADOS_DISENO_COMPLETADO as readonly string[]).includes(s.estado) &&
-        (!campanaId || s.campana_id === campanaId)
-    ) ?? [];
-  return disenadoresActivos(perfiles).map((d) => {
-    const count = rows.filter((s) => s.asignado_id === d.id).length;
-    const completadas = completadasRows.filter((s) => s.asignado_id === d.id).length;
-    const color: DisenadorStat["color"] = count === 0 ? "mid" : count > 5 ? "red" : "green";
-    return { id: d.id, nombre: d.nombre, count, completadas, color };
-  });
+  const rows = campanaId ? allRows.filter((s) => s.campana_id === campanaId) : allRows;
+  const designers = disenadorId
+    ? disenadoresActivos(perfiles).filter((d) => d.id === disenadorId)
+    : disenadoresActivos(perfiles);
+
+  return designers
+    .map((d) => {
+      const mine = rows.filter((s) => s.asignado_id === d.id);
+      const pendientes = mine.filter((s) => s.estado === "modificar_diseno").length;
+      const enDiseno = mine.filter((s) => s.estado === "en_diseno").length;
+      const mandadas = mine.filter((s) => s.estado === "diseno_en_revision_comercial").length;
+      const aprobadas = mine.filter((s) => s.estado === "confirmada").length;
+      return { id: d.id, nombre: d.nombre, pendientes, enDiseno, mandadas, aprobadas };
+    })
+    .filter((d) => d.pendientes + d.enDiseno + d.mandadas + d.aprobadas > 0);
 }
