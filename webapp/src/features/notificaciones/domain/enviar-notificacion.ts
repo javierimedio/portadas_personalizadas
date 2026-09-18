@@ -94,6 +94,18 @@ export function buildNotificaciones(estado: string, ctx: NotifRecipients): Notif
       );
       break;
     }
+
+    case "pendiente_comercial": {
+      const explicacionTexto = ctx.motivoDevolucion?.trim()
+        ? `\n\nExplicación del equipo de diseño: "${ctx.motivoDevolucion.trim()}"`
+        : "";
+      push(
+        [ctx.comercialEmail, ...ctx.mktAdminEmails],
+        `${base} — Pendiente de revisión comercial`,
+        `El equipo de diseño ha devuelto la solicitud de portada para el cliente ${ctx.codSap} (${nombre}) porque necesita revisión por tu parte.${explicacionTexto}\n\nAccede a la herramienta para corregirla y reenviarla a marketing.`
+      );
+      break;
+    }
   }
 
   return notifs;

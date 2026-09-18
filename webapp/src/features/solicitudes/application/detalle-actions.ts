@@ -77,6 +77,40 @@ export async function devolverAlComercial(solicitudId: string, motivo: string): 
   return {};
 }
 
+// Devuelve la solicitud desde diseño al comercial (en_diseno → pendiente_comercial).
+// La explicación es obligatoria — se guarda como comentario (visible en la
+// sección Comentarios) y como detalle del cambio de estado en el historial.
+export async function devolverDesdeDisenador(solicitudId: string, explicacion: string): Promise<{ error?: string }> {
+  if (!explicacion.trim()) return { error: "La explicación es obligatoria." };
+  const { supabase, user, perfil } = await currentUserAndPerfil();
+  if (!user) return { error: "Sesión no válida." };
+
+  const { data: sol } = await supabase.from("solicitudes").select("estado").eq("id", solicitudId).maybeSingle();
+  if (!sol) return { error: "Solicitud no encontrada." };
+  if (sol.estado !== "en_diseno") return { error: "Solo se puede devolver desde en_diseno." };
+
+  await supabase.from("logs").insert({
+    solicitud_id: solicitudId,
+    usuario_id: user.id,
+    usuario_nombre: perfil?.nombre,
+    accion: "comentario",
+    detalle: { texto: explicacion.trim(), fecha: new Date().toISOString() },
+  });
+
+  const { error } = await supabase.from("solicitudes").update({ estado: "pendiente_comercial" }).eq("id", solicitudId);
+  if (error) return { error: `Error: ${error.message}` };
+
+  await supabase.from("logs").insert({
+    solicitud_id: solicitudId,
+    usuario_id: user.id,
+    usuario_nombre: perfil?.nombre,
+    accion: "cambio_estado",
+    detalle: { estado_anterior: sol.estado, estado_nuevo: "pendiente_comercial", motivo: explicacion.trim() },
+  });
+  await enviarNotificacion(supabase, solicitudId, "pendiente_comercial", explicacion.trim());
+  return {};
+}
+
 // Réplica de eliminarSolicitud() (~3561-3572): borrado manual en cascada —
 // RLS ya decide si el usuario puede borrar cada fila (docs/03-modelo-datos.md § 3.5).
 export async function eliminarSolicitud(solicitudId: string): Promise<{ error?: string }> {

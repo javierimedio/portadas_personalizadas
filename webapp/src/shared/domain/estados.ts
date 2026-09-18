@@ -9,6 +9,7 @@ export const ESTADO_LABEL: Record<string, string> = {
   enviada: "Enviada",
   en_revision_marketing: "En revisión",
   en_diseno: "En diseño",
+  pendiente_comercial: "Pendiente comercial",
   diseno_en_revision_comercial: "Revisión cliente",
   modificar_diseno: "Modificar diseño",
   confirmada: "Confirmada",
