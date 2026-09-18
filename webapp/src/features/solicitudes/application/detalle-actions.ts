@@ -77,6 +77,42 @@ export async function devolverAlComercial(solicitudId: string, motivo: string): 
   return {};
 }
 
+// Devuelve la solicitud desde diseño al comercial (en_diseno → pendiente_comercial).
+// La explicación es obligatoria. Usa RPC en lugar de REST directo para evitar
+// el bug de caché de PostgREST con valores de enum añadidos via ADD VALUE:
+// dentro de la función PL/pgSQL el UPDATE resuelve el enum contra el catálogo
+// vivo de Postgres, sin pasar por el cache de PostgREST. El RPC también
+// garantiza atomicidad: estado + comentario + historial en una sola transacción.
+// La notificación se envía fuera (no se puede hacer desde dentro de la función BD).
+export async function devolverDesdeDisenador(solicitudId: string, explicacion: string): Promise<{ error?: string }> {
+  if (!explicacion.trim()) return { error: "La explicación es obligatoria." };
+  // [DEV-TRACE] Eliminar tras confirmar que el RPC funciona correctamente.
+  console.log("[DEV] devolverDesdeDisenador via RPC — solicitudId:", solicitudId);
+  const { supabase, user } = await currentUserAndPerfil();
+  if (!user) return { error: "Sesión no válida." };
+
+  const { data, error } = await supabase.rpc("devolver_desde_disenador", {
+    p_solicitud_id: solicitudId,
+    p_explicacion: explicacion.trim(),
+  });
+
+  if (error) {
+    console.error("[devolverDesdeDisenador] RPC error", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    return { error: `Error: ${error.message}` };
+  }
+
+  const result = data as { ok?: boolean; error?: string } | null;
+  if (result?.error) return { error: result.error };
+
+  await enviarNotificacion(supabase, solicitudId, "pendiente_comercial", explicacion.trim());
+  return {};
+}
+
 // Réplica de eliminarSolicitud() (~3561-3572): borrado manual en cascada —
 // RLS ya decide si el usuario puede borrar cada fila (docs/03-modelo-datos.md § 3.5).
 export async function eliminarSolicitud(solicitudId: string): Promise<{ error?: string }> {

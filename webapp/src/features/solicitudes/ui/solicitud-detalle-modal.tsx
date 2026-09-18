@@ -17,6 +17,7 @@ import {
   asignarDisenadorYEnviar,
   cambiarEstado,
   devolverAlComercial,
+  devolverDesdeDisenador,
   eliminarAdjunto,
   eliminarSolicitud,
   guardarPortadaElegida,
@@ -73,6 +74,9 @@ export function SolicitudDetalleModal({
 
   const [modificacionAbierta, setModificacionAbierta] = useState(false);
   const [comentarioModificacion, setComentarioModificacion] = useState("");
+
+  const [devolverDesdeAbierto, setDevolverDesdeAbierto] = useState(false);
+  const [explicacionDevolucion, setExplicacionDevolucion] = useState("");
   // Arquitectura de subida (docs/09-matriz-paridad-funcional.md §
   // "Arquitectura de subida de archivos", 2026-08-04): el archivo se sube a
   // Storage nada más elegirlo, directamente desde el navegador — las
@@ -240,7 +244,7 @@ export function SolicitudDetalleModal({
 
   const comentarios = detalle.logs.filter((l) => l.accion === "comentario");
   const historial = detalle.logs.filter((l) => l.accion !== "comentario" && l.accion !== "adjunto");
-  const mostrarDisenador = detalle.asignado_id && ["en_diseno", "modificar_diseno", "diseno_en_revision_comercial", "confirmada"].includes(detalle.estado);
+  const mostrarDisenador = detalle.asignado_id && ["en_diseno", "modificar_diseno", "pendiente_comercial", "diseno_en_revision_comercial", "confirmada"].includes(detalle.estado);
   const mostrarSubidaDiseno =
     (rol === "disenador" || rol === "responsable_diseno" || rol === "admin" || rol === "marketing") &&
     (detalle.estado === "en_diseno" || detalle.estado === "modificar_diseno");
@@ -784,6 +788,38 @@ export function SolicitudDetalleModal({
               </div>
             </div>
           )}
+          {devolverDesdeAbierto && (
+            <div style={{ marginTop: "1.25rem", borderTop: "1px solid var(--c-line)", paddingTop: "1rem" }}>
+              <div className="card-title">Devolver a comercial desde diseño</div>
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label>Explicación (obligatoria)</label>
+                <textarea
+                  value={explicacionDevolucion}
+                  onChange={(e) => setExplicacionDevolucion(e.target.value)}
+                  placeholder="Explica qué debe revisar o corregir el comercial antes de volver a enviar la solicitud…"
+                  rows={4}
+                />
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button type="button" className="btn btn-outline" onClick={() => setDevolverDesdeAbierto(false)}>
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  disabled={busy || !explicacionDevolucion.trim()}
+                  onClick={() =>
+                    ejecutarYcerrar(
+                      () => devolverDesdeDisenador(detalle.id, explicacionDevolucion),
+                      "Solicitud devuelta al comercial para revisión."
+                    )
+                  }
+                >
+                  Devolver a comercial
+                </button>
+              </div>
+            </div>
+          )}
           {modificacionAbierta && (
             <div style={{ marginTop: "1.25rem", borderTop: "1px solid var(--c-line)", paddingTop: "1rem" }}>
               <div className="card-title">Solicitar modificación</div>
@@ -900,6 +936,21 @@ export function SolicitudDetalleModal({
           {acciones.puedeAsignarDisenador && (
             <button type="button" className="btn btn-outline btn-sm" onClick={() => setAsignarDisenadorAbierto((v) => !v)}>
               {detalle.asignado_id ? "🔄 Reasignar diseñador" : "⚙️ Asignar diseñador"}
+            </button>
+          )}
+          {acciones.puedeDevolverDesdeDiseno && (
+            <button type="button" className="btn btn-outline btn-danger btn-sm" onClick={() => setDevolverDesdeAbierto((v) => !v)}>
+              ↩ Devolver a comercial
+            </button>
+          )}
+          {acciones.puedeReenviarARevision && (
+            <button
+              type="button"
+              className="btn btn-amber"
+              disabled={busy}
+              onClick={() => ejecutarYcerrar(() => cambiarEstado(detalle.id, "en_revision_marketing"), "Solicitud reenviada a revisión de marketing.")}
+            >
+              Reenviar a revisión
             </button>
           )}
           {acciones.puedeDevolverABorrador && (

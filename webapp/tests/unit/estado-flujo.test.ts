@@ -49,6 +49,29 @@ describe("accionesDetalle", () => {
     }
     expect(accionesDetalle("disenador", "diseno_en_revision_comercial").puedeConfirmar).toBe(false);
   });
+
+  it("puedeDevolverDesdeDiseno: disenador/responsable_diseno/admin + en_diseno; marketing excluido", () => {
+    for (const rol of ["disenador", "responsable_diseno", "admin"]) {
+      expect(accionesDetalle(rol, "en_diseno").puedeDevolverDesdeDiseno).toBe(true);
+    }
+    expect(accionesDetalle("marketing", "en_diseno").puedeDevolverDesdeDiseno).toBe(false);
+    expect(accionesDetalle("disenador", "modificar_diseno").puedeDevolverDesdeDiseno).toBe(false);
+    expect(accionesDetalle("disenador", "pendiente_comercial").puedeDevolverDesdeDiseno).toBe(false);
+  });
+
+  it("puedeReenviarARevision: comercial y gestor desde pendiente_comercial; no desde en_diseno", () => {
+    for (const rol of ["comercial_nacional", "comercial_exportacion", "responsable_nacional", "responsable_exportacion", "admin", "marketing"]) {
+      expect(accionesDetalle(rol, "pendiente_comercial").puedeReenviarARevision).toBe(true);
+    }
+    expect(accionesDetalle("disenador", "pendiente_comercial").puedeReenviarARevision).toBe(false);
+    expect(accionesDetalle("comercial_nacional", "en_diseno").puedeReenviarARevision).toBe(false);
+  });
+
+  it("pendiente_comercial: comercial puede editar", () => {
+    expect(accionesDetalle("comercial_nacional", "pendiente_comercial").puedeEditar).toBe(true);
+    expect(accionesDetalle("comercial_exportacion", "pendiente_comercial").puedeEditar).toBe(true);
+    expect(accionesDetalle("disenador", "pendiente_comercial").puedeEditar).toBe(false);
+  });
 });
 
 describe("puedeElegirPortadaFinal", () => {

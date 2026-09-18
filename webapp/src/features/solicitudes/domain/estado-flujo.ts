@@ -15,6 +15,12 @@ export const REVISION_CLIENTE_ROLES = [
   "admin",
   "marketing",
 ] as const;
+export const COMERCIAL_ROLES = [
+  "comercial_nacional",
+  "comercial_exportacion",
+  "responsable_nacional",
+  "responsable_exportacion",
+] as const;
 
 function esGestor(rol: string | null | undefined): boolean {
   return rol === "admin" || rol === "marketing";
@@ -22,6 +28,10 @@ function esGestor(rol: string | null | undefined): boolean {
 
 function esRolDeDiseno(rol: string | null | undefined): boolean {
   return rol === "disenador" || rol === "responsable_diseno" || esGestor(rol);
+}
+
+function esComercial(rol: string | null | undefined): boolean {
+  return (COMERCIAL_ROLES as readonly string[]).includes(rol ?? "");
 }
 
 export type AccionesDetalle = {
@@ -37,12 +47,14 @@ export type AccionesDetalle = {
   puedeSolicitarModificacion: boolean;
   puedeArchivar: boolean;
   puedeEliminar: boolean;
+  puedeDevolverDesdeDiseno: boolean;
+  puedeReenviarARevision: boolean;
 };
 
 export function accionesDetalle(rol: string | null | undefined, estado: string): AccionesDetalle {
   const gestor = esGestor(rol);
   return {
-    puedeEditar: estado === "borrador" || gestor,
+    puedeEditar: estado === "borrador" || gestor || (esComercial(rol) && estado === "pendiente_comercial"),
     puedeEnviarAMarketing: estado === "borrador",
     puedeDevolverABorrador: gestor && (estado === "enviada" || estado === "en_revision_marketing"),
     puedeIniciarRevision: gestor && estado === "enviada",
@@ -57,6 +69,12 @@ export function accionesDetalle(rol: string | null | undefined, estado: string):
     puedeArchivar:
       estado === "diseno_en_revision_comercial" && (REVISION_CLIENTE_ROLES as readonly string[]).includes(rol ?? ""),
     puedeEliminar: estado === "borrador" || rol === "admin",
+    // Diseñador/responsable_diseno/admin devuelven al comercial desde en_diseno
+    // cuando detectan un error o necesitan aclaración. marketing excluido a propósito.
+    puedeDevolverDesdeDiseno: (rol === "disenador" || rol === "responsable_diseno" || rol === "admin") && estado === "en_diseno",
+    // Comercial o gestor reenvía a revisión de marketing desde pendiente_comercial
+    // una vez que ha corregido lo indicado por el diseñador.
+    puedeReenviarARevision: (esComercial(rol) || gestor) && estado === "pendiente_comercial",
   };
 }
 

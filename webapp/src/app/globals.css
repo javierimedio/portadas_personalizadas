@@ -411,6 +411,10 @@ select.error {
   background: var(--c-purple-l);
   color: var(--c-purple);
 }
+.s-pendiente_comercial {
+  background: #fff7ed;
+  color: #c2410c;
+}
 .s-diseno_en_revision_comercial {
   background: #fef3d0;
   color: #b8860b;
