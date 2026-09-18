@@ -23,6 +23,7 @@ import {
   guardarPortadaElegida,
   marcarDisenoListo,
   solicitarModificacion,
+  subirDocumentoAdjunto,
 } from "../application/detalle-actions";
 import { ELIMINAR_ADJUNTO_ROLES } from "../domain/estado-flujo";
 import type { FormPerfil } from "../domain/types";
@@ -77,6 +78,19 @@ export function SolicitudDetalleModal({
 
   const [devolverDesdeAbierto, setDevolverDesdeAbierto] = useState(false);
   const [explicacionDevolucion, setExplicacionDevolucion] = useState("");
+
+  const [adjuntarDocumentoAbierto, setAdjuntarDocumentoAbierto] = useState(false);
+  const [archivoDocumento, setArchivoDocumento] = useState<
+    { nombre: string; size: number; estado: "subiendo" | "ok" | "error"; meta?: UploadedFile } | null
+  >(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
+
+  function elegirArchivoDocumento(f: File) {
+    setArchivoDocumento({ nombre: f.name, size: f.size, estado: "subiendo" });
+    subirArchivo(f, `solicitudes/${solicitudId}/documentos`)
+      .then((meta) => setArchivoDocumento({ nombre: f.name, size: f.size, estado: "ok", meta }))
+      .catch(() => setArchivoDocumento({ nombre: f.name, size: f.size, estado: "error" }));
+  }
   // Arquitectura de subida (docs/09-matriz-paridad-funcional.md §
   // "Arquitectura de subida de archivos", 2026-08-04): el archivo se sube a
   // Storage nada más elegirlo, directamente desde el navegador — las
@@ -911,6 +925,88 @@ export function SolicitudDetalleModal({
               </div>
             </div>
           )}
+          {adjuntarDocumentoAbierto && (
+            <div style={{ marginTop: "1.25rem", borderTop: "1px solid var(--c-line)", paddingTop: "1rem" }}>
+              <div className="card-title">Añadir documento</div>
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label>Archivo</label>
+                <div
+                  onClick={() => docInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const f = e.dataTransfer.files?.[0];
+                    if (f) elegirArchivoDocumento(f);
+                  }}
+                  style={{
+                    border: `2px dashed ${archivoDocumento?.estado === "ok" ? "var(--c-green)" : "var(--c-line)"}`,
+                    background: archivoDocumento?.estado === "ok" ? "var(--c-green-l)" : "var(--c-white)",
+                    borderRadius: "var(--radius)",
+                    padding: "0.75rem",
+                    cursor: "pointer",
+                    fontSize: 12,
+                  }}
+                >
+                  {archivoDocumento ? (
+                    <span>
+                      {archivoDocumento.estado === "subiendo" ? (
+                        <span style={{ color: "var(--c-mid)" }}>⏳ Subiendo {archivoDocumento.nombre}...</span>
+                      ) : archivoDocumento.estado === "error" ? (
+                        <span style={{ color: "var(--c-red)" }}>⚠️ Error al subir {archivoDocumento.nombre}</span>
+                      ) : (
+                        <>
+                          <span style={{ color: "var(--c-green)" }}>✅ {archivoDocumento.nombre}</span>{" "}
+                          <span style={{ color: "var(--c-mid)" }}>({(archivoDocumento.size / 1024).toFixed(0)} KB)</span>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (archivoDocumento.meta) borrarArchivoSubido(archivoDocumento.meta.path);
+                          setArchivoDocumento(null);
+                        }}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--c-red)", fontSize: 12, marginLeft: 6 }}
+                      >
+                        ✕ Quitar
+                      </button>
+                    </span>
+                  ) : (
+                    <span style={{ color: "var(--c-mid)" }}>Arrastra un archivo aquí o haz clic</span>
+                  )}
+                </div>
+                <input
+                  ref={docInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) elegirArchivoDocumento(f);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button type="button" className="btn btn-outline" onClick={() => { setAdjuntarDocumentoAbierto(false); setArchivoDocumento(null); }}>
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-amber"
+                  disabled={busy || !archivoDocumento || archivoDocumento.estado !== "ok"}
+                  onClick={() => {
+                    if (!archivoDocumento?.meta) return;
+                    ejecutarYrecargar(() => subirDocumentoAdjunto(detalle.id, archivoDocumento.meta!), "Documento adjuntado correctamente.");
+                    setAdjuntarDocumentoAbierto(false);
+                    setArchivoDocumento(null);
+                  }}
+                >
+                  Adjuntar documento
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="modal-footer" style={{ flexWrap: "wrap" }}>
@@ -941,6 +1037,11 @@ export function SolicitudDetalleModal({
           {acciones.puedeDevolverDesdeDiseno && (
             <button type="button" className="btn btn-outline btn-danger btn-sm" onClick={() => setDevolverDesdeAbierto((v) => !v)}>
               ↩ Devolver a comercial
+            </button>
+          )}
+          {acciones.puedeAñadirDocumento && (
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => setAdjuntarDocumentoAbierto((v) => !v)}>
+              📎 Añadir documento
             </button>
           )}
           {acciones.puedeReenviarARevision && (

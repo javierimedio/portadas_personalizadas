@@ -49,6 +49,7 @@ export type AccionesDetalle = {
   puedeEliminar: boolean;
   puedeDevolverDesdeDiseno: boolean;
   puedeReenviarARevision: boolean;
+  puedeAñadirDocumento: boolean;
 };
 
 export function accionesDetalle(rol: string | null | undefined, estado: string): AccionesDetalle {
@@ -69,12 +70,15 @@ export function accionesDetalle(rol: string | null | undefined, estado: string):
     puedeArchivar:
       estado === "diseno_en_revision_comercial" && (REVISION_CLIENTE_ROLES as readonly string[]).includes(rol ?? ""),
     puedeEliminar: estado === "borrador" || rol === "admin",
-    // Diseñador/responsable_diseno/admin devuelven al comercial desde en_diseno
-    // cuando detectan un error o necesitan aclaración. marketing excluido a propósito.
-    puedeDevolverDesdeDiseno: (rol === "disenador" || rol === "responsable_diseno" || rol === "admin") && estado === "en_diseno",
+    // Diseñador/responsable_diseno/admin/marketing devuelven al comercial desde
+    // en_diseno cuando detectan un error o necesitan aclaración.
+    puedeDevolverDesdeDiseno: (rol === "disenador" || rol === "responsable_diseno" || rol === "admin" || rol === "marketing") && estado === "en_diseno",
     // Comercial o gestor reenvía a revisión de marketing desde pendiente_comercial
     // una vez que ha corregido lo indicado por el diseñador.
     puedeReenviarARevision: (esComercial(rol) || gestor) && estado === "pendiente_comercial",
+    // Comercial y gestor pueden adjuntar documentos mientras la solicitud espera
+    // correcciones del comercial, para que diseño los vea al retomar el trabajo.
+    puedeAñadirDocumento: (esComercial(rol) || gestor) && estado === "pendiente_comercial",
   };
 }
 

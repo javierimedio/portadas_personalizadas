@@ -315,6 +315,37 @@ export async function eliminarAdjunto(adjuntoId: string): Promise<{ error?: stri
   return {};
 }
 
+// Adjunta un documento desde el comercial mientras la solicitud está en
+// pendiente_comercial, para que el diseñador lo pueda consultar cuando
+// retome el trabajo. El archivo ya está en Storage — se recibe solo su
+// metadata. Registra la subida en logs (accion "subida_documento") para
+// que aparezca en el historial sin filtrarse como comentario.
+export async function subirDocumentoAdjunto(solicitudId: string, adjunto: UploadedFile): Promise<{ error?: string }> {
+  const { supabase, user, perfil } = await currentUserAndPerfil();
+  if (!user) return { error: "Sesión no válida." };
+
+  const { error: insertError } = await supabase.from("adjuntos").insert({
+    solicitud_id: solicitudId,
+    nombre: adjunto.nombre,
+    tipo: "adjunto_comercial",
+    url: adjunto.url,
+    storage_path: adjunto.path,
+    subido_por: user.id,
+    subido_por_nombre: perfil?.nombre,
+  });
+  if (insertError) return { error: `Error al guardar el adjunto: ${insertError.message}` };
+
+  await supabase.from("logs").insert({
+    solicitud_id: solicitudId,
+    usuario_id: user.id,
+    usuario_nombre: perfil?.nombre,
+    accion: "subida_documento",
+    detalle: { nombre: adjunto.nombre, url: adjunto.url },
+  });
+
+  return {};
+}
+
 // Réplica de addComentario() (~3364-3401), incluida la notificación a los
 // mencionados (~3393-3405, COM-07) excluyendo siempre al propio autor.
 export async function addComentario(solicitudId: string, texto: string): Promise<{ error?: string; mencionados?: number }> {
