@@ -86,6 +86,8 @@ export async function devolverAlComercial(solicitudId: string, motivo: string): 
 // La notificación se envía fuera (no se puede hacer desde dentro de la función BD).
 export async function devolverDesdeDisenador(solicitudId: string, explicacion: string): Promise<{ error?: string }> {
   if (!explicacion.trim()) return { error: "La explicación es obligatoria." };
+  // [DEV-TRACE] Eliminar tras confirmar que el RPC funciona correctamente.
+  console.log("[DEV] devolverDesdeDisenador via RPC — solicitudId:", solicitudId);
   const { supabase, user } = await currentUserAndPerfil();
   if (!user) return { error: "Sesión no válida." };
 
