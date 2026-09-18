@@ -125,34 +125,49 @@ export function DisenoTable({
       </div>
 
       {stats.length > 0 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: "1rem" }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: "1.25rem" }}>
           {stats.map((s) => (
             <div
               key={s.id}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "6px 12px",
-                background: "white",
-                borderRadius: 8,
+                background: "var(--c-white)",
                 border: "1px solid var(--c-line)",
+                borderRadius: "var(--radius)",
+                boxShadow: "var(--shadow)",
+                minWidth: 176,
+                overflow: "hidden",
               }}
             >
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 20, fontWeight: 800, color: STAT_COLOR[s.color], lineHeight: 1 }}>{s.count}</div>
-                <div style={{ fontSize: 9, color: "var(--c-mid)", textTransform: "uppercase", letterSpacing: ".04em", lineHeight: 1, marginTop: 2 }}>pend.</div>
+              <div
+                style={{
+                  padding: "7px 12px 6px",
+                  borderBottom: "1px solid var(--c-line)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "var(--c-dark)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {s.nombre}
               </div>
-              {s.completadas > 0 && (
-                <>
-                  <span style={{ color: "var(--c-line)", fontSize: 18, lineHeight: 1 }}>|</span>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: "var(--c-green)", lineHeight: 1 }}>{s.completadas}</div>
-                    <div style={{ fontSize: 9, color: "var(--c-mid)", textTransform: "uppercase", letterSpacing: ".04em", lineHeight: 1, marginTop: 2 }}>hechas</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+                <div style={{ padding: "10px 8px 9px", textAlign: "center", borderRight: "1px solid var(--c-line)" }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: STAT_COLOR[s.color], lineHeight: 1 }}>{s.count}</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: "var(--c-mid)", textTransform: "uppercase", letterSpacing: ".05em", marginTop: 4 }}>
+                    Pendientes
                   </div>
-                </>
-              )}
-              <span style={{ fontSize: 12, color: "var(--c-dark)", fontWeight: 500 }}>{s.nombre.split(" ")[0]}</span>
+                </div>
+                <div style={{ padding: "10px 8px 9px", textAlign: "center" }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: s.completadas > 0 ? "var(--c-green)" : "var(--c-mid)", lineHeight: 1 }}>
+                    {s.completadas}
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: "var(--c-mid)", textTransform: "uppercase", letterSpacing: ".05em", marginTop: 4 }}>
+                    Completadas
+                  </div>
+                </div>
+              </div>
             </div>
           ))}
         </div>
