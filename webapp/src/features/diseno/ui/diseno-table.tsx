@@ -68,7 +68,7 @@ export function DisenoTable({
       }),
     [filtered, sortFecha]
   );
-  const stats = useMemo(() => disenadorStats(filtered, perfiles), [filtered, perfiles]);
+  const stats = useMemo(() => disenadorStats(filtered, perfiles, rows, campanaId), [filtered, perfiles, rows, campanaId]);
   const disenadores = useMemo(() => disenadoresActivos(perfiles), [perfiles]);
   const mostrarFiltroDisenador = ROLES_FILTRO_DISENADOR_VISIBLE.includes(rol ?? "");
   const nombreDisenador = (id: string | null) => perfiles.find((p) => p.id === id)?.nombre ?? "—";
@@ -132,14 +132,26 @@ export function DisenoTable({
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 6,
+                gap: 8,
                 padding: "6px 12px",
                 background: "white",
                 borderRadius: 8,
                 border: "1px solid var(--c-line)",
               }}
             >
-              <span style={{ fontSize: 20, fontWeight: 800, color: STAT_COLOR[s.color] }}>{s.count}</span>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: STAT_COLOR[s.color], lineHeight: 1 }}>{s.count}</div>
+                <div style={{ fontSize: 9, color: "var(--c-mid)", textTransform: "uppercase", letterSpacing: ".04em", lineHeight: 1, marginTop: 2 }}>pend.</div>
+              </div>
+              {s.completadas > 0 && (
+                <>
+                  <span style={{ color: "var(--c-line)", fontSize: 18, lineHeight: 1 }}>|</span>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: "var(--c-green)", lineHeight: 1 }}>{s.completadas}</div>
+                    <div style={{ fontSize: 9, color: "var(--c-mid)", textTransform: "uppercase", letterSpacing: ".04em", lineHeight: 1, marginTop: 2 }}>hechas</div>
+                  </div>
+                </>
+              )}
               <span style={{ fontSize: 12, color: "var(--c-dark)", fontWeight: 500 }}>{s.nombre.split(" ")[0]}</span>
             </div>
           ))}

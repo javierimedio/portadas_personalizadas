@@ -69,8 +69,8 @@ describe("disenadorStats", () => {
     ];
     const stats = disenadorStats(rows, perfiles);
     expect(stats).toEqual([
-      { id: "d1", nombre: "Ana García", count: 6, color: "red" },
-      { id: "d2", nombre: "Bea López", count: 1, color: "green" },
+      { id: "d1", nombre: "Ana García", count: 6, completadas: 0, color: "red" },
+      { id: "d2", nombre: "Bea López", count: 1, completadas: 0, color: "green" },
     ]);
   });
 });

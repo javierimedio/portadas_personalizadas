@@ -6,6 +6,7 @@
 // lógica decide qué se OFRECE en la UI, no sustituye la comprobación real).
 export const GESTOR_ROLES = ["admin", "marketing"] as const;
 export const DISENO_ROLES = ["disenador", "responsable_diseno"] as const;
+export const ELIMINAR_ADJUNTO_ROLES = ["admin", "marketing", "disenador", "responsable_diseno"] as const;
 export const REVISION_CLIENTE_ROLES = [
   "comercial_nacional",
   "comercial_exportacion",

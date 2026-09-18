@@ -8,6 +8,9 @@ import {
   enviarNotificacionAsignacion,
   enviarNotificacionesMencion,
 } from "@/features/notificaciones/application/enviar-notificacion";
+import { borrarArchivosStorage } from "@/shared/storage/server";
+import { STORAGE_BUCKET } from "@/shared/storage/constants";
+import { ELIMINAR_ADJUNTO_ROLES } from "../domain/estado-flujo";
 import type { UploadedFile } from "@/shared/storage/types";
 
 async function currentUserAndPerfil() {
@@ -170,6 +173,7 @@ export async function marcarDisenoListo(solicitudId: string, archivos: UploadedF
       nombre: archivo.nombre,
       tipo: "diseno_portada",
       url: archivo.url,
+      storage_path: archivo.path,
       subido_por: user.id,
       subido_por_nombre: perfil?.nombre,
     });
@@ -205,6 +209,7 @@ export async function solicitarModificacion(
       url: adjunto.url,
       nombre: adjunto.nombre,
       tipo: "modificacion",
+      storage_path: adjunto.path,
       subido_por: user.id,
       subido_por_nombre: perfil?.nombre,
     });
@@ -222,6 +227,55 @@ export async function guardarPortadaElegida(solicitudId: string, catalogo: strin
     .eq("solicitud_id", solicitudId)
     .eq("catalogo", catalogo);
   if (error) return { error: `Error: ${error.message}` };
+  return {};
+}
+
+// Deriva el path de Storage a partir de la URL pública cuando `storage_path`
+// no está disponible en la BD (adjuntos creados antes de la migración
+// 20260918000100_eliminar_adjuntos.sql). Formato conocido:
+// https://<host>/storage/v1/object/public/<bucket>/<path>
+function storagePathDesdeUrl(url: string): string | null {
+  const marker = `/${STORAGE_BUCKET}/`;
+  const idx = url.indexOf(marker);
+  if (idx < 0) return null;
+  try {
+    return decodeURIComponent(url.slice(idx + marker.length));
+  } catch {
+    return url.slice(idx + marker.length);
+  }
+}
+
+// Borra un adjunto de tipo "diseno_portada": elimina la fila en BD y el
+// objeto en Storage. Solo lo pueden ejecutar los roles en ELIMINAR_ADJUNTO_ROLES;
+// la RLS de BD (adjuntos_delete) y la policy de Storage (portadas_adjuntos_delete)
+// replican el mismo guard a nivel de base de datos para que la comprobación
+// aquí no sea el único freno.
+export async function eliminarAdjunto(adjuntoId: string): Promise<{ error?: string }> {
+  const { supabase, user, perfil } = await currentUserAndPerfil();
+  if (!user) return { error: "Sesión no válida." };
+  if (!(ELIMINAR_ADJUNTO_ROLES as readonly string[]).includes(perfil?.rol ?? "")) {
+    return { error: "No tienes permiso para eliminar portadas." };
+  }
+
+  const { data: adjunto } = await supabase.from("adjuntos").select("tipo, url, storage_path, solicitud_id").eq("id", adjuntoId).maybeSingle();
+  if (!adjunto) return { error: "Adjunto no encontrado." };
+  if (adjunto.tipo !== "diseno_portada") return { error: "Solo se pueden eliminar diseños de portada." };
+
+  const { error } = await supabase.from("adjuntos").delete().eq("id", adjuntoId);
+  if (error) return { error: `Error: ${error.message}` };
+
+  await supabase.from("logs").insert({
+    solicitud_id: adjunto.solicitud_id,
+    usuario_id: user.id,
+    usuario_nombre: perfil?.nombre,
+    accion: "eliminar_adjunto",
+    detalle: { adjunto_id: adjuntoId },
+  });
+
+  const path = adjunto.storage_path ?? storagePathDesdeUrl(adjunto.url);
+  if (path) await borrarArchivosStorage(supabase, [path]);
+
+  revalidatePath("/diseno");
   return {};
 }
 

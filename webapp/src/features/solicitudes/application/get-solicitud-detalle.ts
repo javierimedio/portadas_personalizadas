@@ -21,7 +21,7 @@ export type DetalleCatalogo = {
   unidades: number | null;
 };
 
-export type DetalleAdjunto = { id: string; nombre: string; tipo: string; url: string; subido_por_nombre: string | null; created_at: string };
+export type DetalleAdjunto = { id: string; nombre: string; tipo: string; url: string; storage_path: string | null; subido_por_nombre: string | null; created_at: string };
 export type DetalleLog = { id: string; usuario_nombre: string | null; accion: string; detalle: Record<string, unknown> | null; created_at: string };
 
 export type SolicitudDetalle = {
@@ -101,7 +101,7 @@ export async function getSolicitudDetalle(solicitudId: string, rolEfectivo?: str
           "catalogo, catalogo_digital, catalogo_impreso, portada_personalizada, portada_diseno_propio, portada_opcion_1, portada_opcion_2, portada_opcion_3, portada_elegida, posicion_logo, con_precios, unidades"
         )
         .eq("solicitud_id", solicitudId),
-      supabase.from("adjuntos").select("id, nombre, tipo, url, subido_por_nombre, created_at").eq("solicitud_id", solicitudId).order("created_at"),
+      supabase.from("adjuntos").select("id, nombre, tipo, url, storage_path, subido_por_nombre, created_at").eq("solicitud_id", solicitudId).order("created_at"),
       supabase.from("logs").select("id, usuario_nombre, accion, detalle, created_at").eq("solicitud_id", solicitudId).order("created_at", { ascending: false }),
       sol.comercial_id ? supabase.from("perfiles").select("nombre, codigo").eq("id", sol.comercial_id).maybeSingle() : Promise.resolve({ data: null }),
       sol.asignado_id ? supabase.from("perfiles").select("nombre").eq("id", sol.asignado_id).maybeSingle() : Promise.resolve({ data: null }),
