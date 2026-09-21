@@ -50,11 +50,11 @@ describe("accionesDetalle", () => {
     expect(accionesDetalle("disenador", "diseno_en_revision_comercial").puedeConfirmar).toBe(false);
   });
 
-  it("puedeDevolverDesdeDiseno: disenador/responsable_diseno/admin + en_diseno; marketing excluido", () => {
-    for (const rol of ["disenador", "responsable_diseno", "admin"]) {
+  it("puedeDevolverDesdeDiseno: disenador/responsable_diseno/admin/marketing + en_diseno; no desde otros estados", () => {
+    for (const rol of ["disenador", "responsable_diseno", "admin", "marketing"]) {
       expect(accionesDetalle(rol, "en_diseno").puedeDevolverDesdeDiseno).toBe(true);
     }
-    expect(accionesDetalle("marketing", "en_diseno").puedeDevolverDesdeDiseno).toBe(false);
+    expect(accionesDetalle("comercial_nacional", "en_diseno").puedeDevolverDesdeDiseno).toBe(false);
     expect(accionesDetalle("disenador", "modificar_diseno").puedeDevolverDesdeDiseno).toBe(false);
     expect(accionesDetalle("disenador", "pendiente_comercial").puedeDevolverDesdeDiseno).toBe(false);
   });
@@ -71,6 +71,15 @@ describe("accionesDetalle", () => {
     expect(accionesDetalle("comercial_nacional", "pendiente_comercial").puedeEditar).toBe(true);
     expect(accionesDetalle("comercial_exportacion", "pendiente_comercial").puedeEditar).toBe(true);
     expect(accionesDetalle("disenador", "pendiente_comercial").puedeEditar).toBe(false);
+  });
+
+  it("puedeAñadirDocumento: comercial y gestor desde pendiente_comercial; no desde en_diseno ni diseñador", () => {
+    for (const rol of ["comercial_nacional", "comercial_exportacion", "responsable_nacional", "responsable_exportacion", "admin", "marketing"]) {
+      expect(accionesDetalle(rol, "pendiente_comercial").puedeAñadirDocumento).toBe(true);
+    }
+    expect(accionesDetalle("disenador", "pendiente_comercial").puedeAñadirDocumento).toBe(false);
+    expect(accionesDetalle("comercial_nacional", "en_diseno").puedeAñadirDocumento).toBe(false);
+    expect(accionesDetalle("admin", "en_revision_marketing").puedeAñadirDocumento).toBe(false);
   });
 });
 
