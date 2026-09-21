@@ -69,14 +69,6 @@ export async function procesarCargaMasiva(
       });
       if (error) throw error;
 
-      if (match.catKey) {
-        await supabase
-          .from("solicitud_catalogos")
-          .update({ portada_elegida: archivo.nombre.replace(/\.[^.]+$/, "") })
-          .eq("solicitud_id", match.solId)
-          .eq("catalogo", match.catKey);
-      }
-
       if (!processedSols.has(match.solId)) {
         processedSols.add(match.solId);
         await cambiarEstado(match.solId, "diseno_en_revision_comercial");
