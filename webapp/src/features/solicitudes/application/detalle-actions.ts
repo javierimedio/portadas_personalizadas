@@ -354,7 +354,7 @@ export async function addComentario(solicitudId: string, texto: string): Promise
   const { supabase, user, perfil } = await currentUserAndPerfil();
   if (!user) return { error: "Sesión no válida." };
 
-  const { data: perfiles } = await supabase.from("perfiles").select("id, nombre, email, notif_preferencia");
+  const { data: perfiles } = await supabase.from("perfiles").select("id, nombre, email, notif_preferencia").eq("activo", true);
   const mencionados = perfilesMencionados(trimmed, perfiles ?? []);
 
   const { error } = await supabase.from("logs").insert({
