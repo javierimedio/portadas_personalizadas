@@ -2,7 +2,7 @@
 
 import { createClient } from "@/shared/infrastructure/supabase/server-client";
 import { catalogosDeCampana } from "@/shared/domain/catalogos";
-import { campanaCerrada } from "@/shared/domain/campanas";
+import { campanaBloqueaGuardado } from "@/shared/domain/campanas";
 import { enviarNotificacion } from "@/features/notificaciones/application/enviar-notificacion";
 import {
   formatearErrores,
@@ -105,11 +105,10 @@ export async function saveSolicitud(_prev: SaveSolicitudState, formData: FormDat
 
   if (!campanaId) return { error: "Selecciona una campaña." };
 
-  if (campanaCerrada(campana?.fecha_cierre ?? null)) {
-    return { error: `La campaña ${campana?.nombre} está cerrada (${campana?.fecha_cierre?.slice(0, 10)}). Selecciona otra campaña.` };
-  }
-
   if (!solicitudId) {
+    if (campanaBloqueaGuardado(campana?.fecha_cierre ?? null, true)) {
+      return { error: `La campaña ${campana?.nombre} está cerrada (${campana?.fecha_cierre?.slice(0, 10)}). Selecciona otra campaña.` };
+    }
     // Comprobación de duplicados (~2913-2922) comparando en mayúsculas en
     // ambos lados — el original comparaba el código sin mayusculizar
     // contra los ya guardados (que sí se guardan en mayúsculas), lo que en
