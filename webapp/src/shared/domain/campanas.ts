@@ -42,6 +42,13 @@ export function activeCampanaId(campanas: CampanaLike[], overrideId: string | nu
   return getDefaultCampanaId(campanas);
 }
 
+// Una campaña cerrada solo impide crear nuevas solicitudes; las existentes
+// en borrador pueden editarse y enviarse aunque la campaña haya cerrado.
+export function campanaBloqueaGuardado(fechaCierre: string | null, esNuevaSolicitud: boolean): boolean {
+  if (!esNuevaSolicitud) return false;
+  return campanaCerrada(fechaCierre);
+}
+
 export type CampanaBanner = { variant: "cerrada" | "porcerrar"; mensaje: string };
 
 // Réplica de renderCampanaBanner() (~2366-2393, CAMP-03): rojo si la

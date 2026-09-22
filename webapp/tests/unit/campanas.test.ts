@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { activeCampanaId, campanaBanner, campanaCerrada, getDefaultCampanaId } from "@/shared/domain/campanas";
+import { activeCampanaId, campanaBanner, campanaBloqueaGuardado, campanaCerrada, getDefaultCampanaId } from "@/shared/domain/campanas";
 
 describe("campanaCerrada", () => {
   it("sin fecha de cierre, nunca está cerrada", () => {
@@ -14,6 +14,46 @@ describe("campanaCerrada", () => {
   it("una fecha futura no está cerrada", () => {
     const manana = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     expect(campanaCerrada(manana)).toBe(false);
+  });
+});
+
+describe("campanaBloqueaGuardado", () => {
+  const ayer = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const manana = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+  // Escenario 1: campaña abierta + borrador existente → puede editarse
+  it("campaña abierta + solicitud existente → no bloquea (puede editarse)", () => {
+    expect(campanaBloqueaGuardado(manana, false)).toBe(false);
+  });
+
+  // Escenario 2: campaña abierta + borrador existente → puede enviarse a Marketing
+  it("campaña abierta + nueva solicitud → no bloquea (puede enviarse)", () => {
+    expect(campanaBloqueaGuardado(manana, true)).toBe(false);
+  });
+
+  // Escenario 3: campaña cerrada + borrador existente → puede editarse
+  it("campaña cerrada + solicitud existente → no bloquea la edición del borrador", () => {
+    expect(campanaBloqueaGuardado(ayer, false)).toBe(false);
+  });
+
+  // Escenario 4: campaña cerrada + borrador existente → puede enviarse a Marketing
+  it("campaña cerrada + solicitud existente → no bloquea el envío a Marketing", () => {
+    expect(campanaBloqueaGuardado(ayer, false)).toBe(false);
+  });
+
+  // Escenario 5: campaña cerrada → no permite crear nueva solicitud
+  it("campaña cerrada + nueva solicitud → bloquea la creación", () => {
+    expect(campanaBloqueaGuardado(ayer, true)).toBe(true);
+  });
+
+  // Escenario 6: solicitud que no está en borrador (existente, cualquier estado) → no bloquea
+  it("campaña cerrada + solicitud existente en cualquier estado → no bloquea", () => {
+    expect(campanaBloqueaGuardado(ayer, false)).toBe(false);
+  });
+
+  it("sin fecha de cierre → nunca bloquea, sea nueva o existente", () => {
+    expect(campanaBloqueaGuardado(null, true)).toBe(false);
+    expect(campanaBloqueaGuardado(null, false)).toBe(false);
   });
 });
 
