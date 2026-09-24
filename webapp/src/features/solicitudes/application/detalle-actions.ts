@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/shared/infrastructure/supabase/server-client";
 import { perfilesMencionados } from "../domain/comentarios";
+import { buildLogsDevolucionComercial } from "../domain/devolucion";
 import {
   enviarNotificacion,
   enviarNotificacionAsignacion,
@@ -66,13 +67,16 @@ export async function devolverAlComercial(solicitudId: string, motivo: string): 
   const { error } = await supabase.from("solicitudes").update({ estado: "borrador" }).eq("id", solicitudId);
   if (error) return { error: `Error: ${error.message}` };
 
-  await supabase.from("logs").insert({
-    solicitud_id: solicitudId,
-    usuario_id: user.id,
-    usuario_nombre: perfil?.nombre,
-    accion: "cambio_estado",
-    detalle: { estado_anterior: sol.estado, estado_nuevo: "borrador", motivo: motivo.trim() || null },
-  });
+  const logsAInsertar = buildLogsDevolucionComercial(sol.estado, motivo, new Date().toISOString());
+  for (const log of logsAInsertar) {
+    await supabase.from("logs").insert({
+      solicitud_id: solicitudId,
+      usuario_id: user.id,
+      usuario_nombre: perfil?.nombre,
+      accion: log.accion,
+      detalle: log.detalle,
+    });
+  }
   await enviarNotificacion(supabase, solicitudId, "borrador", motivo.trim() || null);
   return {};
 }
@@ -86,8 +90,6 @@ export async function devolverAlComercial(solicitudId: string, motivo: string): 
 // La notificación se envía fuera (no se puede hacer desde dentro de la función BD).
 export async function devolverDesdeDisenador(solicitudId: string, explicacion: string): Promise<{ error?: string }> {
   if (!explicacion.trim()) return { error: "La explicación es obligatoria." };
-  // [DEV-TRACE] Eliminar tras confirmar que el RPC funciona correctamente.
-  console.log("[DEV] devolverDesdeDisenador via RPC — solicitudId:", solicitudId);
   const { supabase, user } = await currentUserAndPerfil();
   if (!user) return { error: "Sesión no válida." };
 

@@ -16,6 +16,7 @@ import {
   type Perfil,
   type Solicitud,
 } from "../domain/dashboard-stats";
+import { buildPortadaStats, type PortadaStatsResult } from "../domain/portada-stats";
 
 export type DashboardData = {
   campanas: { id: string; nombre: string; esDefault: boolean }[];
@@ -30,6 +31,7 @@ export type DashboardData = {
   idiomasChart: ReturnType<typeof idiomasChartData>;
   unidadesIdiomaChart: ReturnType<typeof unidadesPorIdiomaChartData>;
   progreso: ReturnType<typeof progresoData>;
+  portadasRanking: PortadaStatsResult;
 };
 
 // Réplica de renderDashboard() (index.html ~4189-4529): misma fuente de
@@ -49,7 +51,7 @@ export async function getDashboardData(
     supabase
       .from("solicitudes")
       .select(
-        "id, estado, campana_id, comercial_id, idioma, canal, solicitud_catalogos(catalogo, unidades, catalogo_digital, catalogo_impreso, portada_personalizada, con_precios), perfiles!solicitudes_comercial_id_fkey(nombre, codigo)"
+        "id, cod_sap, estado, campana_id, comercial_id, idioma, canal, solicitud_catalogos(catalogo, unidades, catalogo_digital, catalogo_impreso, portada_personalizada, portada_elegida, portada_diseno_propio, con_precios), perfiles!solicitudes_comercial_id_fkey(nombre, codigo)"
       ),
   ]);
 
@@ -79,6 +81,7 @@ export async function getDashboardData(
     const comercial = Array.isArray(s.perfiles) ? s.perfiles[0] : s.perfiles;
     return {
       id: s.id,
+      cod_sap: (s as { cod_sap?: string | null }).cod_sap ?? null,
       estado: s.estado,
       campana_id: s.campana_id,
       comercial_id: s.comercial_id,
@@ -117,5 +120,6 @@ export async function getDashboardData(
     idiomasChart: idiomas,
     unidadesIdiomaChart: unidadesPorIdiomaChartData(sols, cats, idiomas.labels),
     progreso: progresoData(sols, kpis.total),
+    portadasRanking: buildPortadaStats(sols, cats),
   };
 }
