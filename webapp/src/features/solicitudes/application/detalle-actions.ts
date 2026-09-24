@@ -221,27 +221,30 @@ export async function marcarDisenoListo(solicitudId: string, archivos: UploadedF
 }
 
 // Réplica de enviarModificacion() (~3462-3520), sin el resto de lógica de
-// modales del original (aquí ya viene con el comentario y el archivo
-// resueltos desde el cliente). El adjunto, si lo hay, ya está subido a
+// modales del original (aquí ya viene con el comentario y los archivos
+// resueltos desde el cliente). Los adjuntos, si los hay, ya están subidos a
 // Storage — se recibe su metadata, no un `File`.
 export async function solicitarModificacion(
   solicitudId: string,
   comentario: string,
-  adjunto: UploadedFile | null
+  adjuntos: UploadedFile[]
 ): Promise<{ error?: string }> {
   if (!comentario.trim()) return { error: "Escribe un comentario antes de enviar." };
   const { supabase, user, perfil } = await currentUserAndPerfil();
   if (!user) return { error: "Sesión no válida." };
 
-  const texto = adjunto ? `${comentario}\n📎 Adjunto: [${adjunto.nombre}](${adjunto.url})` : comentario;
+  const adjuntosTexto =
+    adjuntos.length > 0
+      ? "\n" + adjuntos.map((a) => `📎 Adjunto: [${a.nombre}](${a.url})`).join("\n")
+      : "";
   await supabase.from("logs").insert({
     solicitud_id: solicitudId,
     usuario_id: user.id,
     usuario_nombre: perfil?.nombre,
     accion: "comentario",
-    detalle: { texto, fecha: new Date().toISOString() },
+    detalle: { texto: comentario + adjuntosTexto, fecha: new Date().toISOString() },
   });
-  if (adjunto) {
+  for (const adjunto of adjuntos) {
     await supabase.from("adjuntos").insert({
       solicitud_id: solicitudId,
       url: adjunto.url,

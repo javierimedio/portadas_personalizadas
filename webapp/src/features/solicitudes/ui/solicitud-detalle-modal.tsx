@@ -92,20 +92,50 @@ export function SolicitudDetalleModal({
       .catch(() => setArchivoDocumento({ nombre: f.name, size: f.size, estado: "error" }));
   }
   // Arquitectura de subida (docs/09-matriz-paridad-funcional.md §
-  // "Arquitectura de subida de archivos", 2026-08-04): el archivo se sube a
-  // Storage nada más elegirlo, directamente desde el navegador — las
-  // acciones `solicitarModificacion()`/`marcarDisenoListo()` solo reciben
-  // la metadata resultante, nunca un `File`.
-  const [archivoModificacion, setArchivoModificacion] = useState<
-    { nombre: string; size: number; estado: "subiendo" | "ok" | "error"; meta?: UploadedFile } | null
-  >(null);
+  // "Arquitectura de subida de archivos", 2026-08-04): los archivos se suben a
+  // Storage nada más elegirlos, directamente desde el navegador — la acción
+  // `solicitarModificacion()` solo recibe la metadata resultante, nunca `File`.
+  // Se admiten múltiples archivos; los temporales se limpian si el usuario
+  // cancela o cierra el modal sin enviar (best-effort via borrarArchivoSubido).
+  type ModifEntry = { id: string; nombre: string; size: number; estado: "subiendo" | "ok" | "error"; meta?: UploadedFile };
+  const [archivosModificacion, setArchivosModificacion] = useState<ModifEntry[]>([]);
   const modifInputRef = useRef<HTMLInputElement>(null);
+  const archivosModifRef = useRef<ModifEntry[]>([]);
+  archivosModifRef.current = archivosModificacion;
+  const archivosModifEnviadosRef = useRef(false);
 
-  function elegirArchivoModificacion(f: File) {
-    setArchivoModificacion({ nombre: f.name, size: f.size, estado: "subiendo" });
-    subirArchivo(f, `solicitudes/${solicitudId}/modificaciones`)
-      .then((meta) => setArchivoModificacion({ nombre: f.name, size: f.size, estado: "ok", meta }))
-      .catch(() => setArchivoModificacion({ nombre: f.name, size: f.size, estado: "error" }));
+  useEffect(() => {
+    return () => {
+      if (!archivosModifEnviadosRef.current) {
+        for (const f of archivosModifRef.current) {
+          if (f.meta) borrarArchivoSubido(f.meta.path);
+        }
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function agregarArchivosModificacion(files: File[]) {
+    for (const file of files) {
+      const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      setArchivosModificacion((prev) => [...prev, { id, nombre: file.name, size: file.size, estado: "subiendo" }]);
+      subirArchivo(file, `solicitudes/${solicitudId}/modificaciones`)
+        .then((meta) => setArchivosModificacion((prev) => prev.map((e) => (e.id === id ? { ...e, estado: "ok", meta } : e))))
+        .catch(() => setArchivosModificacion((prev) => prev.map((e) => (e.id === id ? { ...e, estado: "error" } : e))));
+    }
+  }
+
+  function quitarArchivoModificacion(id: string) {
+    const entry = archivosModificacion.find((e) => e.id === id);
+    if (entry?.meta) borrarArchivoSubido(entry.meta.path);
+    setArchivosModificacion((prev) => prev.filter((e) => e.id !== id));
+  }
+
+  function limpiarArchivosModificacion() {
+    for (const f of archivosModificacion) {
+      if (f.meta) borrarArchivoSubido(f.meta.path);
+    }
+    setArchivosModificacion([]);
   }
 
   type DisenoEntry = { id: string; nombre: string; size: number; estado: "subiendo" | "ok" | "error"; meta?: UploadedFile };
@@ -286,7 +316,7 @@ export function SolicitudDetalleModal({
         <div className="modal-body">
           <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: "1.25rem", alignItems: "start" }}>
             {/* Columna izquierda */}
-            <div>
+            <div style={{ minWidth: 0 }}>
               {detalle.catalogos.map((c) => {
                 const canElegir = puedeElegirPortadaFinal(rol, detalle.estado);
                 const opciones = [c.portada_opcion_1, c.portada_opcion_2, c.portada_opcion_3].filter(Boolean) as string[];
@@ -378,7 +408,7 @@ export function SolicitudDetalleModal({
               {detalle.comentarios && (
                 <div className="card" style={{ marginBottom: "1rem" }}>
                   <div className="card-title">Comentarios generales</div>
-                  <p style={{ fontSize: 13 }}>
+                  <p style={{ fontSize: 13, overflowWrap: "anywhere" }}>
                     {detalle.comentarios.split(/\r?\n/).map((line, i, arr) => (
                       <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
                     ))}
@@ -523,7 +553,7 @@ export function SolicitudDetalleModal({
             </div>
 
             {/* Columna derecha */}
-            <div>
+            <div style={{ minWidth: 0 }}>
               <div style={{ position: "sticky", top: 8, maxHeight: "calc(90vh - 200px)", overflowY: "auto", paddingRight: 4 }}>
                 {mostrarDisenador && (
                   <div style={{ background: "var(--c-purple-l)", border: "1px solid #ddd6fe", borderRadius: 8, padding: ".75rem 1rem", marginBottom: ".75rem", display: "flex", alignItems: "center", gap: 10 }}>
@@ -847,77 +877,81 @@ export function SolicitudDetalleModal({
                 />
               </div>
               <div className="form-group" style={{ marginBottom: "1rem" }}>
-                <label>Adjunto (opcional)</label>
-                {/* Réplica de setModifFile() (index.html ~3453-3460, UI-08):
-                    previsualización con nombre + tamaño y botón "Quitar". */}
+                <label>Adjuntos (opcional)</label>
                 <div
                   onClick={() => modifInputRef.current?.click()}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     e.preventDefault();
-                    const f = e.dataTransfer.files?.[0];
-                    if (f) elegirArchivoModificacion(f);
+                    const files = Array.from(e.dataTransfer.files ?? []);
+                    if (files.length > 0) agregarArchivosModificacion(files);
                   }}
                   style={{
-                    border: `2px dashed ${archivoModificacion?.estado === "ok" ? "var(--c-green)" : "var(--c-line)"}`,
-                    background: archivoModificacion?.estado === "ok" ? "var(--c-green-l)" : "var(--c-white)",
+                    border: `2px dashed ${archivosModificacion.some((f) => f.estado === "ok") ? "var(--c-green)" : "var(--c-line)"}`,
+                    background: archivosModificacion.some((f) => f.estado === "ok") ? "var(--c-green-l)" : "var(--c-white)",
                     borderRadius: "var(--radius)",
                     padding: "0.75rem",
                     cursor: "pointer",
                     fontSize: 12,
+                    minHeight: "2.5rem",
                   }}
                 >
-                  {archivoModificacion ? (
-                    <span>
-                      {archivoModificacion.estado === "subiendo" ? (
-                        <span style={{ color: "var(--c-mid)" }}>⏳ Subiendo {archivoModificacion.nombre}...</span>
-                      ) : archivoModificacion.estado === "error" ? (
-                        <span style={{ color: "var(--c-red)" }}>⚠️ Error al subir {archivoModificacion.nombre}</span>
-                      ) : (
-                        <>
-                          <span style={{ color: "var(--c-green)" }}>✅ {archivoModificacion.nombre}</span>{" "}
-                          <span style={{ color: "var(--c-mid)" }}>({(archivoModificacion.size / 1024).toFixed(0)} KB)</span>
-                        </>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (archivoModificacion.meta) borrarArchivoSubido(archivoModificacion.meta.path);
-                          setArchivoModificacion(null);
-                        }}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--c-red)", fontSize: 12, marginLeft: 6 }}
-                      >
-                        ✕ Quitar
-                      </button>
-                    </span>
+                  {archivosModificacion.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      {archivosModificacion.map((f) => (
+                        <span key={f.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          {f.estado === "subiendo" ? (
+                            <span style={{ color: "var(--c-mid)", flex: 1 }}>⏳ Subiendo {f.nombre}...</span>
+                          ) : f.estado === "error" ? (
+                            <span style={{ color: "var(--c-red)", flex: 1 }}>⚠️ Error al subir {f.nombre}</span>
+                          ) : (
+                            <span style={{ flex: 1 }}>
+                              <span style={{ color: "var(--c-green)" }}>✅ {f.nombre}</span>{" "}
+                              <span style={{ color: "var(--c-mid)" }}>({(f.size / 1024).toFixed(0)} KB)</span>
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); quitarArchivoModificacion(f.id); }}
+                            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--c-red)", fontSize: 12, flexShrink: 0 }}
+                          >
+                            ✕ Quitar
+                          </button>
+                        </span>
+                      ))}
+                      <span style={{ color: "var(--c-mid)", fontSize: 11, marginTop: 2 }}>
+                        Haz clic o arrastra para añadir más archivos
+                      </span>
+                    </div>
                   ) : (
-                    <span style={{ color: "var(--c-mid)" }}>Arrastra un archivo aquí o haz clic</span>
+                    <span style={{ color: "var(--c-mid)" }}>Arrastra archivos aquí o haz clic</span>
                   )}
                 </div>
                 <input
                   ref={modifInputRef}
                   type="file"
+                  multiple
                   accept=".pdf,.ai,.eps,.svg,.jpg,.jpeg,.png"
                   style={{ display: "none" }}
                   onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) elegirArchivoModificacion(f);
+                    const files = Array.from(e.target.files ?? []);
+                    if (files.length > 0) agregarArchivosModificacion(files);
                     e.target.value = "";
                   }}
                 />
               </div>
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button type="button" className="btn btn-outline" onClick={() => setModificacionAbierta(false)}>
+                <button type="button" className="btn btn-outline" onClick={() => { limpiarArchivosModificacion(); setModificacionAbierta(false); }}>
                   Cancelar
                 </button>
                 <button
                   type="button"
                   className="btn btn-danger"
-                  disabled={busy || !comentarioModificacion.trim() || archivoModificacion?.estado === "subiendo"}
+                  disabled={busy || !comentarioModificacion.trim() || archivosModificacion.some((f) => f.estado === "subiendo")}
                   onClick={() => {
-                    const adjunto = archivoModificacion?.estado === "ok" ? archivoModificacion.meta ?? null : null;
-                    ejecutarYcerrar(() => solicitarModificacion(detalle.id, comentarioModificacion, adjunto), "Modificación solicitada al equipo de diseño.");
+                    archivosModifEnviadosRef.current = true;
+                    const adjuntos = archivosModificacion.filter((f) => f.estado === "ok").map((f) => f.meta!);
+                    ejecutarYcerrar(() => solicitarModificacion(detalle.id, comentarioModificacion, adjuntos), "Modificación solicitada al equipo de diseño.");
                   }}
                 >
                   Solicitar modificación
