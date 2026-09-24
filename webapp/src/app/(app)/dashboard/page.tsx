@@ -12,6 +12,7 @@ import { UnidadesCatalogoChart } from "@/features/dashboard/ui/charts/unidades-c
 import { PortadasChart } from "@/features/dashboard/ui/charts/portadas-chart";
 import { TipoChart } from "@/features/dashboard/ui/charts/tipo-chart";
 import { UnidadesIdiomaChart } from "@/features/dashboard/ui/charts/unidades-idioma-chart";
+import { PortadasRankingSection } from "@/features/dashboard/ui/portadas-ranking-section";
 
 // Réplica de #page-dashboard / renderDashboard() (index.html ~777-854,
 // ~4189-4529). DASH-01 a DASH-15 de docs/09-matriz-paridad-funcional.md.
@@ -110,6 +111,8 @@ export default async function DashboardPage({
       </div>
 
       <Progreso steps={dash.progreso} />
+
+      <PortadasRankingSection data={dash.portadasRanking} />
     </div>
   );
 }

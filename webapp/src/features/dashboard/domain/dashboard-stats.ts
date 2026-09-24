@@ -10,10 +10,14 @@ export type SolicitudCatalogo = {
   catalogo_impreso: boolean | null;
   portada_personalizada: boolean | null;
   con_precios: boolean | null;
+  // Campos para analítica de portadas (opcionales para compatibilidad con tests existentes)
+  portada_elegida?: string | null;
+  portada_diseno_propio?: boolean | null;
 };
 
 export type Solicitud = {
   id: string;
+  cod_sap?: string | null;
   estado: string;
   campana_id: string | null;
   comercial_id: string | null;
