@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { PortadaInvalidaDetalle, PortadaStatsResult } from "../domain/portada-stats";
+import type { PortadaInvalidaDetalle, CatalogoPortadaStats, PortadaStatsResult } from "../domain/portada-stats";
+import { TOP_PORTADAS_N } from "../domain/portada-stats";
 import { CAT_COLORS_GENERAL } from "../domain/dashboard-stats";
 
 const ESTADO_LABEL: Record<string, string> = {
@@ -18,102 +19,89 @@ function etiquetaEstado(estado: string): string {
   return ESTADO_LABEL[estado] ?? estado;
 }
 
-export function PortadasRankingSection({ data }: { data: PortadaStatsResult }) {
-  const [activeTab, setActiveTab] = useState(data[0]?.catalogo ?? "");
-  const [modal, setModal] = useState<PortadaInvalidaDetalle[] | null>(null);
+function CatalogoBarChart({
+  cat,
+  onModalOpen,
+}: {
+  cat: CatalogoPortadaStats;
+  onModalOpen: (detalle: PortadaInvalidaDetalle[]) => void;
+}) {
+  const barColor = CAT_COLORS_GENERAL[cat.catalogo] ?? "#888";
+  const top5 = cat.ranking.slice(0, TOP_PORTADAS_N);
+  const maxTotal = top5[0]?.total ?? 1;
 
-  if (data.length === 0) return null;
-
-  const current = data.find((d) => d.catalogo === activeTab) ?? data[0];
-  if (!current) return null;
-
-  const barColor = CAT_COLORS_GENERAL[current.catalogo] ?? "#888";
-  const hasAnyData =
-    current.totalValidas > 0 ||
-    current.disenoPropioCount > 0 ||
-    current.sinAdjudicarCount > 0 ||
-    current.invalidosCount > 0;
+  const hasData =
+    top5.length > 0 ||
+    cat.disenoPropioCount > 0 ||
+    cat.sinAdjudicarCount > 0 ||
+    cat.invalidosCount > 0;
 
   return (
-    <>
-      <div className="card" style={{ marginBottom: "1rem" }}>
-        <div className="card-title">Portadas más solicitadas</div>
+    <div>
+      {/* Catalog header */}
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: 12,
+          textTransform: "uppercase",
+          letterSpacing: "0.07em",
+          color: barColor,
+          marginBottom: "0.75rem",
+          paddingBottom: "0.5rem",
+          borderBottom: `2px solid ${barColor}`,
+        }}
+      >
+        {cat.label}
+      </div>
 
-        {/* Tabs por catálogo */}
-        <div style={{ display: "flex", gap: 4, marginBottom: "1rem", flexWrap: "wrap" }}>
-          {data.map((cat) => {
-            const isActive = cat.catalogo === (current?.catalogo ?? "");
-            return (
-              <button
-                key={cat.catalogo}
-                onClick={() => setActiveTab(cat.catalogo)}
-                style={{
-                  padding: "5px 14px",
-                  borderRadius: 20,
-                  border: isActive
-                    ? `2px solid ${CAT_COLORS_GENERAL[cat.catalogo] ?? "#888"}`
-                    : "2px solid #e5e5e5",
-                  background: isActive ? CAT_COLORS_GENERAL[cat.catalogo] ?? "#888" : "transparent",
-                  color: isActive ? "#fff" : "#555",
-                  fontWeight: isActive ? 600 : 400,
-                  fontSize: 13,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
-                {cat.label}
-              </button>
-            );
-          })}
+      {!hasData ? (
+        <div style={{ color: "#999", fontSize: 13, padding: "0.25rem 0" }}>
+          Sin solicitudes con portada personalizada.
         </div>
-
-        {/* Contenido de la pestaña activa */}
-        {!hasAnyData ? (
-          <div style={{ color: "#999", fontSize: 14, padding: "1rem 0" }}>
-            Sin solicitudes con portada personalizada para este catálogo.
-          </div>
-        ) : (
-          <>
-            {/* Ranking */}
-            {current.ranking.length === 0 ? (
-              <div style={{ color: "#999", fontSize: 14, marginBottom: "1rem" }}>
-                Sin portadas adjudicadas válidas.
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: "1rem" }}>
-                {current.ranking.map((entry, i) => (
-                  <div key={entry.portada}>
-                    <div
+      ) : (
+        <>
+          {top5.length === 0 ? (
+            <div style={{ color: "#999", fontSize: 13, marginBottom: "0.5rem" }}>
+              Sin portadas adjudicadas.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: "0.75rem" }}>
+              {top5.map((entry, i) => (
+                <div key={entry.portada}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    {/* Star / position indicator */}
+                    <span
                       style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: 4,
-                        fontSize: 14,
+                        width: 14,
+                        fontSize: i === 0 ? 13 : 11,
+                        color: i === 0 ? "#F59E0B" : "#bbb",
+                        textAlign: "center",
+                        lineHeight: 1,
+                        flexShrink: 0,
+                      }}
+                      aria-label={i === 0 ? "portada más solicitada" : undefined}
+                    >
+                      {i === 0 ? "★" : String(i + 1)}
+                    </span>
+                    {/* Portada name */}
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: i === 0 ? 700 : 400,
+                        width: 40,
+                        flexShrink: 0,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      <span
-                        style={{
-                          fontWeight: i === 0 ? 700 : 400,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                        }}
-                      >
-                        {i === 0 && (
-                          <span style={{ color: "#F59E0B", fontSize: 15 }} aria-label="portada más solicitada">
-                            ★
-                          </span>
-                        )}
-                        {entry.portada}
-                      </span>
-                      <span style={{ color: "#555", fontSize: 13, fontVariantNumeric: "tabular-nums" }}>
-                        {entry.total} solicitud{entry.total !== 1 ? "es" : ""} · {entry.pct}%
-                      </span>
-                    </div>
+                      {entry.portada}
+                    </span>
+                    {/* Proportional bar */}
                     <div
                       style={{
-                        height: 8,
+                        flex: 1,
+                        height: i === 0 ? 9 : 7,
                         background: "#F1EFE8",
                         borderRadius: 4,
                         overflow: "hidden",
@@ -121,77 +109,120 @@ export function PortadasRankingSection({ data }: { data: PortadaStatsResult }) {
                     >
                       <div
                         style={{
-                          width: `${entry.pct}%`,
+                          width: `${Math.round((entry.total / maxTotal) * 100)}%`,
                           height: "100%",
                           background: barColor,
                           borderRadius: 4,
+                          opacity: i === 0 ? 1 : 0.55 + (0.3 * (TOP_PORTADAS_N - 1 - i)) / Math.max(TOP_PORTADAS_N - 1, 1),
                           transition: "width 0.3s ease",
                         }}
                       />
                     </div>
+                    {/* Count · pct */}
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: "#555",
+                        whiteSpace: "nowrap",
+                        fontVariantNumeric: "tabular-nums",
+                        minWidth: 60,
+                        textAlign: "right",
+                      }}
+                    >
+                      {entry.total} · {entry.pct}%
+                    </span>
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+              ))}
+            </div>
+          )}
 
-            {/* Contadores secundarios */}
+          {/* Special counters */}
+          {(cat.disenoPropioCount > 0 || cat.sinAdjudicarCount > 0 || cat.invalidosCount > 0) && (
             <div
               style={{
                 display: "flex",
-                gap: 8,
+                gap: 5,
                 flexWrap: "wrap",
-                paddingTop: "0.75rem",
+                paddingTop: "0.5rem",
                 borderTop: "1px solid #F1EFE8",
               }}
             >
-              {current.disenoPropioCount > 0 && (
+              {cat.disenoPropioCount > 0 && (
                 <span
                   style={{
-                    fontSize: 12,
+                    fontSize: 11,
                     color: "#666",
                     background: "#F5F5F3",
-                    padding: "3px 10px",
-                    borderRadius: 12,
+                    padding: "2px 8px",
+                    borderRadius: 10,
                   }}
                 >
-                  Diseño propio: {current.disenoPropioCount}
+                  Diseño propio: {cat.disenoPropioCount}
                 </span>
               )}
-              {current.sinAdjudicarCount > 0 && (
+              {cat.sinAdjudicarCount > 0 && (
                 <span
                   style={{
-                    fontSize: 12,
+                    fontSize: 11,
                     color: "#666",
                     background: "#F5F5F3",
-                    padding: "3px 10px",
-                    borderRadius: 12,
+                    padding: "2px 8px",
+                    borderRadius: 10,
                   }}
                 >
-                  Sin adjudicar: {current.sinAdjudicarCount}
+                  Sin adjudicar: {cat.sinAdjudicarCount}
                 </span>
               )}
-              {current.invalidosCount > 0 && (
+              {cat.invalidosCount > 0 && (
                 <button
-                  onClick={() => setModal(current.invalidosDetalle)}
+                  onClick={() => onModalOpen(cat.invalidosDetalle)}
                   style={{
-                    fontSize: 12,
+                    fontSize: 11,
                     color: "#92400E",
                     background: "#FEF3C7",
                     border: "1px solid #FDE68A",
-                    padding: "3px 10px",
-                    borderRadius: 12,
+                    padding: "2px 8px",
+                    borderRadius: 10,
                     cursor: "pointer",
                   }}
                 >
-                  ⚠ Datos históricos: {current.invalidosCount}
+                  ⚠ Históricos: {cat.invalidosCount}
                 </button>
               )}
             </div>
-          </>
-        )}
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export function PortadasRankingSection({ data }: { data: PortadaStatsResult }) {
+  const [modal, setModal] = useState<PortadaInvalidaDetalle[] | null>(null);
+
+  if (data.length === 0) return null;
+
+  return (
+    <>
+      <div className="card" style={{ marginBottom: "1rem" }}>
+        <div className="card-title">Portadas más solicitadas</div>
+
+        {/* One chart per catalog, responsive grid */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+            gap: "1.5rem",
+          }}
+        >
+          {data.map((cat) => (
+            <CatalogoBarChart key={cat.catalogo} cat={cat} onModalOpen={setModal} />
+          ))}
+        </div>
       </div>
 
-      {/* Modal de datos históricos inválidos */}
+      {/* Modal for invalid historical data */}
       {modal && (
         <div
           style={{

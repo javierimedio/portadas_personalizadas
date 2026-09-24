@@ -5,7 +5,6 @@ import { getDashboardData } from "@/features/dashboard/application/get-dashboard
 import { ACTIVE_CAMPANA_COOKIE } from "@/features/campanas/domain/active-campana";
 import { CampanaSelector } from "@/features/dashboard/ui/campana-selector";
 import { KpiCards } from "@/features/dashboard/ui/kpi-cards";
-import { Progreso } from "@/features/dashboard/ui/progreso";
 import { EstadoChart } from "@/features/dashboard/ui/charts/estado-chart";
 import { HorizontalBarChart } from "@/features/dashboard/ui/charts/horizontal-bar-chart";
 import { UnidadesCatalogoChart } from "@/features/dashboard/ui/charts/unidades-catalogo-chart";
@@ -108,10 +107,6 @@ export default async function DashboardPage({
             <TipoChart {...dash.tipoChart} />
           </div>
         </div>
-      </div>
-
-      <div style={{ marginBottom: "1rem" }}>
-        <Progreso steps={dash.progreso} />
       </div>
 
       <PortadasRankingSection data={dash.portadasRanking} />

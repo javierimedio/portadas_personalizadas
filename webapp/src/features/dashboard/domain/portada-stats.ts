@@ -5,6 +5,8 @@
 import { isPortadaCorrupta } from "@/shared/domain/portadas-validacion";
 import type { CatDef, Solicitud } from "./dashboard-stats";
 
+export const TOP_PORTADAS_N = 5;
+
 // Estados excluidos: borrador (no enviado) y archivada (cancelado).
 // El resto —incluido en_diseno, confirmada, etc.— sí cuentan, porque la
 // auto-adjudicación ya considera solicitudes en cualquier estado posterior
