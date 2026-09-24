@@ -110,7 +110,9 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      <Progreso steps={dash.progreso} />
+      <div style={{ marginBottom: "1rem" }}>
+        <Progreso steps={dash.progreso} />
+      </div>
 
       <PortadasRankingSection data={dash.portadasRanking} />
     </div>
