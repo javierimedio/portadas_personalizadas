@@ -316,7 +316,7 @@ export function SolicitudDetalleModal({
         <div className="modal-body">
           <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: "1.25rem", alignItems: "start" }}>
             {/* Columna izquierda */}
-            <div>
+            <div style={{ minWidth: 0 }}>
               {detalle.catalogos.map((c) => {
                 const canElegir = puedeElegirPortadaFinal(rol, detalle.estado);
                 const opciones = [c.portada_opcion_1, c.portada_opcion_2, c.portada_opcion_3].filter(Boolean) as string[];
@@ -408,7 +408,7 @@ export function SolicitudDetalleModal({
               {detalle.comentarios && (
                 <div className="card" style={{ marginBottom: "1rem" }}>
                   <div className="card-title">Comentarios generales</div>
-                  <p style={{ fontSize: 13 }}>
+                  <p style={{ fontSize: 13, overflowWrap: "anywhere" }}>
                     {detalle.comentarios.split(/\r?\n/).map((line, i, arr) => (
                       <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
                     ))}
@@ -553,7 +553,7 @@ export function SolicitudDetalleModal({
             </div>
 
             {/* Columna derecha */}
-            <div>
+            <div style={{ minWidth: 0 }}>
               <div style={{ position: "sticky", top: 8, maxHeight: "calc(90vh - 200px)", overflowY: "auto", paddingRight: 4 }}>
                 {mostrarDisenador && (
                   <div style={{ background: "var(--c-purple-l)", border: "1px solid #ddd6fe", borderRadius: 8, padding: ".75rem 1rem", marginBottom: ".75rem", display: "flex", alignItems: "center", gap: 10 }}>
