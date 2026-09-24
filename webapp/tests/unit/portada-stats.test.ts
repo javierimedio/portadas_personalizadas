@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPortadaStats } from "@/features/dashboard/domain/portada-stats";
+import { buildPortadaStats, TOP_PORTADAS_N } from "@/features/dashboard/domain/portada-stats";
 import { isPortadaCorrupta, PORTADA_CORRUPT_RE } from "@/shared/domain/portadas-validacion";
 import type { Solicitud, CatDef, SolicitudCatalogo } from "@/features/dashboard/domain/dashboard-stats";
 
@@ -384,5 +384,129 @@ describe("buildPortadaStats — casos especiales", () => {
     const [roly, rolyWrk] = buildPortadaStats([], CATS_MULTI);
     expect(roly!.label).toBe("ROLY");
     expect(rolyWrk!.label).toBe("ROLY WRK");
+  });
+});
+
+// ── Top N (TOP_PORTADAS_N = 5) ────────────────────────────────────────────────
+
+describe("TOP_PORTADAS_N — restricción de máximo 5 portadas visibles", () => {
+  const PORTADAS_8 = ["1", "2", "3", "4", "5", "6", "7", "8"];
+
+  function solsConPortadas(portadas: string[]): Solicitud[] {
+    return portadas.map((pe, i) =>
+      makeSol({
+        id: `sol-${i}`,
+        solicitud_catalogos: [makeCat("roly", true, pe)],
+      })
+    );
+  }
+
+  it("TOP_PORTADAS_N es 5", () => {
+    expect(TOP_PORTADAS_N).toBe(5);
+  });
+
+  it("con 8 portadas distintas, ranking.slice(0, TOP_PORTADAS_N) tiene exactamente 5 entradas", () => {
+    const sols = solsConPortadas(PORTADAS_8);
+    const [roly] = buildPortadaStats(sols, CATS);
+    expect(roly!.ranking.slice(0, TOP_PORTADAS_N)).toHaveLength(5);
+  });
+
+  it("el ranking completo tiene 8 entradas (el slice es solo visual)", () => {
+    const sols = solsConPortadas(PORTADAS_8);
+    const [roly] = buildPortadaStats(sols, CATS);
+    expect(roly!.ranking).toHaveLength(8);
+  });
+
+  it("ranking.slice(0, TOP_PORTADAS_N)[0] es la portada más solicitada", () => {
+    const sols = [
+      ...Array.from({ length: 10 }, () => makeSol({ id: "s-a", solicitud_catalogos: [makeCat("roly", true, "top")] })),
+      ...Array.from({ length: 3 }, () => makeSol({ id: "s-b", solicitud_catalogos: [makeCat("roly", true, "second")] })),
+    ].map((s, i) => ({ ...s, id: `s-${i}` }));
+    const [roly] = buildPortadaStats(sols, CATS);
+    expect(roly!.ranking.slice(0, TOP_PORTADAS_N)[0]!.portada).toBe("top");
+    expect(roly!.ranking.slice(0, TOP_PORTADAS_N)[0]!.total).toBe(10);
+  });
+
+  it("las 5 entradas del slice están ordenadas de mayor a menor", () => {
+    const sols = [
+      makeSol({ id: "s1", solicitud_catalogos: [makeCat("roly", true, "B")] }),
+      makeSol({ id: "s2", solicitud_catalogos: [makeCat("roly", true, "B")] }),
+      makeSol({ id: "s3", solicitud_catalogos: [makeCat("roly", true, "B")] }),
+      makeSol({ id: "s4", solicitud_catalogos: [makeCat("roly", true, "A")] }),
+      makeSol({ id: "s5", solicitud_catalogos: [makeCat("roly", true, "A")] }),
+      makeSol({ id: "s6", solicitud_catalogos: [makeCat("roly", true, "C")] }),
+    ];
+    const [roly] = buildPortadaStats(sols, CATS);
+    const top = roly!.ranking.slice(0, TOP_PORTADAS_N);
+    for (let i = 0; i < top.length - 1; i++) {
+      expect(top[i]!.total).toBeGreaterThanOrEqual(top[i + 1]!.total);
+    }
+  });
+
+  it("los porcentajes del slice siguen siendo respecto al total de válidas del catálogo", () => {
+    // 6 portadas válidas: "X" x3, "Y" x2, "Z" x1 → total = 6
+    const sols = [
+      ...Array.from({ length: 3 }, (_, i) => makeSol({ id: `x-${i}`, solicitud_catalogos: [makeCat("roly", true, "X")] })),
+      ...Array.from({ length: 2 }, (_, i) => makeSol({ id: `y-${i}`, solicitud_catalogos: [makeCat("roly", true, "Y")] })),
+      makeSol({ id: "z-0", solicitud_catalogos: [makeCat("roly", true, "Z")] }),
+    ];
+    const [roly] = buildPortadaStats(sols, CATS);
+    expect(roly!.totalValidas).toBe(6);
+    const top = roly!.ranking.slice(0, TOP_PORTADAS_N);
+    expect(top[0]!.pct).toBe(Math.round((3 / 6) * 100)); // 50%
+    expect(top[1]!.pct).toBe(Math.round((2 / 6) * 100)); // 33%
+    expect(top[2]!.pct).toBe(Math.round((1 / 6) * 100)); // 17%
+  });
+
+  it("cada catálogo tiene su propio Top 5 independiente", () => {
+    const cats = [
+      { key: "roly", label: "ROLY" },
+      { key: "roly_wrk", label: "ROLY WRK" },
+    ];
+    const sols = [
+      ...PORTADAS_8.map((pe, i) =>
+        makeSol({ id: `r-${i}`, solicitud_catalogos: [makeCat("roly", true, pe)] })
+      ),
+      ...["A", "B", "C"].map((pe, i) =>
+        makeSol({ id: `w-${i}`, solicitud_catalogos: [makeCat("roly_wrk", true, pe)] })
+      ),
+    ];
+    const [roly, rolyWrk] = buildPortadaStats(sols, cats);
+    expect(roly!.ranking.slice(0, TOP_PORTADAS_N)).toHaveLength(5);
+    expect(rolyWrk!.ranking.slice(0, TOP_PORTADAS_N)).toHaveLength(3); // solo 3 distintas
+  });
+
+  it("XMAS aparece solo si está en cats (campaña con XMAS activo)", () => {
+    const catsConXmas = [
+      { key: "roly", label: "ROLY" },
+      { key: "xmas", label: "XMAS" },
+    ];
+    const catsSinXmas = [{ key: "roly", label: "ROLY" }];
+    const sols = [
+      makeSol({ id: "s1", solicitud_catalogos: [makeCat("roly", true, "12"), makeCat("xmas", true, "X1")] }),
+    ];
+    const conXmas = buildPortadaStats(sols, catsConXmas);
+    const sinXmas = buildPortadaStats(sols, catsSinXmas);
+    expect(conXmas).toHaveLength(2);
+    expect(conXmas.find((c) => c.catalogo === "xmas")).toBeDefined();
+    expect(sinXmas).toHaveLength(1);
+    expect(sinXmas.find((c) => c.catalogo === "xmas")).toBeUndefined();
+  });
+
+  it("contadores especiales (diseño propio, sin adjudicar, inválidos) se mantienen con Top 5", () => {
+    const sols = [
+      ...PORTADAS_8.map((pe, i) =>
+        makeSol({ id: `v-${i}`, solicitud_catalogos: [makeCat("roly", true, pe)] })
+      ),
+      makeSol({ id: "dp", solicitud_catalogos: [makeCat("roly", true, null, true)] }),
+      makeSol({ id: "sa", solicitud_catalogos: [makeCat("roly", true, null)] }),
+      makeSol({ id: "inv", solicitud_catalogos: [makeCat("roly", true, "99_roly")] }),
+    ];
+    const [roly] = buildPortadaStats(sols, CATS);
+    expect(roly!.disenoPropioCount).toBe(1);
+    expect(roly!.sinAdjudicarCount).toBe(1);
+    expect(roly!.invalidosCount).toBe(1);
+    // El slice no afecta a los contadores (son independientes del ranking)
+    expect(roly!.ranking.slice(0, TOP_PORTADAS_N)).toHaveLength(5);
   });
 });
