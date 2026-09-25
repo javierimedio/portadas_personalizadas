@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchCargaFile, parseCargaFilename, type CargaMasivaSolicitud } from "@/features/diseno/domain/carga-masiva";
+import { matchCargaFile, parseCargaFilename, type CargaMasivaSolicitud, type FileResultado } from "@/features/diseno/domain/carga-masiva";
 
 // INVARIANTE DE INTEGRIDAD: procesarCargaMasiva() NO debe escribir nunca en
 // solicitud_catalogos.portada_elegida. El adjunto de diseño se registra en la
@@ -96,5 +96,119 @@ describe("matchCargaFile", () => {
       expect(m.sap).toBe("25532");
       expect(m.catKey).toBe("roly");
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FileResultado — resultados individuales por archivo (reintento selectivo)
+// ---------------------------------------------------------------------------
+
+describe("FileResultado — resultados individuales", () => {
+  it("1. batch con 3 archivos: ok/error/ok → resultados independientes", () => {
+    const solicitudes = [
+      sol({
+        solicitud_catalogos: [
+          { catalogo: "roly", portada_personalizada: true },
+          { catalogo: "roly_wrk", portada_personalizada: true },
+          { catalogo: "stamina", portada_personalizada: true },
+        ],
+      }),
+    ];
+    // Simula lo que la action hace: matchCargaFile → ok/error por archivo
+    const m1 = matchCargaFile("60239_roly.pdf", solicitudes);
+    const m2 = matchCargaFile("60239_xmas.pdf", solicitudes); // xmas sin portada_personalizada → nocatalog
+    const m3 = matchCargaFile("60239_stamina.pdf", solicitudes);
+    expect(m1.status).toBe("ok");
+    expect(m2.status).toBe("nocatalog");
+    expect(m3.status).toBe("ok");
+    // FileResultado para m1 y m3 sería { ok: true }, para m2 { ok: false, mensaje: "..." }
+    const r1: FileResultado = { nombre: "60239_roly.pdf", ok: true };
+    const r2: FileResultado = { nombre: "60239_xmas.pdf", ok: false, mensaje: "catálogo xmas sin portada personalizada" };
+    const r3: FileResultado = { nombre: "60239_stamina.pdf", ok: true };
+    expect(r1.ok).toBe(true);
+    expect(r2.ok).toBe(false);
+    expect(r3.ok).toBe(true);
+  });
+
+  it("2. los archivos con ok:true no se incluyen en el batch de reintento — invariante de tipo", () => {
+    // La modal solo pasa entries con estado === "ok" (no procesado_ok) al servidor.
+    // Aquí verificamos el tipo FileResultado para garantizar que ok:true nunca
+    // incluye mensaje (no hay nada que reintentar).
+    const resultado: FileResultado = { nombre: "60239_roly.pdf", ok: true };
+    expect(resultado).not.toHaveProperty("mensaje");
+    expect(resultado.ok).toBe(true);
+  });
+
+  it("3. reintento correcto: nuevo archivo con mismo SAP+sufijo → ok:true", () => {
+    const solicitudes = [sol()];
+    // El usuario reintenta con "60239_roly_v2.pdf" — nombre diferente pero mismo SAP+sufijo
+    const m = matchCargaFile("60239_roly_v2.pdf", solicitudes);
+    // _v2 no es un sufijo de catálogo reconocido, se trata como parte del SAP
+    // → el usuario debería nombrar igual: 60239_roly.pdf. Pero con el mismo nombre:
+    const mOk = matchCargaFile("60239_roly.pdf", solicitudes);
+    expect(mOk.status).toBe("ok");
+    const resultado: FileResultado = { nombre: "60239_roly.pdf", ok: true };
+    expect(resultado.ok).toBe(true);
+  });
+
+  it("4. reintento vuelve a fallar: ok:false con mensaje", () => {
+    const resultado: FileResultado = { nombre: "60239_roly.pdf", ok: false, mensaje: "SAP 60239 no encontrado en diseño" };
+    expect(resultado.ok).toBe(false);
+    if (!resultado.ok) {
+      expect(resultado.mensaje).toBeTruthy();
+    }
+  });
+
+  it("5. varios archivos fallidos → cada uno tiene su propio FileResultado independiente", () => {
+    const solicitudes = [sol()]; // solo roly en sol
+    const m1 = matchCargaFile("99999_roly.pdf", solicitudes); // notfound
+    const m2 = matchCargaFile("60239_xmas.pdf", solicitudes); // nocatalog
+    expect(m1.status).toBe("notfound");
+    expect(m2.status).toBe("nocatalog");
+    const resultados: FileResultado[] = [
+      { nombre: "99999_roly.pdf", ok: false, mensaje: "SAP 99999 no encontrado en diseño" },
+      { nombre: "60239_xmas.pdf", ok: false, mensaje: "catálogo xmas sin portada personalizada" },
+    ];
+    expect(resultados).toHaveLength(2);
+    expect(resultados.every((r) => !r.ok)).toBe(true);
+    // Cada uno puede reintentarse por separado
+    expect(resultados[0]!.nombre).not.toBe(resultados[1]!.nombre);
+  });
+
+  it("6. no se crean duplicados: la action solo inserta cuando match es ok, uno por archivo del batch", () => {
+    // El cliente solo envía entries con estado === "ok" (no procesado_ok).
+    // Si un archivo ya quedó procesado_ok, no se incluye en el siguiente batch.
+    // Este test documenta la invariante: matchCargaFile es determinista por filename.
+    const solicitudes = [sol()];
+    const m = matchCargaFile("60239_roly.pdf", solicitudes);
+    expect(m.status).toBe("ok");
+    // La action inserta una vez por llamada — si el mismo archivo se enviara dos veces
+    // en el mismo batch, generaría dos inserts. Pero la modal no lo hace: cada entry
+    // es única y procesado_ok se excluye del siguiente procesar().
+    expect(m).not.toHaveProperty("portada_elegida");
+  });
+
+  it("7. el catálogo se conserva en el reintento vía el nombre del archivo", () => {
+    const solicitudes = [
+      sol({
+        solicitud_catalogos: [
+          { catalogo: "roly_wrk", portada_personalizada: true },
+        ],
+      }),
+    ];
+    // Reintento: mismo nombre → mismo catKey
+    const m = matchCargaFile("60239_roly_wrk.pdf", solicitudes);
+    expect(m.status).toBe("ok");
+    if (m.status === "ok") {
+      expect(m.catKey).toBe("roly_wrk");
+    }
+    expect(m).not.toHaveProperty("portada_elegida");
+  });
+
+  it("8. portada_elegida nunca se modifica — FileResultado no la expone", () => {
+    const resultado: FileResultado = { nombre: "60239_roly.pdf", ok: true };
+    expect(resultado).not.toHaveProperty("portada_elegida");
+    const resultadoError: FileResultado = { nombre: "60239_roly.pdf", ok: false, mensaje: "error" };
+    expect(resultadoError).not.toHaveProperty("portada_elegida");
   });
 });

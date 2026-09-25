@@ -2,7 +2,7 @@
 
 import { createClient } from "@/shared/infrastructure/supabase/server-client";
 import { cambiarEstado } from "@/features/solicitudes/application/detalle-actions";
-import { matchCargaFile, type CargaMasivaSolicitud } from "../domain/carga-masiva";
+import { matchCargaFile, type CargaMasivaSolicitud, type FileResultado } from "../domain/carga-masiva";
 import { borrarArchivosStorage } from "@/shared/storage/server";
 import { portadasObligatoriasPendientes, mensajePortadasPendientes } from "@/features/solicitudes/domain/portadas-validation";
 import type { UploadedFile } from "@/shared/storage/types";
@@ -24,13 +24,13 @@ import type { UploadedFile } from "@/shared/storage/types";
 // basura de subidas mal nombradas.
 export async function procesarCargaMasiva(
   archivos: UploadedFile[]
-): Promise<{ ok: number; errors: number; detalles?: string[] } | { error: string }> {
+): Promise<{ resultados: FileResultado[]; ok: number; errors: number; detalles?: string[] } | { error: string }> {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return { error: "Sesión no válida." };
   const { data: perfil } = await supabase.from("perfiles").select("nombre").eq("id", userData.user.id).maybeSingle();
 
-  if (!archivos.length) return { ok: 0, errors: 0 };
+  if (!archivos.length) return { resultados: [], ok: 0, errors: 0 };
 
   const { data: solicitudesRaw } = await supabase
     .from("solicitudes")
@@ -43,6 +43,7 @@ export async function procesarCargaMasiva(
 
   let ok = 0;
   let errors = 0;
+  const resultados: FileResultado[] = [];
   // Maps solId → cod_sap for error messages about blocked transitions
   const processedSols = new Map<string, string>();
   const detalles: string[] = [];
@@ -56,6 +57,7 @@ export async function procesarCargaMasiva(
       const razon =
         match.status === "notfound" ? `SAP ${match.sap} no encontrado en diseño` : `catálogo ${match.catKey} sin portada personalizada`;
       detalles.push(`${archivo.nombre}: ${razon}`);
+      resultados.push({ nombre: archivo.nombre, ok: false, mensaje: razon });
       continue;
     }
 
@@ -71,6 +73,7 @@ export async function procesarCargaMasiva(
       });
       if (error) throw error;
 
+      resultados.push({ nombre: archivo.nombre, ok: true });
       if (!processedSols.has(match.solId)) {
         const sol = solicitudes.find((s) => s.id === match.solId);
         processedSols.set(match.solId, sol?.cod_sap ?? match.solId);
@@ -82,6 +85,7 @@ export async function procesarCargaMasiva(
       sinUso.push(archivo.path);
       const mensaje = e instanceof Error ? e.message : JSON.stringify(e);
       detalles.push(`${archivo.nombre}: ${mensaje}`);
+      resultados.push({ nombre: archivo.nombre, ok: false, mensaje });
     }
   }
 
@@ -108,5 +112,5 @@ export async function procesarCargaMasiva(
     }
   }
 
-  return { ok, errors, detalles: detalles.length ? detalles : undefined };
+  return { resultados, ok, errors, detalles: detalles.length ? detalles : undefined };
 }
