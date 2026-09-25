@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { ALL_CATALOGOS } from "@/shared/domain/catalogos";
 import { ESTADO_LABEL } from "@/shared/domain/estados";
 import { catSummary } from "@/features/solicitudes/domain/cat-summary";
@@ -16,12 +16,16 @@ import {
   sortDisenoTareas,
   ROLES_FILTRO_DISENADOR_VISIBLE,
   UNASSIGNED_DISENADOR,
+  parseUrlState,
+  buildUrlState,
+  type DisenoUrlState,
   type DisenoVista,
-  type SortConfig,
   type SortField,
 } from "../domain/table";
 import { buildDisenoCsv, disenoCsvFilename, filasParaCsv } from "../domain/csv";
 import { fmtDate } from "@/shared/domain/format";
+
+const PAGE_SIZE = 25;
 
 const KPI_COLOR = {
   pendientes: "var(--c-red)",    // modificar_diseno: devueltas para corrección
@@ -85,14 +89,31 @@ export function DisenoTable({
   onCargaMasiva: () => void;
 }) {
   const router = useRouter();
-  const [vista, setVista] = useState<DisenoVista>("operativo");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const urlState = parseUrlState(searchParams);
+  const { vista, q, provincia, disenadorId, estado, sort, page } = urlState;
+
+  // campanaId stays local — not persisted in URL
   const [campanaId, setCampanaId] = useState(defaultCampanaId);
-  const [disenadorId, setDisenadorId] = useState("");
-  const [q, setQ] = useState("");
-  const [provincia, setProvincia] = useState("");
-  const [estado, setEstado] = useState("");
-  const [sort, setSort] = useState<SortConfig>({ field: "fecha", dir: "asc" });
   const [autoAssignBusy, setAutoAssignBusy] = useState<string | null>(null);
+
+  function navigate(updates: Partial<DisenoUrlState>) {
+    const next = { ...urlState, ...updates };
+    const params = buildUrlState(next);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  }
+
+  function handleFilterChange(updates: Partial<DisenoUrlState>) {
+    navigate({ ...updates, page: 1 });
+  }
+
+  function handleSort(field: SortField) {
+    const newDir = sort.field === field ? (sort.dir === "asc" ? "desc" : "asc") : "asc";
+    navigate({ sort: { field, dir: newDir } });
+  }
 
   const puedeAutoAsignar = currentUserId !== null && currentUserId !== undefined && (DISENO_ROLES as readonly string[]).includes(rol ?? "");
 
@@ -107,14 +128,6 @@ export function DisenoTable({
     }
   }
 
-  function handleSort(field: SortField) {
-    setSort((prev) =>
-      prev.field === field
-        ? { field, dir: prev.dir === "asc" ? "desc" : "asc" }
-        : { field, dir: "asc" }
-    );
-  }
-
   const provincias = useMemo(() => {
     const vals = new Set<string>();
     rows.forEach((s) => { if (s.provincia) vals.add(s.provincia); });
@@ -126,6 +139,10 @@ export function DisenoTable({
     [rows, campanaId, disenadorId, q, vista, provincia, estado]
   );
   const sorted = useMemo(() => sortDisenoTareas(filtered, sort, perfiles), [filtered, sort, perfiles]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginatedRows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   // Las KPIs se calculan sobre rows completos (filtrados por campaña/diseñador,
   // pero no por la búsqueda SAP ni por el filtro "Sin asignar") para reflejar
@@ -175,12 +192,16 @@ export function DisenoTable({
           <button type="button" onClick={onCargaMasiva} className="btn btn-sm" style={{ background: "var(--c-amber)", color: "white", border: "none" }}>
             📦 Carga masiva
           </button>
-          <select value={vista} onChange={(e) => setVista(e.target.value as DisenoVista)} style={{ fontSize: 13, minWidth: 200 }}>
+          <select
+            value={vista}
+            onChange={(e) => handleFilterChange({ vista: e.target.value as DisenoVista, estado: "" })}
+            style={{ fontSize: 13, minWidth: 200 }}
+          >
             <option value="operativo">Solicitudes en diseño</option>
             <option value="enviadas_comercial">Enviadas a Comercial</option>
           </select>
           {vista === "operativo" && (
-            <select value={estado} onChange={(e) => setEstado(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>
+            <select value={estado} onChange={(e) => handleFilterChange({ estado: e.target.value })} style={{ fontSize: 13, minWidth: 160 }}>
               <option value="">Todos los estados</option>
               <option value="en_diseno">{ESTADO_LABEL["en_diseno"] ?? "En diseño"}</option>
               <option value="modificar_diseno">{ESTADO_LABEL["modificar_diseno"] ?? "Modificar diseño"}</option>
@@ -203,7 +224,7 @@ export function DisenoTable({
               type="search"
               placeholder="Buscar por SAP, empresa, provincia…"
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={(e) => handleFilterChange({ q: e.target.value })}
               style={{
                 fontSize: 13,
                 width: 220,
@@ -216,14 +237,14 @@ export function DisenoTable({
               }}
             />
           </div>
-          <select value={provincia} onChange={(e) => setProvincia(e.target.value)} style={{ fontSize: 13, minWidth: 140 }}>
+          <select value={provincia} onChange={(e) => handleFilterChange({ provincia: e.target.value })} style={{ fontSize: 13, minWidth: 140 }}>
             <option value="">Todas las provincias</option>
             {provincias.map((p) => (
               <option key={p} value={p}>{p}</option>
             ))}
           </select>
           {mostrarFiltroDisenador && (
-            <select value={disenadorId} onChange={(e) => setDisenadorId(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>
+            <select value={disenadorId} onChange={(e) => handleFilterChange({ disenadorId: e.target.value })} style={{ fontSize: 13, minWidth: 160 }}>
               <option value="">Todos los diseñadores</option>
               <option value={UNASSIGNED_DISENADOR}>Sin diseñador asignado</option>
               {disenadores.map((d) => (
@@ -304,7 +325,7 @@ export function DisenoTable({
               </tr>
             </thead>
             <tbody>
-              {sorted.length === 0 ? (
+              {paginatedRows.length === 0 ? (
                 <tr>
                   <td colSpan={7 + ALL_CATALOGOS.length}>
                     <div className="empty-state">
@@ -314,7 +335,7 @@ export function DisenoTable({
                   </td>
                 </tr>
               ) : (
-                sorted.map((s) => (
+                paginatedRows.map((s) => (
                   <tr key={s.id}>
                     <td>
                       <strong>{s.cod_sap}</strong>
@@ -377,6 +398,30 @@ export function DisenoTable({
           </table>
         </div>
       </div>
+
+      {totalPages > 1 && (
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginTop: "1rem", fontSize: 13 }}>
+          <button
+            type="button"
+            className="btn btn-sm btn-outline"
+            disabled={safePage <= 1}
+            onClick={() => navigate({ page: safePage - 1 })}
+          >
+            ← Anterior
+          </button>
+          <span style={{ color: "var(--c-mid)" }}>
+            Página {safePage} de {totalPages}
+          </span>
+          <button
+            type="button"
+            className="btn btn-sm btn-outline"
+            disabled={safePage >= totalPages}
+            onClick={() => navigate({ page: safePage + 1 })}
+          >
+            Siguiente →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

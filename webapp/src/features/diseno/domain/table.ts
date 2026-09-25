@@ -106,6 +106,52 @@ export function sortDisenoTareas(
   });
 }
 
+// ---------------------------------------------------------------------------
+// URL state — parse and build query params for filters, sort and page
+// ---------------------------------------------------------------------------
+export type DisenoUrlState = {
+  vista: DisenoVista;
+  q: string;
+  provincia: string;
+  disenadorId: string;
+  estado: string;
+  sort: SortConfig;
+  page: number;
+};
+
+const VALID_SORT_FIELDS: SortField[] = ["cod_sap", "nombre_empresa", "provincia", "roly", "fecha", "disenador", "estado"];
+
+export function parseUrlState(params: URLSearchParams): DisenoUrlState {
+  const rawSort = params.get("sort") ?? "";
+  const sortField: SortField = VALID_SORT_FIELDS.includes(rawSort as SortField) ? (rawSort as SortField) : "fecha";
+  const sortDir: SortDir = params.get("dir") === "desc" ? "desc" : "asc";
+  const vista: DisenoVista = params.get("vista") === "enviadas_comercial" ? "enviadas_comercial" : "operativo";
+  const rawPage = parseInt(params.get("page") ?? "1", 10);
+  return {
+    vista,
+    q: params.get("q") ?? "",
+    provincia: params.get("provincia") ?? "",
+    disenadorId: params.get("disenador") ?? "",
+    estado: params.get("estado") ?? "",
+    sort: { field: sortField, dir: sortDir },
+    page: Math.max(1, isNaN(rawPage) ? 1 : rawPage),
+  };
+}
+
+// Serializes state to URLSearchParams, omitting defaults to keep the URL clean.
+export function buildUrlState(state: DisenoUrlState): URLSearchParams {
+  const p = new URLSearchParams();
+  if (state.vista !== "operativo") p.set("vista", state.vista);
+  if (state.q) p.set("q", state.q);
+  if (state.provincia) p.set("provincia", state.provincia);
+  if (state.disenadorId) p.set("disenador", state.disenadorId);
+  if (state.estado) p.set("estado", state.estado);
+  if (state.sort.field !== "fecha") p.set("sort", state.sort.field);
+  if (state.sort.dir !== "asc") p.set("dir", state.sort.dir);
+  if (state.page > 1) p.set("page", String(state.page));
+  return p;
+}
+
 export const ROLES_FILTRO_DISENADOR_VISIBLE = ["admin", "marketing", "responsable_diseno", "disenador"];
 
 // Réplica de la lista de opciones del selector de diseñador (~2258-2267).

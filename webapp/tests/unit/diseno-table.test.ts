@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { disenadorStats, disenadoresActivos, filterDisenoTareas, sortDisenoTareas, UNASSIGNED_DISENADOR } from "@/features/diseno/domain/table";
+import { disenadorStats, disenadoresActivos, filterDisenoTareas, sortDisenoTareas, UNASSIGNED_DISENADOR, parseUrlState, buildUrlState } from "@/features/diseno/domain/table";
 import type { DisenoVista, SortConfig } from "@/features/diseno/domain/table";
 import type { SolicitudListItem, SolicitudCatalogoRow } from "@/features/solicitudes/domain/table";
 
@@ -488,5 +488,152 @@ describe("disenadorStats", () => {
     expect(stats).toEqual([
       { id: "d2", nombre: "Bea López", pendientes: 0, enDiseno: 0, mandadas: 0, aprobadas: 1 },
     ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseUrlState
+// ---------------------------------------------------------------------------
+describe("parseUrlState", () => {
+  function p(search: string): URLSearchParams {
+    return new URLSearchParams(search);
+  }
+
+  it("params vacíos → valores por defecto", () => {
+    const s = parseUrlState(p(""));
+    expect(s.vista).toBe("operativo");
+    expect(s.q).toBe("");
+    expect(s.provincia).toBe("");
+    expect(s.disenadorId).toBe("");
+    expect(s.estado).toBe("");
+    expect(s.sort).toEqual({ field: "fecha", dir: "asc" });
+    expect(s.page).toBe(1);
+  });
+
+  it("vista=enviadas_comercial es reconocida", () => {
+    expect(parseUrlState(p("vista=enviadas_comercial")).vista).toBe("enviadas_comercial");
+  });
+
+  it("vista desconocida → operativo", () => {
+    expect(parseUrlState(p("vista=otra_cosa")).vista).toBe("operativo");
+  });
+
+  it("lee q, provincia, disenador y estado", () => {
+    const s = parseUrlState(p("q=abc&provincia=MURCIA&disenador=d1&estado=en_diseno"));
+    expect(s.q).toBe("abc");
+    expect(s.provincia).toBe("MURCIA");
+    expect(s.disenadorId).toBe("d1");
+    expect(s.estado).toBe("en_diseno");
+  });
+
+  it("sort=cod_sap → campo correcto", () => {
+    expect(parseUrlState(p("sort=cod_sap")).sort.field).toBe("cod_sap");
+  });
+
+  it("sort inválido → fecha por defecto", () => {
+    expect(parseUrlState(p("sort=inventado")).sort.field).toBe("fecha");
+  });
+
+  it("dir=desc", () => {
+    expect(parseUrlState(p("dir=desc")).sort.dir).toBe("desc");
+  });
+
+  it("dir inválido → asc por defecto", () => {
+    expect(parseUrlState(p("dir=otro")).sort.dir).toBe("asc");
+  });
+
+  it("page=3", () => {
+    expect(parseUrlState(p("page=3")).page).toBe(3);
+  });
+
+  it("page NaN → 1", () => {
+    expect(parseUrlState(p("page=abc")).page).toBe(1);
+  });
+
+  it("page=0 → 1 (mínimo 1)", () => {
+    expect(parseUrlState(p("page=0")).page).toBe(1);
+  });
+
+  it("todos los campos no-defecto a la vez", () => {
+    const s = parseUrlState(p("vista=enviadas_comercial&q=SAP&provincia=MURCIA&disenador=d9&estado=modificar_diseno&sort=nombre_empresa&dir=desc&page=5"));
+    expect(s).toEqual({
+      vista: "enviadas_comercial",
+      q: "SAP",
+      provincia: "MURCIA",
+      disenadorId: "d9",
+      estado: "modificar_diseno",
+      sort: { field: "nombre_empresa", dir: "desc" },
+      page: 5,
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildUrlState
+// ---------------------------------------------------------------------------
+describe("buildUrlState", () => {
+  const defaults = {
+    vista: "operativo" as const,
+    q: "",
+    provincia: "",
+    disenadorId: "",
+    estado: "",
+    sort: { field: "fecha" as const, dir: "asc" as const },
+    page: 1,
+  };
+
+  it("estado por defecto → params vacíos (URL limpia)", () => {
+    expect(buildUrlState(defaults).toString()).toBe("");
+  });
+
+  it("vista no-defecto → serializada", () => {
+    expect(buildUrlState({ ...defaults, vista: "enviadas_comercial" }).get("vista")).toBe("enviadas_comercial");
+  });
+
+  it("vista por defecto no se incluye", () => {
+    expect(buildUrlState(defaults).has("vista")).toBe(false);
+  });
+
+  it("q no vacío → incluido", () => {
+    expect(buildUrlState({ ...defaults, q: "ACME" }).get("q")).toBe("ACME");
+  });
+
+  it("sort no-defecto → incluido; dir asc no se incluye", () => {
+    const p = buildUrlState({ ...defaults, sort: { field: "cod_sap", dir: "asc" } });
+    expect(p.get("sort")).toBe("cod_sap");
+    expect(p.has("dir")).toBe(false);
+  });
+
+  it("dir=desc → incluido", () => {
+    const p = buildUrlState({ ...defaults, sort: { field: "fecha", dir: "desc" } });
+    expect(p.has("sort")).toBe(false); // field por defecto omitido
+    expect(p.get("dir")).toBe("desc");
+  });
+
+  it("page > 1 → incluido", () => {
+    expect(buildUrlState({ ...defaults, page: 3 }).get("page")).toBe("3");
+  });
+
+  it("page = 1 → omitido", () => {
+    expect(buildUrlState(defaults).has("page")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// round-trip: buildUrlState → parseUrlState conserva el estado
+// ---------------------------------------------------------------------------
+describe("round-trip parseUrlState ↔ buildUrlState", () => {
+  it("estado con todos los campos no-defecto sobrevive el round-trip", () => {
+    const original = {
+      vista: "enviadas_comercial" as const,
+      q: "ACME",
+      provincia: "MURCIA",
+      disenadorId: "d5",
+      estado: "diseno_en_revision_comercial",
+      sort: { field: "nombre_empresa" as const, dir: "desc" as const },
+      page: 4,
+    };
+    const recovered = parseUrlState(buildUrlState(original));
+    expect(recovered).toEqual(original);
   });
 });
