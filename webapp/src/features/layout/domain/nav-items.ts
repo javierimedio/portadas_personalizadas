@@ -29,7 +29,7 @@ export function getNavItemsForRole(rol: string | null | undefined): NavItem[] {
   const isRespDiseno = rol === "responsable_diseno";
 
   const ids: NavItemId[] = [];
-  if (isAdmin || isMarketing || isResp) ids.push("dashboard");
+  if (isAdmin || isMarketing || isResp || isDiseno || isRespDiseno) ids.push("dashboard");
   if (isAdmin || isMarketing || isComercial || isResp) ids.push("solicitudes");
   if (isAdmin || isMarketing) ids.push("panel");
   if (isAdmin || isMarketing || isDiseno || isRespDiseno) ids.push("diseno");
