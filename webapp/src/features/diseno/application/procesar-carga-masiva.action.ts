@@ -3,7 +3,7 @@
 import { createClient } from "@/shared/infrastructure/supabase/server-client";
 import { cambiarEstado } from "@/features/solicitudes/application/detalle-actions";
 import { matchCargaFile, type CargaMasivaSolicitud, type FileResultado } from "../domain/carga-masiva";
-import { borrarArchivosStorage } from "@/shared/storage/server";
+import { borrarArchivosStorage, storagePathDesdeUrl } from "@/shared/storage/server";
 import { portadasObligatoriasPendientes, mensajePortadasPendientes } from "@/features/solicitudes/domain/portadas-validation";
 import type { UploadedFile } from "@/shared/storage/types";
 
@@ -62,16 +62,35 @@ export async function procesarCargaMasiva(
     }
 
     try {
-      const { error } = await supabase.from("adjuntos").insert({
-        solicitud_id: match.solId,
-        nombre: archivo.nombre,
-        url: archivo.url,
-        tipo: "diseno_portada",
-        catalogo: match.catKey,
-        subido_por: userData.user.id,
-        subido_por_nombre: perfil?.nombre,
-      });
-      if (error) throw error;
+      const { data: existente } = await supabase
+        .from("adjuntos")
+        .select("id, storage_path, url")
+        .eq("solicitud_id", match.solId)
+        .eq("tipo", "diseno_portada")
+        .eq("catalogo", match.catKey ?? "")
+        .eq("nombre", archivo.nombre)
+        .maybeSingle();
+
+      if (existente) {
+        const { error } = await supabase
+          .from("adjuntos")
+          .update({ url: archivo.url, storage_path: archivo.path, subido_por: userData.user.id, subido_por_nombre: perfil?.nombre ?? null })
+          .eq("id", existente.id);
+        if (error) throw error;
+        const oldPath = existente.storage_path ?? storagePathDesdeUrl(existente.url);
+        if (oldPath && oldPath !== archivo.path) await borrarArchivosStorage(supabase, [oldPath]);
+      } else {
+        const { error } = await supabase.from("adjuntos").insert({
+          solicitud_id: match.solId,
+          nombre: archivo.nombre,
+          url: archivo.url,
+          tipo: "diseno_portada",
+          catalogo: match.catKey,
+          subido_por: userData.user.id,
+          subido_por_nombre: perfil?.nombre,
+        });
+        if (error) throw error;
+      }
 
       resultados.push({ nombre: archivo.nombre, ok: true });
       if (!processedSols.has(match.solId)) {

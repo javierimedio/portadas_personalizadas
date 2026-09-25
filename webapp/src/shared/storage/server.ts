@@ -10,3 +10,18 @@ export async function borrarArchivosStorage(supabase: SupabaseClient, paths: str
   if (!paths.length) return;
   await supabase.storage.from(STORAGE_BUCKET).remove(paths);
 }
+
+// Deriva el path de Storage a partir de la URL pública cuando `storage_path`
+// no está disponible en la BD (adjuntos creados antes de la migración
+// 20260918000100_eliminar_adjuntos.sql). Formato conocido:
+// https://<host>/storage/v1/object/public/<bucket>/<path>
+export function storagePathDesdeUrl(url: string): string | null {
+  const marker = `/${STORAGE_BUCKET}/`;
+  const idx = url.indexOf(marker);
+  if (idx < 0) return null;
+  try {
+    return decodeURIComponent(url.slice(idx + marker.length));
+  } catch {
+    return url.slice(idx + marker.length);
+  }
+}
