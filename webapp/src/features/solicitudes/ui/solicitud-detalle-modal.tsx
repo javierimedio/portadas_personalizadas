@@ -19,6 +19,7 @@ import {
   devolverAlComercial,
   devolverDesdeDisenador,
   eliminarAdjunto,
+  eliminarAdjuntosMultiple,
   eliminarSolicitud,
   guardarPortadaElegida,
   marcarDisenoListo,
@@ -72,6 +73,8 @@ export function SolicitudDetalleModal({
   const [motivoDevolucion, setMotivoDevolucion] = useState("");
 
   const [confirmarEliminarId, setConfirmarEliminarId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmarBulkEliminar, setConfirmarBulkEliminar] = useState(false);
 
   const [modificacionAbierta, setModificacionAbierta] = useState(false);
   const [comentarioModificacion, setComentarioModificacion] = useState("");
@@ -431,10 +434,37 @@ export function SolicitudDetalleModal({
                       <div key={grupo.label} style={{ marginBottom: ".75rem" }}>
                         <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: grupo.color, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
                           <span>{grupo.icon}</span> {grupo.label}
+                          {grupo.canDelete && grupo.items.length > 1 && (
+                            <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontWeight: 400, textTransform: "none", fontSize: 11 }}>
+                              <input
+                                type="checkbox"
+                                checked={grupo.items.length > 0 && grupo.items.every((a) => selectedIds.has(a.id))}
+                                onChange={(e) => {
+                                  const next = new Set(selectedIds);
+                                  if (e.target.checked) grupo.items.forEach((a) => next.add(a.id));
+                                  else grupo.items.forEach((a) => next.delete(a.id));
+                                  setSelectedIds(next);
+                                }}
+                              />
+                              Sel. todo
+                            </label>
+                          )}
                         </div>
                         {grupo.items.map((a) => (
                           <div key={a.id} style={{ marginBottom: 4 }}>
                             <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 10px", borderRadius: 6, background: `${grupo.color}20` }}>
+                              {grupo.canDelete && (
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(a.id)}
+                                  onChange={(e) => {
+                                    const next = new Set(selectedIds);
+                                    if (e.target.checked) next.add(a.id);
+                                    else next.delete(a.id);
+                                    setSelectedIds(next);
+                                  }}
+                                />
+                              )}
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontWeight: 500, fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.nombre}</div>
                                 <div style={{ fontSize: 10, color: "var(--c-mid)", marginTop: 1 }}>
@@ -482,6 +512,49 @@ export function SolicitudDetalleModal({
                             )}
                           </div>
                         ))}
+                        {grupo.canDelete && selectedIds.size > 0 && (
+                          <div style={{ marginTop: 8 }}>
+                            {!confirmarBulkEliminar ? (
+                              <button
+                                type="button"
+                                className="btn btn-sm"
+                                style={{ background: "var(--c-red)", color: "white", border: "none" }}
+                                disabled={busy}
+                                onClick={() => setConfirmarBulkEliminar(true)}
+                              >
+                                Eliminar seleccionados ({selectedIds.size})
+                              </button>
+                            ) : (
+                              <div style={{ background: "#fff5f5", border: "1px solid var(--c-red)", borderRadius: 6, padding: "10px 12px" }}>
+                                <div style={{ fontSize: 12, color: "var(--c-red)", marginBottom: 8, fontWeight: 500 }}>
+                                  ¿Eliminar {selectedIds.size} {selectedIds.size === 1 ? "archivo" : "archivos"}? Esta acción no se puede deshacer.
+                                </div>
+                                <div style={{ display: "flex", gap: 6 }}>
+                                  <button type="button" className="btn btn-sm btn-outline" onClick={() => setConfirmarBulkEliminar(false)}>
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    style={{ background: "var(--c-red)", color: "white", border: "none" }}
+                                    disabled={busy}
+                                    onClick={() => {
+                                      setConfirmarBulkEliminar(false);
+                                      const ids = Array.from(selectedIds);
+                                      setSelectedIds(new Set());
+                                      ejecutarYrecargar(
+                                        () => eliminarAdjuntosMultiple(ids),
+                                        ids.length === 1 ? "Portada eliminada." : `${ids.length} portadas eliminadas.`
+                                      );
+                                    }}
+                                  >
+                                    Eliminar
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
 

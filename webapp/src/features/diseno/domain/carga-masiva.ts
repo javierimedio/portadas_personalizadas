@@ -12,10 +12,12 @@ const CAT_SUFFIXES: [string, string][] = [
 ];
 
 export function parseCargaFilename(filename: string): { sap: string; catKey: string | null } {
-  const base = filename
+  let base = filename
     .replace(/\.[^.]+$/, "")
     .trim()
     .toUpperCase();
+  // CM-17: _PR modifier — treated as equivalent to the base file (e.g. 12345_ROLY_PR → 12345_ROLY).
+  if (base.endsWith("_PR")) base = base.slice(0, -3);
   for (const [suffix, catKey] of CAT_SUFFIXES) {
     if (base.endsWith(suffix)) return { sap: base.slice(0, -suffix.length), catKey };
   }

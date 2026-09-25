@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { fmtDate } from "@/shared/domain/format";
 import { createClient } from "@/shared/infrastructure/supabase/browser-client";
 import { getNotificaciones } from "../application/get-notificaciones";
@@ -18,6 +18,8 @@ export function NotifBell({ verSolicitudHref }: { verSolicitudHref: (solicitudId
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     setReadIds(getReadIds());
@@ -64,7 +66,18 @@ export function NotifBell({ verSolicitudHref }: { verSolicitudHref: (solicitudId
 
   function clickNotif(n: NotificacionItem) {
     setOpen(false);
-    if (n.solicitud_id) router.push(verSolicitudHref(n.solicitud_id));
+    if (!n.solicitud_id) return;
+    const href = verSolicitudHref(n.solicitud_id);
+    // If navigating to the same path, merge ?ver= into existing search params
+    // so current filters (q, estado, disenador, sort, page) are preserved.
+    const [targetPath, targetQuery] = href.split("?") as [string, string | undefined];
+    if (targetPath === pathname) {
+      const params = new URLSearchParams(searchParams.toString());
+      if (targetQuery) new URLSearchParams(targetQuery).forEach((v, k) => params.set(k, v));
+      router.push(`${pathname}?${params.toString()}`);
+    } else {
+      router.push(href);
+    }
   }
 
   return (
