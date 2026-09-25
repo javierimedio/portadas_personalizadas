@@ -19,64 +19,37 @@ function adj(catalogo: string | null): AdjuntoParaValidar {
 }
 
 // ---------------------------------------------------------------------------
-// 1. Portada obligatoria subida → permite enviar
+// 1. Subida individual ROLY → bloquea porque falta WRK
 // ---------------------------------------------------------------------------
-describe("Escenario 1: portada obligatoria subida — permite enviar", () => {
-  it("no hay faltantes cuando existe adjunto con el catalogo correcto", () => {
-    const catalogos = [cat("roly", true, false)];
+describe("Escenario 1: subida individual ROLY — bloquea porque falta WRK", () => {
+  it("devuelve ROLY WRK como faltante cuando solo se subió ROLY", () => {
+    const catalogos = [cat("roly", true, false), cat("roly_wrk", true, false)];
     const adjuntos = [adj("roly")];
-    expect(portadasObligatoriasPendientes(catalogos, adjuntos)).toHaveLength(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 2. Falta una portada obligatoria → bloquea
-// ---------------------------------------------------------------------------
-describe("Escenario 2: falta una portada obligatoria — bloquea", () => {
-  it("devuelve el label del catálogo faltante", () => {
-    const catalogos = [cat("roly_wrk", true, false)];
-    const adjuntos: AdjuntoParaValidar[] = []; // ningún adjunto
     const faltantes = portadasObligatoriasPendientes(catalogos, adjuntos);
     expect(faltantes).toHaveLength(1);
     expect(faltantes[0]).toBe("ROLY WRK");
   });
-
-  it("el mensaje menciona el catálogo exacto", () => {
-    const msg = mensajePortadasPendientes(["ROLY WRK"]);
-    expect(msg).toContain("ROLY WRK");
-    expect(msg).toContain("comercial");
-  });
 });
 
 // ---------------------------------------------------------------------------
-// 3. Faltan varias portadas → bloquea e indica cuáles
+// 2. Subida individual ROLY + WRK + STAMINA → permite enviar
 // ---------------------------------------------------------------------------
-describe("Escenario 3: faltan varias portadas — bloquea e indica cuáles", () => {
-  it("devuelve todos los catálogos faltantes", () => {
+describe("Escenario 2: subida individual ROLY + WRK + STAMINA — permite enviar", () => {
+  it("no hay faltantes cuando todos los catálogos requeridos tienen adjunto", () => {
     const catalogos = [
       cat("roly", true, false),
       cat("roly_wrk", true, false),
       cat("stamina", true, false),
     ];
-    const adjuntos = [adj("roly")]; // solo ROLY subido
-    const faltantes = portadasObligatoriasPendientes(catalogos, adjuntos);
-    expect(faltantes).toHaveLength(2);
-    expect(faltantes).toContain("ROLY WRK");
-    expect(faltantes).toContain("STAMINA");
-  });
-
-  it("el mensaje menciona todos los catálogos faltantes", () => {
-    const msg = mensajePortadasPendientes(["ROLY WRK", "STAMINA"]);
-    expect(msg).toContain("ROLY WRK");
-    expect(msg).toContain("STAMINA");
-    expect(msg).toContain("comercial");
+    const adjuntos = [adj("roly"), adj("roly_wrk"), adj("stamina")];
+    expect(portadasObligatoriasPendientes(catalogos, adjuntos)).toHaveLength(0);
   });
 });
 
 // ---------------------------------------------------------------------------
-// 4. portada_diseno_propio = true → no exige archivo
+// 3. portada_diseno_propio = true → no exige archivo aunque sea individual
 // ---------------------------------------------------------------------------
-describe("Escenario 4: portada_diseno_propio = true — no exige archivo", () => {
+describe("Escenario 3: portada_diseno_propio = true — no exige archivo", () => {
   it("catálogo con diseño propio no requiere adjunto de portada", () => {
     const catalogos = [cat("stamina", true, true)];
     const adjuntos: AdjuntoParaValidar[] = [];
@@ -85,64 +58,56 @@ describe("Escenario 4: portada_diseno_propio = true — no exige archivo", () =>
 });
 
 // ---------------------------------------------------------------------------
-// 5. portada_personalizada = false → no exige archivo
+// 4. Carga masiva 2/3 → bloquea
 // ---------------------------------------------------------------------------
-describe("Escenario 5: portada_personalizada = false — no exige archivo", () => {
-  it("catálogo sin portada personalizada no requiere adjunto", () => {
-    const catalogos = [cat("roly", false, false)];
-    const adjuntos: AdjuntoParaValidar[] = [];
+describe("Escenario 4: carga masiva 2 de 3 — bloquea", () => {
+  it("devuelve el catálogo faltante cuando solo se subieron 2 de 3", () => {
+    const catalogos = [
+      cat("roly", true, false),
+      cat("roly_wrk", true, false),
+      cat("stamina", true, false),
+    ];
+    const adjuntos = [adj("roly"), adj("roly_wrk")];
+    const faltantes = portadasObligatoriasPendientes(catalogos, adjuntos);
+    expect(faltantes).toHaveLength(1);
+    expect(faltantes[0]).toBe("STAMINA");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 5. Carga masiva 3/3 → permite
+// ---------------------------------------------------------------------------
+describe("Escenario 5: carga masiva 3 de 3 — permite", () => {
+  it("no hay faltantes cuando la carga masiva cubre todos los catálogos", () => {
+    const catalogos = [
+      cat("roly", true, false),
+      cat("roly_wrk", true, false),
+      cat("stamina", true, false),
+    ];
+    const adjuntos = [adj("roly"), adj("roly_wrk"), adj("stamina")];
     expect(portadasObligatoriasPendientes(catalogos, adjuntos)).toHaveLength(0);
   });
 });
 
 // ---------------------------------------------------------------------------
-// 6. Varios catálogos → comprueba cada uno independientemente
+// 6. Solicitud ya completa + batch con un archivo fallido → no bloquea
 // ---------------------------------------------------------------------------
-describe("Escenario 6: varios catálogos — comprueba cada uno", () => {
-  it("bloquea solo el catálogo que falta, permite los que tienen adjunto", () => {
-    const catalogos = [
-      cat("roly", true, false),    // requiere adjunto
-      cat("roly_wrk", true, false), // requiere adjunto
-      cat("stamina", true, true),   // diseño propio — no requiere
-      cat("xmas", false, false),    // sin portada personalizada — no requiere
-    ];
-    const adjuntos = [adj("roly")]; // solo ROLY subido por bulk upload
-    const faltantes = portadasObligatoriasPendientes(catalogos, adjuntos);
-    expect(faltantes).toHaveLength(1);
-    expect(faltantes[0]).toBe("ROLY WRK");
-  });
-
-  it("todos cubiertos → permite enviar", () => {
+describe("Escenario 6: solicitud ya completa con adjuntos previos — no bloquea", () => {
+  it("los adjuntos previos cubren la validación aunque el batch nuevo falle parcialmente", () => {
     const catalogos = [
       cat("roly", true, false),
       cat("roly_wrk", true, false),
     ];
-    const adjuntos = [adj("roly"), adj("roly_wrk")];
+    // Adjuntos existentes en BD (de subidas anteriores) + uno nuevo del batch actual
+    const adjuntos = [adj("roly"), adj("roly_wrk"), adj("roly")]; // roly duplicado, wrk cubierto
     expect(portadasObligatoriasPendientes(catalogos, adjuntos)).toHaveLength(0);
   });
 });
 
 // ---------------------------------------------------------------------------
-// 7. La validación es server-side: la función es pura e importable desde
-//    server actions sin dependencias de cliente.
+// 7. portada_elegida no se modifica: la función solo lee catalogos/adjuntos
 // ---------------------------------------------------------------------------
-describe("Escenario 7: validación server-side", () => {
-  it("portadasObligatoriasPendientes es una función pura sin efectos de red", () => {
-    // La función no lanza ni hace fetch — es pura.
-    expect(() =>
-      portadasObligatoriasPendientes(
-        [cat("roly", true, false)],
-        [adj("roly")]
-      )
-    ).not.toThrow();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 8. No modifica portada_elegida: la función solo lee catalogos/adjuntos
-//    y no toca portada_elegida en ningún parámetro ni retorno.
-// ---------------------------------------------------------------------------
-describe("Escenario 8: no modifica portada_elegida", () => {
+describe("Escenario 7: portada_elegida no se modifica", () => {
   it("CatalogoParaValidar no incluye portada_elegida", () => {
     const c = cat("roly", true, false);
     expect(c).not.toHaveProperty("portada_elegida");
@@ -157,15 +122,44 @@ describe("Escenario 8: no modifica portada_elegida", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Bonus: subida individual (catalogo = null) — no bloquea
+// Escenarios base: portada_personalizada = false no exige archivo
 // ---------------------------------------------------------------------------
-describe("Subida individual (catalogo = null) — no bloquea", () => {
-  it("un adjunto con catalogo null cubre todos los catálogos requeridos", () => {
-    const catalogos = [
-      cat("roly", true, false),
-      cat("roly_wrk", true, false),
-    ];
-    const adjuntos = [adj(null)]; // subida individual: sin trazabilidad por catálogo
+describe("portada_personalizada = false — no exige archivo", () => {
+  it("catálogo sin portada personalizada no requiere adjunto", () => {
+    const catalogos = [cat("roly", false, false)];
+    const adjuntos: AdjuntoParaValidar[] = [];
     expect(portadasObligatoriasPendientes(catalogos, adjuntos)).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Mensaje de error
+// ---------------------------------------------------------------------------
+describe("mensajePortadasPendientes", () => {
+  it("mensaje singular menciona el catálogo y el comercial", () => {
+    const msg = mensajePortadasPendientes(["ROLY WRK"]);
+    expect(msg).toContain("ROLY WRK");
+    expect(msg).toContain("comercial");
+  });
+
+  it("mensaje plural menciona todos los catálogos faltantes", () => {
+    const msg = mensajePortadasPendientes(["ROLY WRK", "STAMINA"]);
+    expect(msg).toContain("ROLY WRK");
+    expect(msg).toContain("STAMINA");
+    expect(msg).toContain("comercial");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Validación server-side: la función es pura e importable sin dependencias cliente
+// ---------------------------------------------------------------------------
+describe("validación server-side — función pura", () => {
+  it("portadasObligatoriasPendientes no lanza ni hace fetch", () => {
+    expect(() =>
+      portadasObligatoriasPendientes(
+        [cat("roly", true, false)],
+        [adj("roly")]
+      )
+    ).not.toThrow();
   });
 });

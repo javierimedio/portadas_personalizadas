@@ -15,10 +15,9 @@ export type AdjuntoParaValidar = {
 // pero aún no tienen ninguno subido. Un catálogo requiere diseño cuando:
 //   portada_personalizada = true  AND  portada_diseno_propio = false
 //
-// La carga masiva almacena `catalogo` por adjunto (puede validarse por
-// catálogo). La subida individual desde el modal no rastrea por catálogo
-// (catalogo = null); en ese caso se asume que el diseñador subió todos
-// los archivos necesarios y no se bloquea.
+// Solo se consideran adjuntos con `catalogo` explícito. Tanto la carga
+// masiva como la subida individual desde el modal persisten el catálogo
+// en cada adjunto, por lo que la comprobación es siempre determinista.
 export function portadasObligatoriasPendientes(
   catalogos: CatalogoParaValidar[],
   adjuntos: AdjuntoParaValidar[]
@@ -29,13 +28,11 @@ export function portadasObligatoriasPendientes(
 
   if (requeridos.length === 0) return [];
 
-  const disenoAdjs = adjuntos.filter((a) => a.tipo === "diseno_portada");
-
-  // Subida individual: catalogo = null → no hay trazabilidad por catálogo,
-  // se confía en que el diseñador subió todo lo necesario.
-  if (disenoAdjs.some((a) => a.catalogo === null)) return [];
-
-  const cubiertos = new Set(disenoAdjs.map((a) => a.catalogo).filter(Boolean) as string[]);
+  const cubiertos = new Set(
+    adjuntos
+      .filter((a) => a.tipo === "diseno_portada" && a.catalogo !== null)
+      .map((a) => a.catalogo!)
+  );
 
   return requeridos
     .filter((c) => !cubiertos.has(c.catalogo))

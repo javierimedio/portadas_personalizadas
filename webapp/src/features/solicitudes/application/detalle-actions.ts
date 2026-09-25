@@ -203,17 +203,21 @@ export async function reasignarDisenador(solicitudId: string, disenadorId: strin
 // archivos", 2026-08-04): los archivos ya están en Storage — subidos desde
 // el navegador por `SolicitudDetalleModal` antes de llamar aquí — así que
 // esta acción solo recibe su metadata, nunca un `File`.
-export async function marcarDisenoListo(solicitudId: string, archivos: UploadedFile[]): Promise<{ error?: string }> {
+export async function marcarDisenoListo(
+  solicitudId: string,
+  archivos: { archivo: UploadedFile; catalogo: string }[]
+): Promise<{ error?: string }> {
   const { supabase, user, perfil } = await currentUserAndPerfil();
   if (!user) return { error: "Sesión no válida." };
 
-  for (const archivo of archivos) {
+  for (const { archivo, catalogo } of archivos) {
     await supabase.from("adjuntos").insert({
       solicitud_id: solicitudId,
       nombre: archivo.nombre,
       tipo: "diseno_portada",
       url: archivo.url,
       storage_path: archivo.path,
+      catalogo,
       subido_por: user.id,
       subido_por_nombre: perfil?.nombre,
     });

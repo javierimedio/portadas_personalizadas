@@ -139,15 +139,15 @@ export function SolicitudDetalleModal({
   }
 
   type DisenoEntry = { id: string; nombre: string; size: number; estado: "subiendo" | "ok" | "error"; meta?: UploadedFile };
-  const [disenoFiles, setDisenoFiles] = useState<DisenoEntry[]>([]);
-  const disenoInputRef = useRef<HTMLInputElement>(null);
-  function addDisenoFiles(newFiles: File[]) {
+  const [disenoFilesByCat, setDisenoFilesByCat] = useState<Record<string, DisenoEntry[]>>({});
+  const disenoInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  function addDisenoFilesForCat(newFiles: File[], catKey: string) {
     for (const file of newFiles) {
       const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      setDisenoFiles((prev) => [...prev, { id, nombre: file.name, size: file.size, estado: "subiendo" }]);
+      setDisenoFilesByCat((prev) => ({ ...prev, [catKey]: [...(prev[catKey] ?? []), { id, nombre: file.name, size: file.size, estado: "subiendo" }] }));
       subirArchivo(file, `solicitudes/${solicitudId}/diseno`)
-        .then((meta) => setDisenoFiles((prev) => prev.map((e) => (e.id === id ? { ...e, estado: "ok", meta } : e))))
-        .catch(() => setDisenoFiles((prev) => prev.map((e) => (e.id === id ? { ...e, estado: "error" } : e))));
+        .then((meta) => setDisenoFilesByCat((prev) => ({ ...prev, [catKey]: (prev[catKey] ?? []).map((e) => (e.id === id ? { ...e, estado: "ok", meta } : e)) })))
+        .catch(() => setDisenoFilesByCat((prev) => ({ ...prev, [catKey]: (prev[catKey] ?? []).map((e) => (e.id === id ? { ...e, estado: "error" } : e)) })));
     }
   }
 
@@ -514,64 +514,71 @@ export function SolicitudDetalleModal({
                   <div style={{ fontSize: 12, fontWeight: 700, color: "var(--c-mid)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: ".75rem" }}>
                     Subir diseño
                   </div>
-                  {/* Réplica de updateDisenoZone()/handleDisenoUpload()/
-                      handleDisenoFileInput() (index.html ~5488-5530, DIS-06/
-                      DIS-07): arrastrar o hacer clic ACUMULA archivos entre
-                      interacciones (no reemplaza), sin botón de eliminación
-                      individual — exactamente como en el original. */}
-                  <div
-                    onClick={() => disenoInputRef.current?.click()}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      addDisenoFiles(Array.from(e.dataTransfer.files));
-                    }}
-                    style={{
-                      border: `2px dashed ${disenoFiles.length ? "var(--c-amber)" : "var(--c-line)"}`,
-                      background: disenoFiles.length ? "var(--c-amber-l)" : "var(--c-white)",
-                      borderRadius: "var(--radius)",
-                      padding: "1rem",
-                      textAlign: "center",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {disenoFiles.length > 0 ? (
-                      <div>
-                        <div style={{ fontSize: 18, marginBottom: 6 }}>✅</div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 6 }}>
-                          {disenoFiles.length} archivo{disenoFiles.length > 1 ? "s" : ""} seleccionado{disenoFiles.length > 1 ? "s" : ""}
+                  {detalle.catalogos
+                    .filter((c) => c.portada_personalizada === true && c.portada_diseno_propio === false)
+                    .map((cat) => {
+                      const catFiles = disenoFilesByCat[cat.catalogo] ?? [];
+                      return (
+                        <div key={cat.catalogo} style={{ marginBottom: "1rem" }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--c-mid)", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: ".4rem" }}>
+                            {cat.label}
+                          </div>
+                          <div
+                            onClick={() => disenoInputRefs.current[cat.catalogo]?.click()}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              addDisenoFilesForCat(Array.from(e.dataTransfer.files), cat.catalogo);
+                            }}
+                            style={{
+                              border: `2px dashed ${catFiles.length ? "var(--c-amber)" : "var(--c-line)"}`,
+                              background: catFiles.length ? "var(--c-amber-l)" : "var(--c-white)",
+                              borderRadius: "var(--radius)",
+                              padding: "1rem",
+                              textAlign: "center",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {catFiles.length > 0 ? (
+                              <div>
+                                <div style={{ fontSize: 18, marginBottom: 6 }}>✅</div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: "#92400e", marginBottom: 6 }}>
+                                  {catFiles.length} archivo{catFiles.length > 1 ? "s" : ""} seleccionado{catFiles.length > 1 ? "s" : ""}
+                                </div>
+                                <div style={{ maxHeight: 120, overflowY: "auto", padding: "0 4px" }}>
+                                  {catFiles.map((f) => (
+                                    <div key={f.id} style={{ fontSize: 12, color: f.estado === "error" ? "var(--c-red)" : "#92400e", padding: "2px 0", textAlign: "left" }}>
+                                      {f.estado === "subiendo" ? "⏳" : f.estado === "error" ? "⚠️" : "📄"} <strong>{f.nombre}</strong>{" "}
+                                      <span style={{ color: "var(--c-mid)" }}>
+                                        {f.estado === "subiendo" ? "subiendo..." : f.estado === "error" ? "error al subir" : `(${(f.size / 1024).toFixed(0)}kb)`}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div style={{ fontSize: 11, color: "var(--c-mid)", marginTop: 8 }}>Haz clic o arrastra para añadir más</div>
+                              </div>
+                            ) : (
+                              <div>
+                                <div style={{ fontSize: 24, marginBottom: 4 }}>🎨</div>
+                                <div style={{ fontSize: 13, fontWeight: 500, color: "var(--c-dark)" }}>Arrastra el diseño aquí o haz clic</div>
+                                <div style={{ fontSize: 11, color: "var(--c-mid)", marginTop: 2 }}>PDF · JPG · PNG · AI · EPS</div>
+                              </div>
+                            )}
+                          </div>
+                          <input
+                            ref={(el) => { disenoInputRefs.current[cat.catalogo] = el; }}
+                            type="file"
+                            multiple
+                            accept=".pdf,.jpg,.jpeg,.png,.ai,.eps"
+                            style={{ display: "none" }}
+                            onChange={(e) => {
+                              addDisenoFilesForCat(Array.from(e.target.files ?? []), cat.catalogo);
+                              e.target.value = "";
+                            }}
+                          />
                         </div>
-                        <div style={{ maxHeight: 120, overflowY: "auto", padding: "0 4px" }}>
-                          {disenoFiles.map((f) => (
-                            <div key={f.id} style={{ fontSize: 12, color: f.estado === "error" ? "var(--c-red)" : "#92400e", padding: "2px 0", textAlign: "left" }}>
-                              {f.estado === "subiendo" ? "⏳" : f.estado === "error" ? "⚠️" : "📄"} <strong>{f.nombre}</strong>{" "}
-                              <span style={{ color: "var(--c-mid)" }}>
-                                {f.estado === "subiendo" ? "subiendo..." : f.estado === "error" ? "error al subir" : `(${(f.size / 1024).toFixed(0)}kb)`}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{ fontSize: 11, color: "var(--c-mid)", marginTop: 8 }}>Haz clic o arrastra para añadir más</div>
-                      </div>
-                    ) : (
-                      <div>
-                        <div style={{ fontSize: 24, marginBottom: 4 }}>🎨</div>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--c-dark)" }}>Arrastra el diseño aquí o haz clic</div>
-                        <div style={{ fontSize: 11, color: "var(--c-mid)", marginTop: 2 }}>PDF · JPG · PNG · AI · EPS</div>
-                      </div>
-                    )}
-                  </div>
-                  <input
-                    ref={disenoInputRef}
-                    type="file"
-                    multiple
-                    accept=".pdf,.jpg,.jpeg,.png,.ai,.eps"
-                    style={{ display: "none" }}
-                    onChange={(e) => {
-                      addDisenoFiles(Array.from(e.target.files ?? []));
-                      e.target.value = "";
-                    }}
-                  />
+                      );
+                    })}
                 </div>
               )}
             </div>
@@ -1135,9 +1142,11 @@ export function SolicitudDetalleModal({
             <button
               type="button"
               className="btn btn-amber btn-sm"
-              disabled={busy || disenoFiles.some((f) => f.estado === "subiendo")}
+              disabled={busy || Object.values(disenoFilesByCat).flat().some((f) => f.estado === "subiendo")}
               onClick={() => {
-                const archivos = disenoFiles.filter((f) => f.estado === "ok").map((f) => f.meta!);
+                const archivos = Object.entries(disenoFilesByCat).flatMap(([catKey, files]) =>
+                  files.filter((f) => f.estado === "ok" && f.meta).map((f) => ({ archivo: f.meta!, catalogo: catKey }))
+                );
                 ejecutarYcerrar(() => marcarDisenoListo(detalle.id, archivos), "Estado: Revisión cliente");
               }}
             >
