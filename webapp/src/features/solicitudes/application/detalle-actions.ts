@@ -349,6 +349,46 @@ export async function eliminarAdjunto(adjuntoId: string): Promise<{ error?: stri
   return {};
 }
 
+// Borra múltiples adjuntos de tipo "diseno_portada" en una sola llamada.
+// Reutiliza la misma lógica de auth/roles/storage que eliminarAdjunto.
+export async function eliminarAdjuntosMultiple(adjuntoIds: string[]): Promise<{ error?: string }> {
+  if (!adjuntoIds.length) return {};
+  const { supabase, user, perfil } = await currentUserAndPerfil();
+  if (!user) return { error: "Sesión no válida." };
+  if (!(ELIMINAR_ADJUNTO_ROLES as readonly string[]).includes(perfil?.rol ?? "")) {
+    return { error: "No tienes permiso para eliminar portadas." };
+  }
+
+  const { data: adjuntos } = await supabase
+    .from("adjuntos")
+    .select("id, tipo, url, storage_path, solicitud_id")
+    .in("id", adjuntoIds);
+  if (!adjuntos?.length) return { error: "Adjuntos no encontrados." };
+
+  const invalidos = adjuntos.filter((a) => a.tipo !== "diseno_portada");
+  if (invalidos.length > 0) return { error: "Solo se pueden eliminar diseños de portada." };
+
+  const { error } = await supabase.from("adjuntos").delete().in("id", adjuntoIds);
+  if (error) return { error: `Error: ${error.message}` };
+
+  const solicitudId = adjuntos[0]!.solicitud_id;
+  await supabase.from("logs").insert({
+    solicitud_id: solicitudId,
+    usuario_id: user.id,
+    usuario_nombre: perfil?.nombre,
+    accion: "eliminar_adjunto",
+    detalle: { adjunto_ids: adjuntoIds },
+  });
+
+  const paths = adjuntos
+    .map((a) => a.storage_path ?? storagePathDesdeUrl(a.url))
+    .filter(Boolean) as string[];
+  if (paths.length) await borrarArchivosStorage(supabase, paths);
+
+  revalidatePath("/diseno");
+  return {};
+}
+
 // Adjunta un documento desde el comercial mientras la solicitud está en
 // pendiente_comercial, para que el diseñador lo pueda consultar cuando
 // retome el trabajo. El archivo ya está en Storage — se recibe solo su

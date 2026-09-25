@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { DisenoTable } from "./diseno-table";
 import { CargaMasivaModal } from "./carga-masiva-modal";
 import { SolicitudDetalleModal } from "@/features/solicitudes/ui/solicitud-detalle-modal";
@@ -26,6 +26,7 @@ export function DisenoPage({
   currentUserId: string | null | undefined;
 }) {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const verId = searchParams.get("ver");
   const [solicitudId, setSolicitudId] = useState<string | null>(verId);
   const [cargaMasivaAbierta, setCargaMasivaAbierta] = useState(false);
@@ -33,7 +34,12 @@ export function DisenoPage({
 
   function cerrarDetalle() {
     setSolicitudId(null);
-    if (verId) router.replace("/diseno");
+    if (verId) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("ver");
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname);
+    }
   }
 
   return (

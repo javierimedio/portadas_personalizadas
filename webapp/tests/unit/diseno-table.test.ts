@@ -615,3 +615,60 @@ describe("round-trip parseUrlState ↔ buildUrlState", () => {
     expect(recovered).toEqual(original);
   });
 });
+
+// ---------------------------------------------------------------------------
+// P12 — preservación de filtros al cerrar detalle (URL state)
+// ---------------------------------------------------------------------------
+describe("P12 — preservación de filtros al cerrar detalle", () => {
+  it("eliminar ?ver= deja el resto de params intactos", () => {
+    const params = new URLSearchParams(
+      "q=60001&disenador=d1&estado=en_diseno&sort=cod_sap&dir=desc&page=3&ver=some-uuid"
+    );
+    params.delete("ver");
+    const state = parseUrlState(params);
+    expect(state.q).toBe("60001");
+    expect(state.disenadorId).toBe("d1");
+    expect(state.estado).toBe("en_diseno");
+    expect(state.sort).toEqual({ field: "cod_sap", dir: "desc" });
+    expect(state.page).toBe(3);
+  });
+
+  it("eliminar ?ver= de URL con solo ese param produce URL limpia", () => {
+    const params = new URLSearchParams("ver=some-uuid");
+    params.delete("ver");
+    expect(params.toString()).toBe("");
+  });
+
+  it("fila que cambia de estado desaparece de la cola tras router.refresh()", () => {
+    // Simula: servidor devuelve filas actualizadas donde una ya no está en diseño
+    const antesRows = [
+      sol({ id: "a", estado: "en_diseno" }),
+      sol({ id: "b", estado: "en_diseno" }),
+    ];
+    const despuesRows = [sol({ id: "b", estado: "en_diseno" })]; // "a" confirmada, no llega
+    const filters: DisenoFilters = { campanaId: "", disenadorId: "", q: "" };
+    expect(filterDisenoTareas(antesRows, filters).map((r) => r.id)).toEqual(["a", "b"]);
+    expect(filterDisenoTareas(despuesRows, filters).map((r) => r.id)).toEqual(["b"]);
+  });
+
+  it("fila filtrada por SAP que cambia de estado también desaparece", () => {
+    const rows = [
+      sol({ id: "a", estado: "en_diseno", cod_sap: "60239" }),
+      sol({ id: "b", estado: "modificar_diseno", cod_sap: "70100" }),
+    ];
+    const filters: DisenoFilters = { campanaId: "", disenadorId: "", q: "60239" };
+    expect(filterDisenoTareas(rows, filters).map((r) => r.id)).toEqual(["a"]);
+    // Tras refresh, "a" ya no está en diseño — servidor la excluye y row desaparece
+    const rowsActualizadas = [sol({ id: "b", estado: "modificar_diseno", cod_sap: "70100" })];
+    expect(filterDisenoTareas(rowsActualizadas, filters).map((r) => r.id)).toEqual([]);
+  });
+
+  it("sort y page sobreviven al eliminar ?ver= (params independientes)", () => {
+    const params = new URLSearchParams("sort=disenador&dir=desc&page=5&ver=abc");
+    params.delete("ver");
+    const state = parseUrlState(params);
+    expect(state.sort).toEqual({ field: "disenador", dir: "desc" });
+    expect(state.page).toBe(5);
+    expect(params.has("ver")).toBe(false);
+  });
+});

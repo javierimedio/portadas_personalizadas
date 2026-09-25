@@ -212,3 +212,91 @@ describe("FileResultado — resultados individuales", () => {
     expect(resultadoError).not.toHaveProperty("portada_elegida");
   });
 });
+
+// ---------------------------------------------------------------------------
+// P17 — soporte de sufijo _PR como modificador (CM-17)
+// ---------------------------------------------------------------------------
+
+describe("P17 — parseCargaFilename con sufijo _PR", () => {
+  it("_roly_pr.pdf → mismo SAP y catKey que _roly.pdf", () => {
+    expect(parseCargaFilename("12345_roly_pr.pdf")).toEqual({ sap: "12345", catKey: "roly" });
+  });
+
+  it("_ROLY_PR.pdf (mayúsculas) → mismo resultado", () => {
+    expect(parseCargaFilename("12345_ROLY_PR.pdf")).toEqual({ sap: "12345", catKey: "roly" });
+  });
+
+  it("_roly_wrk_pr.pdf → roly_wrk (orden de sufijos respetado tras strip _PR)", () => {
+    expect(parseCargaFilename("12345_roly_wrk_pr.pdf")).toEqual({ sap: "12345", catKey: "roly_wrk" });
+  });
+
+  it("_stamina_pr.pdf → stamina", () => {
+    expect(parseCargaFilename("12345_stamina_pr.pdf")).toEqual({ sap: "12345", catKey: "stamina" });
+  });
+
+  it("_stm_pr.pdf → stamina (alias corto)", () => {
+    expect(parseCargaFilename("12345_stm_pr.pdf")).toEqual({ sap: "12345", catKey: "stamina" });
+  });
+
+  it("_xmas_pr.pdf → xmas", () => {
+    expect(parseCargaFilename("12345_xmas_pr.pdf")).toEqual({ sap: "12345", catKey: "xmas" });
+  });
+
+  it("_wrk_pr.pdf → roly_wrk (alias corto)", () => {
+    expect(parseCargaFilename("12345_wrk_pr.pdf")).toEqual({ sap: "12345", catKey: "roly_wrk" });
+  });
+
+  it("solo _pr sin sufijo de catálogo → catKey null (SAP sin catálogo)", () => {
+    expect(parseCargaFilename("12345_pr.pdf")).toEqual({ sap: "12345", catKey: null });
+  });
+
+  it("_pr no afecta a SAPs que terminan en _PR por coincidencia — strip solo del final", () => {
+    // "MY_PRODUCT_pr.pdf" → base "MY_PRODUCT_PR" → strip _PR → "MY_PRODUCT" → no catalog suffix → catKey null
+    expect(parseCargaFilename("MY_PRODUCT_pr.pdf")).toEqual({ sap: "MY_PRODUCT", catKey: null });
+  });
+});
+
+describe("P17 — matchCargaFile con sufijo _PR", () => {
+  function solPR(overrides: Partial<CargaMasivaSolicitud> = {}): CargaMasivaSolicitud {
+    return {
+      id: "s1",
+      cod_sap: "60239",
+      nombre_empresa: "ACME",
+      estado: "en_diseno",
+      solicitud_catalogos: [{ catalogo: "roly", portada_personalizada: true }],
+      ...overrides,
+    };
+  }
+
+  it("archivo _pr → status ok si el catálogo tiene portada_personalizada", () => {
+    const m = matchCargaFile("60239_roly_pr.pdf", [solPR()]);
+    expect(m.status).toBe("ok");
+    if (m.status === "ok") {
+      expect(m.sap).toBe("60239");
+      expect(m.catKey).toBe("roly");
+    }
+  });
+
+  it("archivo _pr produce el mismo resultado que el equivalente sin _pr", () => {
+    const solicitudes = [solPR()];
+    const conPr = matchCargaFile("60239_roly_pr.pdf", solicitudes);
+    const sinPr = matchCargaFile("60239_roly.pdf", solicitudes);
+    expect(conPr.status).toBe(sinPr.status);
+    if (conPr.status === "ok" && sinPr.status === "ok") {
+      expect(conPr.sap).toBe(sinPr.sap);
+      expect(conPr.catKey).toBe(sinPr.catKey);
+      expect(conPr.solId).toBe(sinPr.solId);
+    }
+  });
+
+  it("archivo _pr → nocatalog si el catálogo no tiene portada_personalizada", () => {
+    const m = matchCargaFile("60239_xmas_pr.pdf", [solPR()]); // sol solo tiene roly
+    expect(m.status).toBe("nocatalog");
+    if (m.status === "nocatalog") expect(m.catKey).toBe("xmas");
+  });
+
+  it("portada_elegida nunca aparece en el resultado de match con _pr", () => {
+    const m = matchCargaFile("60239_roly_pr.pdf", [solPR()]);
+    expect(m).not.toHaveProperty("portada_elegida");
+  });
+});
