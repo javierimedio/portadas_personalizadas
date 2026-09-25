@@ -9,7 +9,17 @@ import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 import type { FormPerfil } from "@/features/solicitudes/domain/types";
 import { DISENO_ROLES } from "@/features/solicitudes/domain/estado-flujo";
 import { reasignarDisenador } from "@/features/solicitudes/application/detalle-actions";
-import { disenadorStats, disenadoresActivos, filterDisenoTareas, ROLES_FILTRO_DISENADOR_VISIBLE, UNASSIGNED_DISENADOR, type DisenoVista } from "../domain/table";
+import {
+  disenadorStats,
+  disenadoresActivos,
+  filterDisenoTareas,
+  sortDisenoTareas,
+  ROLES_FILTRO_DISENADOR_VISIBLE,
+  UNASSIGNED_DISENADOR,
+  type DisenoVista,
+  type SortConfig,
+  type SortField,
+} from "../domain/table";
 import { buildDisenoCsv, disenoCsvFilename, filasParaCsv } from "../domain/csv";
 import { fmtDate } from "@/shared/domain/format";
 
@@ -79,7 +89,10 @@ export function DisenoTable({
   const [campanaId, setCampanaId] = useState(defaultCampanaId);
   const [disenadorId, setDisenadorId] = useState("");
   const [q, setQ] = useState("");
-  const [sortFecha, setSortFecha] = useState<"asc" | "desc">("asc");
+  const [provincia, setProvincia] = useState("");
+  const [rolyFilter, setRolyFilter] = useState("");
+  const [estado, setEstado] = useState("");
+  const [sort, setSort] = useState<SortConfig>({ field: "fecha", dir: "asc" });
   const [autoAssignBusy, setAutoAssignBusy] = useState<string | null>(null);
 
   const puedeAutoAsignar = currentUserId !== null && currentUserId !== undefined && (DISENO_ROLES as readonly string[]).includes(rol ?? "");
@@ -95,16 +108,26 @@ export function DisenoTable({
     }
   }
 
-  const filtered = useMemo(() => filterDisenoTareas(rows, { campanaId, disenadorId, q, vista }), [rows, campanaId, disenadorId, q, vista]);
-  const sorted = useMemo(
-    () =>
-      [...filtered].sort((a, b) => {
-        const da = a.enviada_at ?? a.updated_at ?? "";
-        const db = b.enviada_at ?? b.updated_at ?? "";
-        return sortFecha === "asc" ? da.localeCompare(db) : db.localeCompare(da);
-      }),
-    [filtered, sortFecha]
+  function handleSort(field: SortField) {
+    setSort((prev) =>
+      prev.field === field
+        ? { field, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { field, dir: "asc" }
+    );
+  }
+
+  const provincias = useMemo(() => {
+    const vals = new Set<string>();
+    rows.forEach((s) => { if (s.provincia) vals.add(s.provincia); });
+    return [...vals].sort();
+  }, [rows]);
+
+  const filtered = useMemo(
+    () => filterDisenoTareas(rows, { campanaId, disenadorId, q, vista, provincia, rolyFilter, estado }),
+    [rows, campanaId, disenadorId, q, vista, provincia, rolyFilter, estado]
   );
+  const sorted = useMemo(() => sortDisenoTareas(filtered, sort, perfiles), [filtered, sort, perfiles]);
+
   // Las KPIs se calculan sobre rows completos (filtrados por campaña/diseñador,
   // pero no por la búsqueda SAP ni por el filtro "Sin asignar") para reflejar
   // el estado real de la campaña.
@@ -130,6 +153,15 @@ export function DisenoTable({
     URL.revokeObjectURL(a.href);
   }
 
+  const sortTh = (label: string, field: SortField) => (
+    <th onClick={() => handleSort(field)} style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
+      {label}{" "}
+      <span style={{ color: sort.field === field ? "var(--c-dark)" : "var(--c-mid)", fontSize: 10 }}>
+        {sort.field === field ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}
+      </span>
+    </th>
+  );
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: 8 }}>
@@ -148,6 +180,13 @@ export function DisenoTable({
             <option value="operativo">Solicitudes en diseño</option>
             <option value="enviadas_comercial">Enviadas a Comercial</option>
           </select>
+          {vista === "operativo" && (
+            <select value={estado} onChange={(e) => setEstado(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>
+              <option value="">Todos los estados</option>
+              <option value="en_diseno">{ESTADO_LABEL["en_diseno"] ?? "En diseño"}</option>
+              <option value="modificar_diseno">{ESTADO_LABEL["modificar_diseno"] ?? "Modificar diseño"}</option>
+            </select>
+          )}
           <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
             <svg
               width="13"
@@ -168,7 +207,7 @@ export function DisenoTable({
               onChange={(e) => setQ(e.target.value)}
               style={{
                 fontSize: 13,
-                width: 200,
+                width: 220,
                 padding: "0.4rem 0.75rem 0.4rem 1.75rem",
                 border: "1px solid var(--c-line)",
                 borderRadius: "var(--radius)",
@@ -178,6 +217,18 @@ export function DisenoTable({
               }}
             />
           </div>
+          <select value={provincia} onChange={(e) => setProvincia(e.target.value)} style={{ fontSize: 13, minWidth: 140 }}>
+            <option value="">Todas las provincias</option>
+            {provincias.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+          <select value={rolyFilter} onChange={(e) => setRolyFilter(e.target.value)} style={{ fontSize: 13, minWidth: 130 }}>
+            <option value="">ROLY: Todos</option>
+            <option value="summary">Con ROLY</option>
+            <option value="no">ROLY: No</option>
+            <option value="empty">Sin ROLY</option>
+          </select>
           {mostrarFiltroDisenador && (
             <select value={disenadorId} onChange={(e) => setDisenadorId(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>
               <option value="">Todos los diseñadores</option>
@@ -247,20 +298,15 @@ export function DisenoTable({
           <table>
             <thead>
               <tr>
-                <th>Cód. SAP</th>
-                <th>Empresa</th>
-                <th>Provincia</th>
-                {ALL_CATALOGOS.map((c) => (
-                  <th key={c.key}>{c.label}</th>
-                ))}
-                <th>Estado</th>
-                <th
-                  onClick={() => setSortFecha((d) => (d === "asc" ? "desc" : "asc"))}
-                  style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
-                >
-                  Fecha <span>{sortFecha === "asc" ? "↑" : "↓"}</span>
-                </th>
-                <th>Diseñador</th>
+                {sortTh("Cód. SAP", "cod_sap")}
+                {sortTh("Empresa", "nombre_empresa")}
+                {sortTh("Provincia", "provincia")}
+                {ALL_CATALOGOS.map((c) =>
+                  c.key === "roly" ? sortTh(c.label, "roly") : <th key={c.key}>{c.label}</th>
+                )}
+                {sortTh("Estado", "estado")}
+                {sortTh("Fecha", "fecha")}
+                {sortTh("Diseñador", "disenador")}
                 <th></th>
               </tr>
             </thead>
