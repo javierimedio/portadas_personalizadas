@@ -13,6 +13,7 @@ import { borrarArchivosStorage } from "@/shared/storage/server";
 import { STORAGE_BUCKET } from "@/shared/storage/constants";
 import { ELIMINAR_ADJUNTO_ROLES } from "../domain/estado-flujo";
 import { validarEnlace, puedeAgregarEnlace, puedeEliminarEnlace, esEnlaceExterno } from "../domain/enlace-externo";
+import { portadasObligatoriasPendientes, mensajePortadasPendientes } from "../domain/portadas-validation";
 import type { UploadedFile } from "@/shared/storage/types";
 
 async function currentUserAndPerfil() {
@@ -217,6 +218,20 @@ export async function marcarDisenoListo(solicitudId: string, archivos: UploadedF
       subido_por_nombre: perfil?.nombre,
     });
   }
+
+  const { data: cats } = await supabase
+    .from("solicitud_catalogos")
+    .select("catalogo, portada_personalizada, portada_diseno_propio")
+    .eq("solicitud_id", solicitudId);
+
+  const { data: adjs } = await supabase
+    .from("adjuntos")
+    .select("tipo, catalogo")
+    .eq("solicitud_id", solicitudId)
+    .eq("tipo", "diseno_portada");
+
+  const faltantes = portadasObligatoriasPendientes(cats ?? [], adjs ?? []);
+  if (faltantes.length > 0) return { error: mensajePortadasPendientes(faltantes) };
 
   return cambiarEstado(solicitudId, "diseno_en_revision_comercial");
 }

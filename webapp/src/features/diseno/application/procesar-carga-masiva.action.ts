@@ -4,6 +4,7 @@ import { createClient } from "@/shared/infrastructure/supabase/server-client";
 import { cambiarEstado } from "@/features/solicitudes/application/detalle-actions";
 import { matchCargaFile, type CargaMasivaSolicitud } from "../domain/carga-masiva";
 import { borrarArchivosStorage } from "@/shared/storage/server";
+import { portadasObligatoriasPendientes, mensajePortadasPendientes } from "@/features/solicitudes/domain/portadas-validation";
 import type { UploadedFile } from "@/shared/storage/types";
 
 // Réplica de procesarCargaMasiva() (index.html ~5291-5360): el emparejamiento
@@ -42,7 +43,8 @@ export async function procesarCargaMasiva(
 
   let ok = 0;
   let errors = 0;
-  const processedSols = new Set<string>();
+  // Maps solId → cod_sap for error messages about blocked transitions
+  const processedSols = new Map<string, string>();
   const detalles: string[] = [];
   const sinUso: string[] = [];
 
@@ -70,8 +72,8 @@ export async function procesarCargaMasiva(
       if (error) throw error;
 
       if (!processedSols.has(match.solId)) {
-        processedSols.add(match.solId);
-        await cambiarEstado(match.solId, "diseno_en_revision_comercial");
+        const sol = solicitudes.find((s) => s.id === match.solId);
+        processedSols.set(match.solId, sol?.cod_sap ?? match.solId);
       }
       ok++;
     } catch (e) {
@@ -84,6 +86,27 @@ export async function procesarCargaMasiva(
   }
 
   await borrarArchivosStorage(supabase, sinUso);
+
+  // Validar portadas completas antes de transicionar cada solicitud
+  for (const [solId, codSap] of processedSols) {
+    const { data: cats } = await supabase
+      .from("solicitud_catalogos")
+      .select("catalogo, portada_personalizada, portada_diseno_propio")
+      .eq("solicitud_id", solId);
+
+    const { data: adjs } = await supabase
+      .from("adjuntos")
+      .select("tipo, catalogo")
+      .eq("solicitud_id", solId)
+      .eq("tipo", "diseno_portada");
+
+    const faltantes = portadasObligatoriasPendientes(cats ?? [], adjs ?? []);
+    if (faltantes.length > 0) {
+      detalles.push(`SAP ${codSap}: ${mensajePortadasPendientes(faltantes)}`);
+    } else {
+      await cambiarEstado(solId, "diseno_en_revision_comercial");
+    }
+  }
 
   return { ok, errors, detalles: detalles.length ? detalles : undefined };
 }
