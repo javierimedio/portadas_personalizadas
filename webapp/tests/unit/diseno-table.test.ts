@@ -332,32 +332,6 @@ describe("P0-E — filterDisenoTareas: nuevos filtros", () => {
   });
 });
 
-describe("P0-E — ROLY filter", () => {
-  const rows = [
-    sol({ id: "sin-roly", estado: "en_diseno", solicitud_catalogos: [] }),
-    sol({ id: "roly-no", estado: "en_diseno", solicitud_catalogos: [rolyEntry({ catalogo_impreso: false, catalogo_digital: false })] }),
-    sol({ id: "roly-si", estado: "en_diseno", solicitud_catalogos: [rolyEntry()] }),
-  ];
-
-  it("rolyFilter=summary muestra solo rows con ROLY activo", () => {
-    expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "", rolyFilter: "summary" }).map((r) => r.id)
-    ).toEqual(["roly-si"]);
-  });
-
-  it("rolyFilter=empty muestra solo rows sin entrada ROLY", () => {
-    expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "", rolyFilter: "empty" }).map((r) => r.id)
-    ).toEqual(["sin-roly"]);
-  });
-
-  it("rolyFilter=no muestra solo rows con ROLY=false", () => {
-    expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "", rolyFilter: "no" }).map((r) => r.id)
-    ).toEqual(["roly-no"]);
-  });
-});
-
 describe("P0-E — sortDisenoTareas", () => {
   const noPerfiles: { id: string; nombre: string; rol: string; activo: boolean }[] = [];
 

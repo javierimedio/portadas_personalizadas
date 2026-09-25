@@ -90,7 +90,6 @@ export function DisenoTable({
   const [disenadorId, setDisenadorId] = useState("");
   const [q, setQ] = useState("");
   const [provincia, setProvincia] = useState("");
-  const [rolyFilter, setRolyFilter] = useState("");
   const [estado, setEstado] = useState("");
   const [sort, setSort] = useState<SortConfig>({ field: "fecha", dir: "asc" });
   const [autoAssignBusy, setAutoAssignBusy] = useState<string | null>(null);
@@ -123,8 +122,8 @@ export function DisenoTable({
   }, [rows]);
 
   const filtered = useMemo(
-    () => filterDisenoTareas(rows, { campanaId, disenadorId, q, vista, provincia, rolyFilter, estado }),
-    [rows, campanaId, disenadorId, q, vista, provincia, rolyFilter, estado]
+    () => filterDisenoTareas(rows, { campanaId, disenadorId, q, vista, provincia, estado }),
+    [rows, campanaId, disenadorId, q, vista, provincia, estado]
   );
   const sorted = useMemo(() => sortDisenoTareas(filtered, sort, perfiles), [filtered, sort, perfiles]);
 
@@ -222,12 +221,6 @@ export function DisenoTable({
             {provincias.map((p) => (
               <option key={p} value={p}>{p}</option>
             ))}
-          </select>
-          <select value={rolyFilter} onChange={(e) => setRolyFilter(e.target.value)} style={{ fontSize: 13, minWidth: 130 }}>
-            <option value="">ROLY: Todos</option>
-            <option value="summary">Con ROLY</option>
-            <option value="no">ROLY: No</option>
-            <option value="empty">Sin ROLY</option>
           </select>
           {mostrarFiltroDisenador && (
             <select value={disenadorId} onChange={(e) => setDisenadorId(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>

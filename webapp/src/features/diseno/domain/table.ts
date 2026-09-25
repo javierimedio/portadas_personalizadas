@@ -15,7 +15,6 @@ export type DisenoFilters = {
   q: string;
   vista?: DisenoVista;
   provincia?: string;
-  rolyFilter?: string; // "" | "empty" | "no" | "summary"
   estado?: string;
 };
 
@@ -48,10 +47,6 @@ export function filterDisenoTareas(rows: SolicitudListItem[], filters: DisenoFil
   }
   if (filters.provincia) {
     result = result.filter((s) => s.provincia === filters.provincia);
-  }
-  if (filters.rolyFilter) {
-    const v = filters.rolyFilter;
-    result = result.filter((s) => rolyVariant(s) === v);
   }
   if (filters.q) {
     const q = filters.q.trim().toLowerCase();
