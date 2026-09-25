@@ -9,10 +9,10 @@ import {
   enviarNotificacionAsignacion,
   enviarNotificacionesMencion,
 } from "@/features/notificaciones/application/enviar-notificacion";
-import { borrarArchivosStorage } from "@/shared/storage/server";
-import { STORAGE_BUCKET } from "@/shared/storage/constants";
+import { borrarArchivosStorage, storagePathDesdeUrl } from "@/shared/storage/server";
 import { ELIMINAR_ADJUNTO_ROLES } from "../domain/estado-flujo";
 import { validarEnlace, puedeAgregarEnlace, puedeEliminarEnlace, esEnlaceExterno } from "../domain/enlace-externo";
+import { portadasObligatoriasPendientes, mensajePortadasPendientes } from "../domain/portadas-validation";
 import type { UploadedFile } from "@/shared/storage/types";
 
 async function currentUserAndPerfil() {
@@ -202,21 +202,64 @@ export async function reasignarDisenador(solicitudId: string, disenadorId: strin
 // archivos", 2026-08-04): los archivos ya están en Storage — subidos desde
 // el navegador por `SolicitudDetalleModal` antes de llamar aquí — así que
 // esta acción solo recibe su metadata, nunca un `File`.
-export async function marcarDisenoListo(solicitudId: string, archivos: UploadedFile[]): Promise<{ error?: string }> {
+export async function marcarDisenoListo(
+  solicitudId: string,
+  archivos: { archivo: UploadedFile; catalogo: string }[]
+): Promise<{ error?: string }> {
   const { supabase, user, perfil } = await currentUserAndPerfil();
   if (!user) return { error: "Sesión no válida." };
 
-  for (const archivo of archivos) {
-    await supabase.from("adjuntos").insert({
-      solicitud_id: solicitudId,
-      nombre: archivo.nombre,
-      tipo: "diseno_portada",
-      url: archivo.url,
-      storage_path: archivo.path,
-      subido_por: user.id,
-      subido_por_nombre: perfil?.nombre,
-    });
+  for (const { archivo, catalogo } of archivos) {
+    const { data: existente } = await supabase
+      .from("adjuntos")
+      .select("id, storage_path, url")
+      .eq("solicitud_id", solicitudId)
+      .eq("tipo", "diseno_portada")
+      .eq("catalogo", catalogo)
+      .eq("nombre", archivo.nombre)
+      .maybeSingle();
+
+    if (existente) {
+      await supabase
+        .from("adjuntos")
+        .update({ url: archivo.url, storage_path: archivo.path, subido_por: user.id, subido_por_nombre: perfil?.nombre ?? null })
+        .eq("id", existente.id);
+      await supabase.from("logs").insert({
+        solicitud_id: solicitudId,
+        usuario_id: user.id,
+        usuario_nombre: perfil?.nombre,
+        accion: "reemplazar_diseno",
+        detalle: { catalogo, nombre: archivo.nombre },
+      });
+      const oldPath = existente.storage_path ?? storagePathDesdeUrl(existente.url);
+      if (oldPath && oldPath !== archivo.path) await borrarArchivosStorage(supabase, [oldPath]);
+    } else {
+      await supabase.from("adjuntos").insert({
+        solicitud_id: solicitudId,
+        nombre: archivo.nombre,
+        tipo: "diseno_portada",
+        url: archivo.url,
+        storage_path: archivo.path,
+        catalogo,
+        subido_por: user.id,
+        subido_por_nombre: perfil?.nombre,
+      });
+    }
   }
+
+  const { data: cats } = await supabase
+    .from("solicitud_catalogos")
+    .select("catalogo, portada_personalizada, portada_diseno_propio")
+    .eq("solicitud_id", solicitudId);
+
+  const { data: adjs } = await supabase
+    .from("adjuntos")
+    .select("tipo, catalogo")
+    .eq("solicitud_id", solicitudId)
+    .eq("tipo", "diseno_portada");
+
+  const faltantes = portadasObligatoriasPendientes(cats ?? [], adjs ?? []);
+  if (faltantes.length > 0) return { error: mensajePortadasPendientes(faltantes) };
 
   return cambiarEstado(solicitudId, "diseno_en_revision_comercial");
 }
@@ -270,21 +313,6 @@ export async function guardarPortadaElegida(solicitudId: string, catalogo: strin
     .eq("catalogo", catalogo);
   if (error) return { error: `Error: ${error.message}` };
   return {};
-}
-
-// Deriva el path de Storage a partir de la URL pública cuando `storage_path`
-// no está disponible en la BD (adjuntos creados antes de la migración
-// 20260918000100_eliminar_adjuntos.sql). Formato conocido:
-// https://<host>/storage/v1/object/public/<bucket>/<path>
-function storagePathDesdeUrl(url: string): string | null {
-  const marker = `/${STORAGE_BUCKET}/`;
-  const idx = url.indexOf(marker);
-  if (idx < 0) return null;
-  try {
-    return decodeURIComponent(url.slice(idx + marker.length));
-  } catch {
-    return url.slice(idx + marker.length);
-  }
 }
 
 // Borra un adjunto de tipo "diseno_portada": elimina la fila en BD y el

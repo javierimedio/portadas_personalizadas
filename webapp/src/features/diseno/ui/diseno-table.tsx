@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { ALL_CATALOGOS } from "@/shared/domain/catalogos";
 import { ESTADO_LABEL } from "@/shared/domain/estados";
 import { catSummary } from "@/features/solicitudes/domain/cat-summary";
@@ -9,9 +9,34 @@ import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 import type { FormPerfil } from "@/features/solicitudes/domain/types";
 import { DISENO_ROLES } from "@/features/solicitudes/domain/estado-flujo";
 import { reasignarDisenador } from "@/features/solicitudes/application/detalle-actions";
-import { disenadorStats, disenadoresActivos, filterDisenoTareas, ROLES_FILTRO_DISENADOR_VISIBLE, UNASSIGNED_DISENADOR } from "../domain/table";
+import {
+  disenadorStats,
+  disenadoresActivos,
+  filterDisenoTareas,
+  sortDisenoTareas,
+  ROLES_FILTRO_DISENADOR_VISIBLE,
+  UNASSIGNED_DISENADOR,
+  parseUrlState,
+  buildUrlState,
+  type DisenoUrlState,
+  type SortField,
+} from "../domain/table";
 import { buildDisenoCsv, disenoCsvFilename, filasParaCsv } from "../domain/csv";
 import { fmtDate } from "@/shared/domain/format";
+
+const PAGE_SIZE = 25;
+
+// Returns true when a click or keyboard event originates on an interactive
+// element — the row's own action should then take precedence over opening
+// the detail modal. Tests import this to verify the delegation logic.
+export function isInteractiveTarget(target: EventTarget | null): boolean {
+  if (!target || !(target instanceof HTMLElement)) return false;
+  return !!target.closest("button, a, input, select, textarea");
+}
+
+export function shouldOpenOnKey(key: string): boolean {
+  return key === "Enter" || key === " ";
+}
 
 const KPI_COLOR = {
   pendientes: "var(--c-red)",    // modificar_diseno: devueltas para corrección
@@ -75,11 +100,31 @@ export function DisenoTable({
   onCargaMasiva: () => void;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const urlState = parseUrlState(searchParams);
+  const { q, disenadorId, estado, sort, page } = urlState;
+
+  // campanaId stays local — not persisted in URL
   const [campanaId, setCampanaId] = useState(defaultCampanaId);
-  const [disenadorId, setDisenadorId] = useState("");
-  const [q, setQ] = useState("");
-  const [sortFecha, setSortFecha] = useState<"asc" | "desc">("asc");
   const [autoAssignBusy, setAutoAssignBusy] = useState<string | null>(null);
+
+  function navigate(updates: Partial<DisenoUrlState>) {
+    const next = { ...urlState, ...updates };
+    const params = buildUrlState(next);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+  }
+
+  function handleFilterChange(updates: Partial<DisenoUrlState>) {
+    navigate({ ...updates, page: 1 });
+  }
+
+  function handleSort(field: SortField) {
+    const newDir = sort.field === field ? (sort.dir === "asc" ? "desc" : "asc") : "asc";
+    navigate({ sort: { field, dir: newDir } });
+  }
 
   const puedeAutoAsignar = currentUserId !== null && currentUserId !== undefined && (DISENO_ROLES as readonly string[]).includes(rol ?? "");
 
@@ -94,16 +139,16 @@ export function DisenoTable({
     }
   }
 
-  const filtered = useMemo(() => filterDisenoTareas(rows, { campanaId, disenadorId, q }), [rows, campanaId, disenadorId, q]);
-  const sorted = useMemo(
-    () =>
-      [...filtered].sort((a, b) => {
-        const da = a.enviada_at ?? a.updated_at ?? "";
-        const db = b.enviada_at ?? b.updated_at ?? "";
-        return sortFecha === "asc" ? da.localeCompare(db) : db.localeCompare(da);
-      }),
-    [filtered, sortFecha]
+  const filtered = useMemo(
+    () => filterDisenoTareas(rows, { campanaId, disenadorId, q, estado }),
+    [rows, campanaId, disenadorId, q, estado]
   );
+  const sorted = useMemo(() => sortDisenoTareas(filtered, sort, perfiles), [filtered, sort, perfiles]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginatedRows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
   // Las KPIs se calculan sobre rows completos (filtrados por campaña/diseñador,
   // pero no por la búsqueda SAP ni por el filtro "Sin asignar") para reflejar
   // el estado real de la campaña.
@@ -129,6 +174,15 @@ export function DisenoTable({
     URL.revokeObjectURL(a.href);
   }
 
+  const sortTh = (label: string, field: SortField) => (
+    <th onClick={() => handleSort(field)} style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
+      {label}{" "}
+      <span style={{ color: sort.field === field ? "var(--c-dark)" : "var(--c-mid)", fontSize: 10 }}>
+        {sort.field === field ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}
+      </span>
+    </th>
+  );
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: 8 }}>
@@ -143,6 +197,12 @@ export function DisenoTable({
           <button type="button" onClick={onCargaMasiva} className="btn btn-sm" style={{ background: "var(--c-amber)", color: "white", border: "none" }}>
             📦 Carga masiva
           </button>
+          <select value={estado} onChange={(e) => handleFilterChange({ estado: e.target.value })} style={{ fontSize: 13, minWidth: 180 }}>
+            <option value="">Todos los estados</option>
+            <option value="en_diseno">{ESTADO_LABEL["en_diseno"] ?? "En diseño"}</option>
+            <option value="modificar_diseno">{ESTADO_LABEL["modificar_diseno"] ?? "Modificar diseño"}</option>
+            <option value="diseno_en_revision_comercial">{ESTADO_LABEL["diseno_en_revision_comercial"] ?? "En revisión comercial"}</option>
+          </select>
           <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
             <svg
               width="13"
@@ -158,12 +218,12 @@ export function DisenoTable({
             </svg>
             <input
               type="search"
-              placeholder="Buscar por cód. SAP…"
+              placeholder="Buscar por SAP"
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={(e) => handleFilterChange({ q: e.target.value })}
               style={{
                 fontSize: 13,
-                width: 200,
+                width: 220,
                 padding: "0.4rem 0.75rem 0.4rem 1.75rem",
                 border: "1px solid var(--c-line)",
                 borderRadius: "var(--radius)",
@@ -174,7 +234,7 @@ export function DisenoTable({
             />
           </div>
           {mostrarFiltroDisenador && (
-            <select value={disenadorId} onChange={(e) => setDisenadorId(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>
+            <select value={disenadorId} onChange={(e) => handleFilterChange({ disenadorId: e.target.value })} style={{ fontSize: 13, minWidth: 160 }}>
               <option value="">Todos los diseñadores</option>
               <option value={UNASSIGNED_DISENADOR}>Sin diseñador asignado</option>
               {disenadores.map((d) => (
@@ -184,17 +244,6 @@ export function DisenoTable({
               ))}
             </select>
           )}
-          <select value={campanaId} onChange={(e) => setCampanaId(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>
-            <option value="">Todas las campañas</option>
-            {campanas
-              .filter((c) => c.activa)
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre}
-                  {c.id === defaultCampanaId ? " ★" : ""}
-                </option>
-              ))}
-          </select>
         </div>
       </div>
 
@@ -242,25 +291,20 @@ export function DisenoTable({
           <table>
             <thead>
               <tr>
-                <th>Cód. SAP</th>
-                <th>Empresa</th>
-                <th>Provincia</th>
-                {ALL_CATALOGOS.map((c) => (
-                  <th key={c.key}>{c.label}</th>
-                ))}
-                <th>Estado</th>
-                <th
-                  onClick={() => setSortFecha((d) => (d === "asc" ? "desc" : "asc"))}
-                  style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
-                >
-                  Fecha <span>{sortFecha === "asc" ? "↑" : "↓"}</span>
-                </th>
-                <th>Diseñador</th>
+                {sortTh("Cód. SAP", "cod_sap")}
+                {sortTh("Empresa", "nombre_empresa")}
+                {sortTh("Provincia", "provincia")}
+                {ALL_CATALOGOS.map((c) =>
+                  c.key === "roly" ? sortTh(c.label, "roly") : <th key={c.key}>{c.label}</th>
+                )}
+                {sortTh("Estado", "estado")}
+                {sortTh("Fecha", "fecha")}
+                {sortTh("Diseñador", "disenador")}
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {sorted.length === 0 ? (
+              {paginatedRows.length === 0 ? (
                 <tr>
                   <td colSpan={7 + ALL_CATALOGOS.length}>
                     <div className="empty-state">
@@ -270,8 +314,22 @@ export function DisenoTable({
                   </td>
                 </tr>
               ) : (
-                sorted.map((s) => (
-                  <tr key={s.id}>
+                paginatedRows.map((s) => (
+                  <tr
+                    key={s.id}
+                    tabIndex={0}
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => {
+                      if (isInteractiveTarget(e.target)) return;
+                      onVer(s);
+                    }}
+                    onKeyDown={(e) => {
+                      if (shouldOpenOnKey(e.key)) {
+                        e.preventDefault();
+                        onVer(s);
+                      }
+                    }}
+                  >
                     <td>
                       <strong>{s.cod_sap}</strong>
                     </td>
@@ -333,6 +391,30 @@ export function DisenoTable({
           </table>
         </div>
       </div>
+
+      {totalPages > 1 && (
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginTop: "1rem", fontSize: 13 }}>
+          <button
+            type="button"
+            className="btn btn-sm btn-outline"
+            disabled={safePage <= 1}
+            onClick={() => navigate({ page: safePage - 1 })}
+          >
+            ← Anterior
+          </button>
+          <span style={{ color: "var(--c-mid)" }}>
+            Página {safePage} de {totalPages}
+          </span>
+          <button
+            type="button"
+            className="btn btn-sm btn-outline"
+            disabled={safePage >= totalPages}
+            onClick={() => navigate({ page: safePage + 1 })}
+          >
+            Siguiente →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -29,12 +29,12 @@ describe("getNavItemsForRole", () => {
     expect(ids("responsable_nacional")).toEqual(["dashboard", "solicitudes"]);
   });
 
-  it("disenador solo ve diseno", () => {
-    expect(ids("disenador")).toEqual(["diseno"]);
+  it("disenador ve dashboard y diseno", () => {
+    expect(ids("disenador")).toEqual(["dashboard", "diseno"]);
   });
 
-  it("responsable_diseno solo ve diseno, NO dashboard (ver 01-analisis-funcional.md § 1.3)", () => {
-    expect(ids("responsable_diseno")).toEqual(["diseno"]);
+  it("responsable_diseno ve dashboard y diseno", () => {
+    expect(ids("responsable_diseno")).toEqual(["dashboard", "diseno"]);
   });
 
   it("H-07: los roles legacy genéricos sin sufijo no ven ningún item", () => {

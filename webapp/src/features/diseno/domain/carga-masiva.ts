@@ -37,6 +37,8 @@ export type CargaMatch =
   | { status: "notfound"; fileName: string; sap: string; catKey: string | null }
   | { status: "nocatalog"; fileName: string; sap: string; catKey: string; solId: string; nombreEmpresa: string | null };
 
+export type FileResultado = { nombre: string; ok: true } | { nombre: string; ok: false; mensaje: string };
+
 // Réplica de matchCargaFile() (~5228-5242): busca entre las solicitudes en
 // en_diseno/modificar_diseno por SAP, sin acotar por campaña — el original
 // tampoco lo hace (el `campId` de `procesarCargaMasiva` nunca se usa en la
