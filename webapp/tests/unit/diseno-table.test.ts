@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { disenadorStats, disenadoresActivos, filterDisenoTareas, UNASSIGNED_DISENADOR } from "@/features/diseno/domain/table";
+import type { DisenoVista } from "@/features/diseno/domain/table";
 import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 
 function sol(overrides: Partial<SolicitudListItem> = {}): SolicitudListItem {
@@ -65,6 +66,92 @@ describe("filterDisenoTareas", () => {
     expect(
       filterDisenoTareas(mixed, { campanaId: "", disenadorId: UNASSIGNED_DISENADOR, q: "" }).map((r) => r.id)
     ).toEqual(["b", "c"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P0-D: vista "enviadas_comercial" + búsqueda por empresa/provincia
+// ---------------------------------------------------------------------------
+describe("filterDisenoTareas — vista enviadas_comercial", () => {
+  const rows = [
+    sol({ id: "a", estado: "en_diseno", campana_id: "c1", asignado_id: "d1" }),
+    sol({ id: "b", estado: "modificar_diseno", campana_id: "c1", asignado_id: "d2" }),
+    sol({ id: "c", estado: "diseno_en_revision_comercial", campana_id: "c1", asignado_id: "d1" }),
+    sol({ id: "d", estado: "diseno_en_revision_comercial", campana_id: "c2", asignado_id: "d2" }),
+    sol({ id: "e", estado: "confirmada", campana_id: "c1" }),
+  ];
+
+  it("1. vista enviadas_comercial solo muestra diseno_en_revision_comercial", () => {
+    expect(
+      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "", vista: "enviadas_comercial" }).map((r) => r.id)
+    ).toEqual(["c", "d"]);
+  });
+
+  it("2. vista enviadas_comercial no muestra en_diseno ni modificar_diseno", () => {
+    const result = filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "", vista: "enviadas_comercial" });
+    expect(result.some((r) => r.estado === "en_diseno" || r.estado === "modificar_diseno")).toBe(false);
+  });
+
+  it("3. vista operativo explícita solo muestra en_diseno/modificar_diseno", () => {
+    expect(
+      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "", vista: "operativo" }).map((r) => r.id)
+    ).toEqual(["a", "b"]);
+  });
+
+  it("4. vista enviadas_comercial respeta el filtro de campaña", () => {
+    expect(
+      filterDisenoTareas(rows, { campanaId: "c1", disenadorId: "", q: "", vista: "enviadas_comercial" }).map((r) => r.id)
+    ).toEqual(["c"]);
+  });
+
+  it("5. vista enviadas_comercial respeta el filtro de diseñador", () => {
+    expect(
+      filterDisenoTareas(rows, { campanaId: "", disenadorId: "d2", q: "", vista: "enviadas_comercial" }).map((r) => r.id)
+    ).toEqual(["d"]);
+  });
+});
+
+describe("filterDisenoTareas — búsqueda por empresa y provincia", () => {
+  const rows = [
+    sol({ id: "a", estado: "en_diseno", nombre_empresa: "ACME Corp", provincia: "Madrid", cod_sap: "60001" }),
+    sol({ id: "b", estado: "en_diseno", nombre_empresa: "Beta SL", provincia: "Barcelona", cod_sap: "60002" }),
+    sol({ id: "c", estado: "diseno_en_revision_comercial", nombre_empresa: "ACME Corp", provincia: "Valencia", cod_sap: "60003" }),
+  ];
+
+  it("6. búsqueda por nombre_empresa en vista operativo", () => {
+    expect(
+      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "acme", vista: "operativo" }).map((r) => r.id)
+    ).toEqual(["a"]);
+  });
+
+  it("7. búsqueda por provincia en vista operativo", () => {
+    expect(
+      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "barcel", vista: "operativo" }).map((r) => r.id)
+    ).toEqual(["b"]);
+  });
+
+  it("8. búsqueda por nombre_empresa en vista enviadas_comercial", () => {
+    expect(
+      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "acme", vista: "enviadas_comercial" }).map((r) => r.id)
+    ).toEqual(["c"]);
+  });
+
+  it("9. búsqueda por provincia en vista enviadas_comercial", () => {
+    expect(
+      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "valenc", vista: "enviadas_comercial" }).map((r) => r.id)
+    ).toEqual(["c"]);
+  });
+
+  it("10. búsqueda es insensible a mayúsculas para empresa y provincia", () => {
+    expect(
+      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "BETA", vista: "operativo" }).map((r) => r.id)
+    ).toEqual(["b"]);
+  });
+
+  it("11. búsqueda por SAP sigue funcionando (regresión)", () => {
+    expect(
+      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "60002", vista: "operativo" }).map((r) => r.id)
+    ).toEqual(["b"]);
   });
 });
 

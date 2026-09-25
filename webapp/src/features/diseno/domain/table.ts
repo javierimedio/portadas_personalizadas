@@ -5,17 +5,20 @@ import type { FormPerfil } from "@/features/solicitudes/domain/types";
 // acceso a la pestaña Diseño ven en_diseno/modificar_diseno, acotado por
 // campaña, diseñador y búsqueda SAP. RLS ya decide qué filas llegan aquí
 // (docs/03-modelo-datos.md § 3.5): estos filtros son puramente de presentación.
-export type DisenoFilters = { campanaId: string; disenadorId: string; q: string };
+export type DisenoVista = "operativo" | "enviadas_comercial";
+export type DisenoFilters = { campanaId: string; disenadorId: string; q: string; vista?: DisenoVista };
 
 // Valor centinela para el filtro "Sin diseñador asignado" en el selector.
 // No es un ID real; filterDisenoTareas lo interpreta como asignado_id === null.
 export const UNASSIGNED_DISENADOR = "__unassigned__";
 
 const ESTADOS_DISENO = ["en_diseno", "modificar_diseno"];
+const ESTADOS_COMERCIAL = ["diseno_en_revision_comercial"];
 
 export function filterDisenoTareas(rows: SolicitudListItem[], filters: DisenoFilters): SolicitudListItem[] {
+  const estados = filters.vista === "enviadas_comercial" ? ESTADOS_COMERCIAL : ESTADOS_DISENO;
   let result = filters.campanaId ? rows.filter((s) => s.campana_id === filters.campanaId) : rows;
-  result = result.filter((s) => ESTADOS_DISENO.includes(s.estado));
+  result = result.filter((s) => estados.includes(s.estado));
   if (filters.disenadorId === UNASSIGNED_DISENADOR) {
     result = result.filter((s) => !s.asignado_id);
   } else if (filters.disenadorId) {
@@ -23,7 +26,12 @@ export function filterDisenoTareas(rows: SolicitudListItem[], filters: DisenoFil
   }
   if (filters.q) {
     const q = filters.q.trim().toLowerCase();
-    result = result.filter((s) => s.cod_sap?.toLowerCase().includes(q));
+    result = result.filter(
+      (s) =>
+        s.cod_sap?.toLowerCase().includes(q) ||
+        s.nombre_empresa?.toLowerCase().includes(q) ||
+        s.provincia?.toLowerCase().includes(q)
+    );
   }
   return result;
 }

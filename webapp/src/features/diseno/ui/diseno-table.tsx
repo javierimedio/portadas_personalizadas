@@ -9,7 +9,7 @@ import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 import type { FormPerfil } from "@/features/solicitudes/domain/types";
 import { DISENO_ROLES } from "@/features/solicitudes/domain/estado-flujo";
 import { reasignarDisenador } from "@/features/solicitudes/application/detalle-actions";
-import { disenadorStats, disenadoresActivos, filterDisenoTareas, ROLES_FILTRO_DISENADOR_VISIBLE, UNASSIGNED_DISENADOR } from "../domain/table";
+import { disenadorStats, disenadoresActivos, filterDisenoTareas, ROLES_FILTRO_DISENADOR_VISIBLE, UNASSIGNED_DISENADOR, type DisenoVista } from "../domain/table";
 import { buildDisenoCsv, disenoCsvFilename, filasParaCsv } from "../domain/csv";
 import { fmtDate } from "@/shared/domain/format";
 
@@ -75,6 +75,7 @@ export function DisenoTable({
   onCargaMasiva: () => void;
 }) {
   const router = useRouter();
+  const [vista, setVista] = useState<DisenoVista>("operativo");
   const [campanaId, setCampanaId] = useState(defaultCampanaId);
   const [disenadorId, setDisenadorId] = useState("");
   const [q, setQ] = useState("");
@@ -94,7 +95,7 @@ export function DisenoTable({
     }
   }
 
-  const filtered = useMemo(() => filterDisenoTareas(rows, { campanaId, disenadorId, q }), [rows, campanaId, disenadorId, q]);
+  const filtered = useMemo(() => filterDisenoTareas(rows, { campanaId, disenadorId, q, vista }), [rows, campanaId, disenadorId, q, vista]);
   const sorted = useMemo(
     () =>
       [...filtered].sort((a, b) => {
@@ -143,6 +144,10 @@ export function DisenoTable({
           <button type="button" onClick={onCargaMasiva} className="btn btn-sm" style={{ background: "var(--c-amber)", color: "white", border: "none" }}>
             📦 Carga masiva
           </button>
+          <select value={vista} onChange={(e) => setVista(e.target.value as DisenoVista)} style={{ fontSize: 13, minWidth: 200 }}>
+            <option value="operativo">Solicitudes en diseño</option>
+            <option value="enviadas_comercial">Enviadas a Comercial</option>
+          </select>
           <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
             <svg
               width="13"
@@ -158,7 +163,7 @@ export function DisenoTable({
             </svg>
             <input
               type="search"
-              placeholder="Buscar por cód. SAP…"
+              placeholder="Buscar por SAP, empresa, provincia…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               style={{
