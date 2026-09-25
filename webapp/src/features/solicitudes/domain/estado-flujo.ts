@@ -50,7 +50,6 @@ export type AccionesDetalle = {
   puedeDevolverDesdeDiseno: boolean;
   puedeReenviarARevision: boolean;
   puedeAñadirDocumento: boolean;
-  puedeAñadirEnlace: boolean;
 };
 
 export function accionesDetalle(rol: string | null | undefined, estado: string): AccionesDetalle {
@@ -80,7 +79,6 @@ export function accionesDetalle(rol: string | null | undefined, estado: string):
     // Comercial y gestor pueden adjuntar documentos mientras la solicitud espera
     // correcciones del comercial, para que diseño los vea al retomar el trabajo.
     puedeAñadirDocumento: (esComercial(rol) || gestor) && estado === "pendiente_comercial",
-    puedeAñadirEnlace: esComercial(rol) || esGestor(rol),
   };
 }
 

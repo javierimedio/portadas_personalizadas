@@ -13,21 +13,18 @@ import { accionesDetalle, puedeElegirPortadaFinal } from "../domain/estado-flujo
 import { getSolicitudDetalle, type SolicitudDetalle } from "../application/get-solicitud-detalle";
 import {
   addComentario,
-  agregarEnlace,
   asignarCanalYComercial,
   asignarDisenadorYEnviar,
   cambiarEstado,
   devolverAlComercial,
   devolverDesdeDisenador,
   eliminarAdjunto,
-  eliminarEnlace,
   eliminarSolicitud,
   guardarPortadaElegida,
   marcarDisenoListo,
   solicitarModificacion,
   subirDocumentoAdjunto,
 } from "../application/detalle-actions";
-import { validarEnlace, puedeEliminarEnlace as canDeleteLink } from "../domain/enlace-externo";
 import { ELIMINAR_ADJUNTO_ROLES } from "../domain/estado-flujo";
 import type { FormPerfil } from "../domain/types";
 
@@ -81,12 +78,6 @@ export function SolicitudDetalleModal({
 
   const [devolverDesdeAbierto, setDevolverDesdeAbierto] = useState(false);
   const [explicacionDevolucion, setExplicacionDevolucion] = useState("");
-
-  const [enlaceFormAbierto, setEnlaceFormAbierto] = useState(false);
-  const [enlaceNombre, setEnlaceNombre] = useState("");
-  const [enlaceUrl, setEnlaceUrl] = useState("");
-  const [enlaceError, setEnlaceError] = useState<string | null>(null);
-  const [confirmarEliminarEnlaceId, setConfirmarEliminarEnlaceId] = useState<string | null>(null);
 
   const [adjuntarDocumentoAbierto, setAdjuntarDocumentoAbierto] = useState(false);
   const [archivoDocumento, setArchivoDocumento] = useState<
@@ -306,7 +297,7 @@ export function SolicitudDetalleModal({
   const disenosAdjuntos = detalle.adjuntos.filter((a) => a.tipo.endsWith("_diseno") || a.tipo === "diseno_portada");
   const enlacesAdjuntos = detalle.adjuntos.filter((a) => a.tipo === "enlace_externo");
   const otrosAdjuntos = detalle.adjuntos.filter((a) => a !== undefined && !logosAdjuntos.includes(a) && !disenosAdjuntos.includes(a) && a.tipo !== "enlace_externo");
-  const mostrarSeccionAdjuntos = detalle.adjuntos.length > 0 || acciones.puedeAñadirEnlace;
+  const mostrarSeccionAdjuntos = detalle.adjuntos.length > 0;
 
   return (
     <div className="modal-bg open">
@@ -494,128 +485,25 @@ export function SolicitudDetalleModal({
                       </div>
                     ))}
 
-                  {/* Recursos externos (enlaces) */}
-                  {(enlacesAdjuntos.length > 0 || acciones.puedeAñadirEnlace) && (
+                  {/* Recursos externos (enlaces) — solo lectura */}
+                  {enlacesAdjuntos.length > 0 && (
                     <div style={{ marginBottom: ".75rem" }}>
                       <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#3b82f6", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
                         <span>🔗</span> Recursos externos
                       </div>
                       {enlacesAdjuntos.map((a) => (
-                        <div key={a.id} style={{ marginBottom: 4 }}>
-                          <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 10px", borderRadius: 6, background: "rgba(59,130,246,0.08)" }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600, fontSize: 12, color: "#3b82f6", textDecoration: "none" }}>
-                                {a.nombre}
-                              </a>
-                              <div style={{ fontSize: 10, color: "var(--c-mid)", marginTop: 2, overflowWrap: "anywhere", wordBreak: "break-all" }}>{a.url}</div>
-                              <div style={{ fontSize: 10, color: "var(--c-mid)", marginTop: 1 }}>
-                                {fmtDate(a.created_at)} · {a.subido_por_nombre || ""}
-                              </div>
+                        <div key={a.id} style={{ marginBottom: 4, display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 10px", borderRadius: 6, background: "rgba(59,130,246,0.08)" }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600, fontSize: 12, color: "#3b82f6", textDecoration: "none" }}>
+                              {a.nombre}
+                            </a>
+                            <div style={{ fontSize: 10, color: "var(--c-mid)", marginTop: 2, overflowWrap: "anywhere", wordBreak: "break-all" }}>{a.url}</div>
+                            <div style={{ fontSize: 10, color: "var(--c-mid)", marginTop: 1 }}>
+                              {fmtDate(a.created_at)} · {a.subido_por_nombre || ""}
                             </div>
-                            {canDeleteLink(rol, a.subido_por, detalle.currentUserId) && (
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline"
-                                style={{ flexShrink: 0, fontSize: 11, color: "var(--c-red)", borderColor: "var(--c-red)" }}
-                                disabled={busy}
-                                onClick={() => setConfirmarEliminarEnlaceId(confirmarEliminarEnlaceId === a.id ? null : a.id)}
-                              >
-                                🗑
-                              </button>
-                            )}
                           </div>
-                          {confirmarEliminarEnlaceId === a.id && (
-                            <div style={{ margin: "4px 0 0 10px", background: "#fff5f5", border: "1px solid var(--c-red)", borderRadius: 6, padding: "10px 12px" }}>
-                              <div style={{ fontSize: 12, color: "var(--c-red)", marginBottom: 8, fontWeight: 500 }}>
-                                ¿Eliminar este enlace? Esta acción no se puede deshacer.
-                              </div>
-                              <div style={{ display: "flex", gap: 6 }}>
-                                <button type="button" className="btn btn-sm btn-outline" onClick={() => setConfirmarEliminarEnlaceId(null)}>
-                                  Cancelar
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn-sm"
-                                  style={{ background: "var(--c-red)", color: "white", border: "none" }}
-                                  disabled={busy}
-                                  onClick={() => {
-                                    setConfirmarEliminarEnlaceId(null);
-                                    ejecutarYrecargar(() => eliminarEnlace(a.id), "Enlace eliminado.");
-                                  }}
-                                >
-                                  Eliminar
-                                </button>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       ))}
-                      {acciones.puedeAñadirEnlace && (
-                        <div style={{ marginTop: 6 }}>
-                          {!enlaceFormAbierto ? (
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-outline"
-                              style={{ fontSize: 11, color: "#3b82f6", borderColor: "#3b82f6" }}
-                              onClick={() => { setEnlaceFormAbierto(true); setEnlaceError(null); }}
-                            >
-                              + Añadir enlace
-                            </button>
-                          ) : (
-                            <div style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.3)", borderRadius: 6, padding: "10px 12px" }}>
-                              <div style={{ marginBottom: 6 }}>
-                                <input
-                                  type="text"
-                                  placeholder="Nombre del enlace (ej: Archivos WeTransfer)"
-                                  value={enlaceNombre}
-                                  maxLength={150}
-                                  onChange={(e) => { setEnlaceNombre(e.target.value); setEnlaceError(null); }}
-                                  style={{ width: "100%", marginBottom: 4 }}
-                                />
-                                <input
-                                  type="url"
-                                  placeholder="URL (https://...)"
-                                  value={enlaceUrl}
-                                  maxLength={2000}
-                                  onChange={(e) => { setEnlaceUrl(e.target.value); setEnlaceError(null); }}
-                                  style={{ width: "100%" }}
-                                />
-                              </div>
-                              {enlaceError && <div style={{ fontSize: 11, color: "var(--c-red)", marginBottom: 6 }}>{enlaceError}</div>}
-                              <div style={{ display: "flex", gap: 6 }}>
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-outline"
-                                  onClick={() => { setEnlaceFormAbierto(false); setEnlaceNombre(""); setEnlaceUrl(""); setEnlaceError(null); }}
-                                >
-                                  Cancelar
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn-sm"
-                                  style={{ background: "#3b82f6", color: "white", border: "none" }}
-                                  disabled={busy}
-                                  onClick={() => {
-                                    const err = validarEnlace(enlaceNombre, enlaceUrl);
-                                    if (err) { setEnlaceError(err); return; }
-                                    ejecutarYrecargar(
-                                      () => agregarEnlace(detalle.id, enlaceNombre, enlaceUrl),
-                                      "Enlace añadido."
-                                    ).then(() => {
-                                      setEnlaceFormAbierto(false);
-                                      setEnlaceNombre("");
-                                      setEnlaceUrl("");
-                                      setEnlaceError(null);
-                                    });
-                                  }}
-                                >
-                                  Guardar
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
