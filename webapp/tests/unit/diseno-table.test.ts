@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { disenadorStats, disenadoresActivos, filterDisenoTareas, sortDisenoTareas, UNASSIGNED_DISENADOR, parseUrlState, buildUrlState } from "@/features/diseno/domain/table";
-import type { DisenoVista, SortConfig } from "@/features/diseno/domain/table";
+import {
+  disenadorStats,
+  disenadoresActivos,
+  filterDisenoTareas,
+  sortDisenoTareas,
+  UNASSIGNED_DISENADOR,
+  parseUrlState,
+  buildUrlState,
+  ROLES_FILTRO_DISENADOR_VISIBLE,
+} from "@/features/diseno/domain/table";
+import type { DisenoFilters, SortConfig } from "@/features/diseno/domain/table";
 import type { SolicitudListItem, SolicitudCatalogoRow } from "@/features/solicitudes/domain/table";
 
 function sol(overrides: Partial<SolicitudListItem> = {}): SolicitudListItem {
@@ -30,10 +39,11 @@ describe("filterDisenoTareas", () => {
     sol({ id: "b", estado: "modificar_diseno", campana_id: "c2", asignado_id: "d2" }),
     sol({ id: "c", estado: "borrador", campana_id: "c1" }),
     sol({ id: "d", estado: "confirmada", campana_id: "c1" }),
+    sol({ id: "e", estado: "diseno_en_revision_comercial", campana_id: "c1", asignado_id: "d1" }),
   ];
 
-  it("solo en_diseno/modificar_diseno, sin importar el rol", () => {
-    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "" }).map((r) => r.id)).toEqual(["a", "b"]);
+  it("solo estados de Diseño (en_diseno/modificar_diseno/diseno_en_revision_comercial)", () => {
+    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "" }).map((r) => r.id)).toEqual(["a", "b", "e"]);
   });
 
   it("filtra por campaña", () => {
@@ -41,7 +51,7 @@ describe("filterDisenoTareas", () => {
   });
 
   it("filtra por diseñador asignado", () => {
-    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "d1", q: "" }).map((r) => r.id)).toEqual(["a"]);
+    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "d1", q: "" }).map((r) => r.id)).toEqual(["a", "e"]);
   });
 
   it("filtra por código SAP parcial", () => {
@@ -66,92 +76,6 @@ describe("filterDisenoTareas", () => {
     expect(
       filterDisenoTareas(mixed, { campanaId: "", disenadorId: UNASSIGNED_DISENADOR, q: "" }).map((r) => r.id)
     ).toEqual(["b", "c"]);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// P0-D: vista "enviadas_comercial" + búsqueda por empresa/provincia
-// ---------------------------------------------------------------------------
-describe("filterDisenoTareas — vista enviadas_comercial", () => {
-  const rows = [
-    sol({ id: "a", estado: "en_diseno", campana_id: "c1", asignado_id: "d1" }),
-    sol({ id: "b", estado: "modificar_diseno", campana_id: "c1", asignado_id: "d2" }),
-    sol({ id: "c", estado: "diseno_en_revision_comercial", campana_id: "c1", asignado_id: "d1" }),
-    sol({ id: "d", estado: "diseno_en_revision_comercial", campana_id: "c2", asignado_id: "d2" }),
-    sol({ id: "e", estado: "confirmada", campana_id: "c1" }),
-  ];
-
-  it("1. vista enviadas_comercial solo muestra diseno_en_revision_comercial", () => {
-    expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "", vista: "enviadas_comercial" }).map((r) => r.id)
-    ).toEqual(["c", "d"]);
-  });
-
-  it("2. vista enviadas_comercial no muestra en_diseno ni modificar_diseno", () => {
-    const result = filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "", vista: "enviadas_comercial" });
-    expect(result.some((r) => r.estado === "en_diseno" || r.estado === "modificar_diseno")).toBe(false);
-  });
-
-  it("3. vista operativo explícita solo muestra en_diseno/modificar_diseno", () => {
-    expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "", vista: "operativo" }).map((r) => r.id)
-    ).toEqual(["a", "b"]);
-  });
-
-  it("4. vista enviadas_comercial respeta el filtro de campaña", () => {
-    expect(
-      filterDisenoTareas(rows, { campanaId: "c1", disenadorId: "", q: "", vista: "enviadas_comercial" }).map((r) => r.id)
-    ).toEqual(["c"]);
-  });
-
-  it("5. vista enviadas_comercial respeta el filtro de diseñador", () => {
-    expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "d2", q: "", vista: "enviadas_comercial" }).map((r) => r.id)
-    ).toEqual(["d"]);
-  });
-});
-
-describe("filterDisenoTareas — búsqueda por empresa y provincia", () => {
-  const rows = [
-    sol({ id: "a", estado: "en_diseno", nombre_empresa: "ACME Corp", provincia: "Madrid", cod_sap: "60001" }),
-    sol({ id: "b", estado: "en_diseno", nombre_empresa: "Beta SL", provincia: "Barcelona", cod_sap: "60002" }),
-    sol({ id: "c", estado: "diseno_en_revision_comercial", nombre_empresa: "ACME Corp", provincia: "Valencia", cod_sap: "60003" }),
-  ];
-
-  it("6. búsqueda por nombre_empresa en vista operativo", () => {
-    expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "acme", vista: "operativo" }).map((r) => r.id)
-    ).toEqual(["a"]);
-  });
-
-  it("7. búsqueda por provincia en vista operativo", () => {
-    expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "barcel", vista: "operativo" }).map((r) => r.id)
-    ).toEqual(["b"]);
-  });
-
-  it("8. búsqueda por nombre_empresa en vista enviadas_comercial", () => {
-    expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "acme", vista: "enviadas_comercial" }).map((r) => r.id)
-    ).toEqual(["c"]);
-  });
-
-  it("9. búsqueda por provincia en vista enviadas_comercial", () => {
-    expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "valenc", vista: "enviadas_comercial" }).map((r) => r.id)
-    ).toEqual(["c"]);
-  });
-
-  it("10. búsqueda es insensible a mayúsculas para empresa y provincia", () => {
-    expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "BETA", vista: "operativo" }).map((r) => r.id)
-    ).toEqual(["b"]);
-  });
-
-  it("11. búsqueda por SAP sigue funcionando (regresión)", () => {
-    expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "60002", vista: "operativo" }).map((r) => r.id)
-    ).toEqual(["b"]);
   });
 });
 
@@ -194,9 +118,9 @@ const perfilesPO: { id: string; nombre: string; rol: string; activo: boolean }[]
 ];
 
 // ---------------------------------------------------------------------------
-// P0-E: 19 tests for filters + sorting
+// P0-E: filter + sorting tests
 // ---------------------------------------------------------------------------
-describe("P0-E — filterDisenoTareas: nuevos filtros", () => {
+describe("P0-E — filterDisenoTareas: filtros", () => {
   // 1. Filtrar por SAP
   it("1. filtra por SAP (búsqueda exacta parcial)", () => {
     const rows = [
@@ -204,27 +128,6 @@ describe("P0-E — filterDisenoTareas: nuevos filtros", () => {
       sol({ id: "b", estado: "en_diseno", cod_sap: "70002" }),
     ];
     expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "600" }).map((r) => r.id)).toEqual(["a"]);
-  });
-
-  // 2. Filtrar por empresa
-  it("2. filtra por empresa (búsqueda parcial en nombre_empresa)", () => {
-    const rows = [
-      sol({ id: "a", estado: "en_diseno", nombre_empresa: "ACME Corp" }),
-      sol({ id: "b", estado: "en_diseno", nombre_empresa: "Beta SL" }),
-    ];
-    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "acme" }).map((r) => r.id)).toEqual(["a"]);
-  });
-
-  // 3. Filtrar por provincia (selector exacto)
-  it("3. filtra por provincia exacta", () => {
-    const rows = [
-      sol({ id: "a", estado: "en_diseno", provincia: "Madrid" }),
-      sol({ id: "b", estado: "en_diseno", provincia: "Murcia" }),
-      sol({ id: "c", estado: "en_diseno", provincia: "Madrid" }),
-    ];
-    expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "", provincia: "Murcia" }).map((r) => r.id)
-    ).toEqual(["b"]);
   });
 
   // 4. Filtrar por diseñador
@@ -238,87 +141,65 @@ describe("P0-E — filterDisenoTareas: nuevos filtros", () => {
     ).toEqual(["a"]);
   });
 
-  // 5. Filtrar por estado (dentro de vista operativo)
-  it("5. filtra por estado exacto dentro de la vista operativo", () => {
+  // 5. Filtrar por estado (cualquiera de los 3 válidos)
+  it("5. filtra por estado exacto (modificar_diseno)", () => {
     const rows = [
       sol({ id: "a", estado: "en_diseno" }),
       sol({ id: "b", estado: "modificar_diseno" }),
+      sol({ id: "c", estado: "diseno_en_revision_comercial" }),
     ];
     expect(
       filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "", estado: "modificar_diseno" }).map((r) => r.id)
     ).toEqual(["b"]);
   });
 
-  // 6. Combinar varios filtros simultáneamente
-  it("6. combina provincia + diseñador + búsqueda simultáneamente", () => {
-    const rows = [
-      sol({ id: "a", estado: "en_diseno", provincia: "Murcia", asignado_id: "d1", nombre_empresa: "Alpha" }),
-      sol({ id: "b", estado: "en_diseno", provincia: "Murcia", asignado_id: "d2", nombre_empresa: "Alpha" }),
-      sol({ id: "c", estado: "en_diseno", provincia: "Madrid", asignado_id: "d1", nombre_empresa: "Alpha" }),
-      sol({ id: "d", estado: "en_diseno", provincia: "Murcia", asignado_id: "d1", nombre_empresa: "Beta" }),
-    ];
-    expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "d1", q: "alpha", provincia: "Murcia" }).map((r) => r.id)
-    ).toEqual(["a"]);
-  });
-
-  // 14. Filtros en vista "Solicitudes en diseño"
-  it("14. filtros funcionan en vista operativo (estado + diseñador)", () => {
+  // 14. Combinación diseñador + estado
+  it("14. filtros funcionan con estado + diseñador combinados", () => {
     const rows = [
       sol({ id: "a", estado: "en_diseno", asignado_id: "d1" }),
       sol({ id: "b", estado: "modificar_diseno", asignado_id: "d1" }),
       sol({ id: "c", estado: "en_diseno", asignado_id: "d2" }),
     ];
     expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "d1", q: "", vista: "operativo", estado: "en_diseno" }).map((r) => r.id)
+      filterDisenoTareas(rows, { campanaId: "", disenadorId: "d1", q: "", estado: "en_diseno" }).map((r) => r.id)
     ).toEqual(["a"]);
   });
 
-  // 15. Filtros en vista "Enviadas a Comercial"
-  it("15. filtros funcionan en vista enviadas_comercial (provincia)", () => {
-    const rows = [
-      sol({ id: "a", estado: "diseno_en_revision_comercial", provincia: "Murcia" }),
-      sol({ id: "b", estado: "diseno_en_revision_comercial", provincia: "Madrid" }),
-      sol({ id: "c", estado: "en_diseno", provincia: "Murcia" }),
-    ];
-    expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "", vista: "enviadas_comercial", provincia: "Murcia" }).map((r) => r.id)
-    ).toEqual(["a"]);
-  });
-
-  // 16. Mantener permisos (estado filter only respects valid states for the vista)
-  it("16. estado inválido para la vista actual no filtra resultados (no corta por error)", () => {
+  // 16. Estado inválido (confirmada) no filtra resultados
+  it("16. estado inválido (confirmada) no filtra resultados", () => {
     const rows = [
       sol({ id: "a", estado: "en_diseno" }),
       sol({ id: "b", estado: "modificar_diseno" }),
     ];
-    // "diseno_en_revision_comercial" is not in ESTADOS_DISENO → ignored
     expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "", vista: "operativo", estado: "diseno_en_revision_comercial" }).map((r) => r.id)
+      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "", estado: "confirmada" }).map((r) => r.id)
     ).toEqual(["a", "b"]);
   });
 
-  // 17. Mantener paginación (no slicing)
-  it("17. sin filtros devuelve todos los en_diseno/modificar_diseno sin truncar", () => {
-    const rows = Array.from({ length: 50 }, (_, i) =>
-      sol({ id: String(i), estado: i % 2 === 0 ? "en_diseno" : "modificar_diseno" })
+  // 17. Sin filtros devuelve todos sin truncar
+  it("17. sin filtros devuelve todos los en_diseno/modificar_diseno/diseno_en_revision_comercial sin truncar", () => {
+    const rows = Array.from({ length: 60 }, (_, i) =>
+      sol({
+        id: String(i),
+        estado: i % 3 === 0 ? "en_diseno" : i % 3 === 1 ? "modificar_diseno" : "diseno_en_revision_comercial",
+      })
     );
-    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "" })).toHaveLength(50);
+    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "" })).toHaveLength(60);
   });
 
-  // 18. Búsqueda global + filtro simultáneo
-  it("18. búsqueda q + filtro provincia se aplican simultáneamente", () => {
+  // 18. SAP + estado combinados
+  it("18. búsqueda q + filtro estado se aplican simultáneamente", () => {
     const rows = [
-      sol({ id: "a", estado: "en_diseno", cod_sap: "60001", provincia: "Murcia" }),
-      sol({ id: "b", estado: "en_diseno", cod_sap: "60002", provincia: "Murcia" }),
-      sol({ id: "c", estado: "en_diseno", cod_sap: "60001", provincia: "Madrid" }),
+      sol({ id: "a", estado: "en_diseno", cod_sap: "60001" }),
+      sol({ id: "b", estado: "modificar_diseno", cod_sap: "60001" }),
+      sol({ id: "c", estado: "en_diseno", cod_sap: "70002" }),
     ];
     expect(
-      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "60001", provincia: "Murcia" }).map((r) => r.id)
+      filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "60001", estado: "en_diseno" }).map((r) => r.id)
     ).toEqual(["a"]);
   });
 
-  // 19. Sin filtros → mismo resultado que antes
+  // 19. Sin filtros → mismo comportamiento
   it("19. sin filtros devuelve lo mismo que el comportamiento original", () => {
     const rows = [
       sol({ id: "a", estado: "en_diseno" }),
@@ -335,7 +216,6 @@ describe("P0-E — filterDisenoTareas: nuevos filtros", () => {
 describe("P0-E — sortDisenoTareas", () => {
   const noPerfiles: { id: string; nombre: string; rol: string; activo: boolean }[] = [];
 
-  // 7. Ordenar por SAP
   it("7. ordena por cod_sap ascendente", () => {
     const rows = [
       sol({ id: "a", estado: "en_diseno", cod_sap: "70002" }),
@@ -352,7 +232,6 @@ describe("P0-E — sortDisenoTareas", () => {
     expect(sortDisenoTareas(rows, { field: "cod_sap", dir: "desc" }, noPerfiles).map((r) => r.id)).toEqual(["b", "a"]);
   });
 
-  // 8. Ordenar por empresa
   it("8. ordena por nombre_empresa ascendente", () => {
     const rows = [
       sol({ id: "a", estado: "en_diseno", nombre_empresa: "Zeta" }),
@@ -361,7 +240,6 @@ describe("P0-E — sortDisenoTareas", () => {
     expect(sortDisenoTareas(rows, { field: "nombre_empresa", dir: "asc" }, noPerfiles).map((r) => r.id)).toEqual(["b", "a"]);
   });
 
-  // 9. Ordenar por provincia
   it("9. ordena por provincia ascendente", () => {
     const rows = [
       sol({ id: "a", estado: "en_diseno", provincia: "Valencia" }),
@@ -371,7 +249,6 @@ describe("P0-E — sortDisenoTareas", () => {
     expect(sortDisenoTareas(rows, { field: "provincia", dir: "asc" }, noPerfiles).map((r) => r.id)).toEqual(["c", "b", "a"]);
   });
 
-  // 10. Ordenar por ROLY
   it("10. ordena por ROLY: sin ROLY primero en asc (empty < no < summary)", () => {
     const rows = [
       sol({ id: "si", estado: "en_diseno", solicitud_catalogos: [rolyEntry()] }),
@@ -389,7 +266,6 @@ describe("P0-E — sortDisenoTareas", () => {
     expect(sortDisenoTareas(rows, { field: "roly", dir: "desc" }, noPerfiles).map((r) => r.id)).toEqual(["si", "sin"]);
   });
 
-  // 11. Ordenar por fecha
   it("11. ordena por fecha ascendente (más antigua primero)", () => {
     const rows = [
       sol({ id: "a", estado: "en_diseno", enviada_at: "2026-09-10T00:00:00Z" }),
@@ -406,7 +282,6 @@ describe("P0-E — sortDisenoTareas", () => {
     expect(sortDisenoTareas(rows, { field: "fecha", dir: "desc" }, noPerfiles).map((r) => r.id)).toEqual(["b", "a"]);
   });
 
-  // 12. Ordenar por diseñador
   it("12. ordena por nombre de diseñador ascendente", () => {
     const perfiles = [
       { id: "d1", nombre: "Zoe", rol: "disenador", activo: true },
@@ -419,7 +294,6 @@ describe("P0-E — sortDisenoTareas", () => {
     expect(sortDisenoTareas(rows, { field: "disenador", dir: "asc" }, perfiles).map((r) => r.id)).toEqual(["b", "a"]);
   });
 
-  // 13. Ordenar por estado
   it("13. ordena por estado ascendente (en_diseno < modificar_diseno)", () => {
     const rows = [
       sol({ id: "a", estado: "modificar_diseno" }),
@@ -428,7 +302,6 @@ describe("P0-E — sortDisenoTareas", () => {
     expect(sortDisenoTareas(rows, { field: "estado", dir: "asc" }, noPerfiles).map((r) => r.id)).toEqual(["b", "a"]);
   });
 
-  // sort=null devuelve el mismo orden
   it("sort null devuelve el array en el mismo orden (sin copia mutada)", () => {
     const rows = [
       sol({ id: "a", estado: "en_diseno" }),
@@ -446,7 +319,6 @@ describe("disenadorStats", () => {
   ];
 
   it("cuenta los 4 estados por diseñador", () => {
-    // pendientes=modificar_diseno, enDiseno=en_diseno, mandadas=diseno_en_revision_comercial, aprobadas=confirmada
     const rows = [
       sol({ id: "a1", asignado_id: "d1", estado: "modificar_diseno" }),
       sol({ id: "a2", asignado_id: "d1", estado: "en_diseno" }),
@@ -473,7 +345,6 @@ describe("disenadorStats", () => {
       sol({ id: "a2", asignado_id: "d1", estado: "en_diseno", campana_id: "c2" }),
     ];
     const stats = disenadorStats(rows, perfiles, "c1");
-    // en_diseno → enDiseno; solo c1 pasa el filtro
     expect(stats).toEqual([
       { id: "d1", nombre: "Ana García", pendientes: 0, enDiseno: 1, mandadas: 0, aprobadas: 0 },
     ]);
@@ -492,6 +363,138 @@ describe("disenadorStats", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Filtros simplificados — los 3 estados de diseño (22 nuevos escenarios)
+// ---------------------------------------------------------------------------
+describe("Filtros simplificados — los 3 estados de diseño", () => {
+  const allThreeRows = [
+    sol({ id: "a", estado: "en_diseno" }),
+    sol({ id: "b", estado: "modificar_diseno" }),
+    sol({ id: "c", estado: "diseno_en_revision_comercial" }),
+    sol({ id: "d", estado: "confirmada" }),
+    sol({ id: "e", estado: "borrador" }),
+  ];
+
+  // 1. Sin filtros → los 3 estados aparecen
+  it("1. sin filtros → aparecen los 3 estados de diseño", () => {
+    const result = filterDisenoTareas(allThreeRows, { campanaId: "", disenadorId: "", q: "" });
+    expect(result.map((r) => r.id)).toEqual(["a", "b", "c"]);
+  });
+
+  // 2-4. Cada uno de los 3 estados aparece sin filtro
+  it("2. sin filtros → incluye en_diseno", () => {
+    const result = filterDisenoTareas(allThreeRows, { campanaId: "", disenadorId: "", q: "" });
+    expect(result.some((r) => r.estado === "en_diseno")).toBe(true);
+  });
+
+  it("3. sin filtros → incluye modificar_diseno", () => {
+    const result = filterDisenoTareas(allThreeRows, { campanaId: "", disenadorId: "", q: "" });
+    expect(result.some((r) => r.estado === "modificar_diseno")).toBe(true);
+  });
+
+  it("4. sin filtros → incluye diseno_en_revision_comercial", () => {
+    const result = filterDisenoTareas(allThreeRows, { campanaId: "", disenadorId: "", q: "" });
+    expect(result.some((r) => r.estado === "diseno_en_revision_comercial")).toBe(true);
+  });
+
+  // 5-7. Filtrar por cada uno de los 3 estados
+  it("5. filtrar por en_diseno muestra solo en_diseno", () => {
+    const result = filterDisenoTareas(allThreeRows, { campanaId: "", disenadorId: "", q: "", estado: "en_diseno" });
+    expect(result.map((r) => r.id)).toEqual(["a"]);
+  });
+
+  it("6. filtrar por modificar_diseno muestra solo modificar_diseno", () => {
+    const result = filterDisenoTareas(allThreeRows, { campanaId: "", disenadorId: "", q: "", estado: "modificar_diseno" });
+    expect(result.map((r) => r.id)).toEqual(["b"]);
+  });
+
+  it("7. filtrar por diseno_en_revision_comercial muestra solo ese estado", () => {
+    const result = filterDisenoTareas(allThreeRows, { campanaId: "", disenadorId: "", q: "", estado: "diseno_en_revision_comercial" });
+    expect(result.map((r) => r.id)).toEqual(["c"]);
+  });
+
+  // 10-11. SAP no busca por empresa ni provincia
+  it("10. búsqueda SAP no filtra por nombre_empresa", () => {
+    const rows = [
+      sol({ id: "a", estado: "en_diseno", cod_sap: "60001", nombre_empresa: "ACME" }),
+      sol({ id: "b", estado: "en_diseno", cod_sap: "70002", nombre_empresa: "ACME" }),
+    ];
+    // "ACME" does not match any cod_sap → ningún resultado
+    const result = filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "ACME" });
+    expect(result).toHaveLength(0);
+  });
+
+  it("11. búsqueda SAP no filtra por provincia", () => {
+    const rows = [
+      sol({ id: "a", estado: "en_diseno", cod_sap: "60001", provincia: "Murcia" }),
+      sol({ id: "b", estado: "en_diseno", cod_sap: "70002", provincia: "Murcia" }),
+    ];
+    // "Murcia" does not match any cod_sap → ningún resultado
+    const result = filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "Murcia" });
+    expect(result).toHaveLength(0);
+  });
+
+  // 12-13. DisenoFilters no tiene campo 'provincia' ni 'vista' (type-level, verified at runtime)
+  it("12. DisenoFilters no acepta campo provincia", () => {
+    const filters: DisenoFilters = { campanaId: "", disenadorId: "", q: "" };
+    expect(Object.keys(filters)).not.toContain("provincia");
+  });
+
+  it("13. DisenoFilters no acepta campo vista", () => {
+    const filters: DisenoFilters = { campanaId: "", disenadorId: "", q: "" };
+    expect(Object.keys(filters)).not.toContain("vista");
+  });
+
+  // 14-16. URL state no contiene campanaId, vista, ni provincia
+  it("14. campanaId no está en URL (parseUrlState no lo devuelve)", () => {
+    const s = parseUrlState(new URLSearchParams("campana=c1"));
+    expect(Object.keys(s)).not.toContain("campanaId");
+  });
+
+  it("15. parseUrlState ya no utiliza vista", () => {
+    const s = parseUrlState(new URLSearchParams("vista=enviadas_comercial"));
+    expect(Object.keys(s)).not.toContain("vista");
+  });
+
+  it("16. parseUrlState ya no utiliza provincia", () => {
+    const s = parseUrlState(new URLSearchParams("provincia=Murcia"));
+    expect(Object.keys(s)).not.toContain("provincia");
+  });
+
+  // 17. buildUrlState no genera vista ni provincia
+  it("17. buildUrlState no genera parámetros vista ni provincia", () => {
+    const p = buildUrlState({ q: "test", disenadorId: "d1", estado: "en_diseno", sort: { field: "fecha", dir: "asc" }, page: 1 });
+    expect(p.has("vista")).toBe(false);
+    expect(p.has("provincia")).toBe(false);
+  });
+
+  // 18. Combinación estado + diseñador + SAP
+  it("18. estado + diseñador + SAP combinados", () => {
+    const rows = [
+      sol({ id: "a", estado: "en_diseno", asignado_id: "d1", cod_sap: "60001" }),
+      sol({ id: "b", estado: "modificar_diseno", asignado_id: "d1", cod_sap: "60001" }),
+      sol({ id: "c", estado: "en_diseno", asignado_id: "d2", cod_sap: "60001" }),
+      sol({ id: "d", estado: "en_diseno", asignado_id: "d1", cod_sap: "70002" }),
+    ];
+    const result = filterDisenoTareas(rows, { campanaId: "", disenadorId: "d1", q: "600", estado: "en_diseno" });
+    expect(result.map((r) => r.id)).toEqual(["a"]);
+  });
+
+  // 21. Cambiar filtro → página 1 (buildUrlState con page: 1 no incluye el parámetro)
+  it("21. buildUrlState con page=1 omite el parámetro de página (URL limpia)", () => {
+    const p = buildUrlState({ q: "abc", disenadorId: "", estado: "", sort: { field: "fecha", dir: "asc" }, page: 1 });
+    expect(p.has("page")).toBe(false);
+  });
+
+  // 22. ROLES_FILTRO_DISENADOR_VISIBLE mantiene los 4 roles correctos
+  it("22. ROLES_FILTRO_DISENADOR_VISIBLE incluye los 4 roles con acceso al filtro", () => {
+    expect(ROLES_FILTRO_DISENADOR_VISIBLE).toContain("admin");
+    expect(ROLES_FILTRO_DISENADOR_VISIBLE).toContain("marketing");
+    expect(ROLES_FILTRO_DISENADOR_VISIBLE).toContain("responsable_diseno");
+    expect(ROLES_FILTRO_DISENADOR_VISIBLE).toContain("disenador");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // parseUrlState
 // ---------------------------------------------------------------------------
 describe("parseUrlState", () => {
@@ -501,27 +504,16 @@ describe("parseUrlState", () => {
 
   it("params vacíos → valores por defecto", () => {
     const s = parseUrlState(p(""));
-    expect(s.vista).toBe("operativo");
     expect(s.q).toBe("");
-    expect(s.provincia).toBe("");
     expect(s.disenadorId).toBe("");
     expect(s.estado).toBe("");
     expect(s.sort).toEqual({ field: "fecha", dir: "asc" });
     expect(s.page).toBe(1);
   });
 
-  it("vista=enviadas_comercial es reconocida", () => {
-    expect(parseUrlState(p("vista=enviadas_comercial")).vista).toBe("enviadas_comercial");
-  });
-
-  it("vista desconocida → operativo", () => {
-    expect(parseUrlState(p("vista=otra_cosa")).vista).toBe("operativo");
-  });
-
-  it("lee q, provincia, disenador y estado", () => {
-    const s = parseUrlState(p("q=abc&provincia=MURCIA&disenador=d1&estado=en_diseno"));
+  it("lee q, disenador y estado", () => {
+    const s = parseUrlState(p("q=abc&disenador=d1&estado=en_diseno"));
     expect(s.q).toBe("abc");
-    expect(s.provincia).toBe("MURCIA");
     expect(s.disenadorId).toBe("d1");
     expect(s.estado).toBe("en_diseno");
   });
@@ -555,11 +547,9 @@ describe("parseUrlState", () => {
   });
 
   it("todos los campos no-defecto a la vez", () => {
-    const s = parseUrlState(p("vista=enviadas_comercial&q=SAP&provincia=MURCIA&disenador=d9&estado=modificar_diseno&sort=nombre_empresa&dir=desc&page=5"));
+    const s = parseUrlState(p("q=SAP&disenador=d9&estado=modificar_diseno&sort=nombre_empresa&dir=desc&page=5"));
     expect(s).toEqual({
-      vista: "enviadas_comercial",
       q: "SAP",
-      provincia: "MURCIA",
       disenadorId: "d9",
       estado: "modificar_diseno",
       sort: { field: "nombre_empresa", dir: "desc" },
@@ -573,9 +563,7 @@ describe("parseUrlState", () => {
 // ---------------------------------------------------------------------------
 describe("buildUrlState", () => {
   const defaults = {
-    vista: "operativo" as const,
     q: "",
-    provincia: "",
     disenadorId: "",
     estado: "",
     sort: { field: "fecha" as const, dir: "asc" as const },
@@ -584,14 +572,6 @@ describe("buildUrlState", () => {
 
   it("estado por defecto → params vacíos (URL limpia)", () => {
     expect(buildUrlState(defaults).toString()).toBe("");
-  });
-
-  it("vista no-defecto → serializada", () => {
-    expect(buildUrlState({ ...defaults, vista: "enviadas_comercial" }).get("vista")).toBe("enviadas_comercial");
-  });
-
-  it("vista por defecto no se incluye", () => {
-    expect(buildUrlState(defaults).has("vista")).toBe(false);
   });
 
   it("q no vacío → incluido", () => {
@@ -606,7 +586,7 @@ describe("buildUrlState", () => {
 
   it("dir=desc → incluido", () => {
     const p = buildUrlState({ ...defaults, sort: { field: "fecha", dir: "desc" } });
-    expect(p.has("sort")).toBe(false); // field por defecto omitido
+    expect(p.has("sort")).toBe(false);
     expect(p.get("dir")).toBe("desc");
   });
 
@@ -625,9 +605,7 @@ describe("buildUrlState", () => {
 describe("round-trip parseUrlState ↔ buildUrlState", () => {
   it("estado con todos los campos no-defecto sobrevive el round-trip", () => {
     const original = {
-      vista: "enviadas_comercial" as const,
       q: "ACME",
-      provincia: "MURCIA",
       disenadorId: "d5",
       estado: "diseno_en_revision_comercial",
       sort: { field: "nombre_empresa" as const, dir: "desc" as const },

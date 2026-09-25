@@ -1,11 +1,8 @@
 import type { SolicitudListItem } from "@/features/solicitudes/domain/table";
 import type { FormPerfil } from "@/features/solicitudes/domain/types";
 
-// Réplica de renderDisenoTable() (index.html ~2244-2306): todos los roles con
-// acceso a la pestaña Diseño ven en_diseno/modificar_diseno, acotado por
-// campaña, diseñador y búsqueda SAP. RLS ya decide qué filas llegan aquí
-// (docs/03-modelo-datos.md § 3.5): estos filtros son puramente de presentación.
-export type DisenoVista = "operativo" | "enviadas_comercial";
+// Filtros puramente de presentación: RLS ya decide qué filas llegan aquí
+// (docs/03-modelo-datos.md § 3.5).
 export type SortField = "cod_sap" | "nombre_empresa" | "provincia" | "roly" | "fecha" | "disenador" | "estado";
 export type SortDir = "asc" | "desc";
 export type SortConfig = { field: SortField; dir: SortDir };
@@ -13,8 +10,6 @@ export type DisenoFilters = {
   campanaId: string;
   disenadorId: string;
   q: string;
-  vista?: DisenoVista;
-  provincia?: string;
   estado?: string;
 };
 
@@ -22,8 +17,8 @@ export type DisenoFilters = {
 // No es un ID real; filterDisenoTareas lo interpreta como asignado_id === null.
 export const UNASSIGNED_DISENADOR = "__unassigned__";
 
-const ESTADOS_DISENO = ["en_diseno", "modificar_diseno"];
-const ESTADOS_COMERCIAL = ["diseno_en_revision_comercial"];
+// Vista única de Diseño: los tres estados que forman la cola de trabajo.
+const ESTADOS_DISENO = ["en_diseno", "modificar_diseno", "diseno_en_revision_comercial"];
 
 function rolyVariant(s: SolicitudListItem): "empty" | "no" | "summary" {
   const cat = s.solicitud_catalogos.find((c) => c.catalogo === "roly");
@@ -33,11 +28,9 @@ function rolyVariant(s: SolicitudListItem): "empty" | "no" | "summary" {
 }
 
 export function filterDisenoTareas(rows: SolicitudListItem[], filters: DisenoFilters): SolicitudListItem[] {
-  const estados = filters.vista === "enviadas_comercial" ? ESTADOS_COMERCIAL : ESTADOS_DISENO;
   let result = filters.campanaId ? rows.filter((s) => s.campana_id === filters.campanaId) : rows;
-  result = result.filter((s) => estados.includes(s.estado));
-  // estado only applied if it is one of the allowed states for the current vista
-  if (filters.estado && estados.includes(filters.estado)) {
+  result = result.filter((s) => ESTADOS_DISENO.includes(s.estado));
+  if (filters.estado && ESTADOS_DISENO.includes(filters.estado)) {
     result = result.filter((s) => s.estado === filters.estado);
   }
   if (filters.disenadorId === UNASSIGNED_DISENADOR) {
@@ -45,17 +38,9 @@ export function filterDisenoTareas(rows: SolicitudListItem[], filters: DisenoFil
   } else if (filters.disenadorId) {
     result = result.filter((s) => s.asignado_id === filters.disenadorId);
   }
-  if (filters.provincia) {
-    result = result.filter((s) => s.provincia === filters.provincia);
-  }
   if (filters.q) {
     const q = filters.q.trim().toLowerCase();
-    result = result.filter(
-      (s) =>
-        s.cod_sap?.toLowerCase().includes(q) ||
-        s.nombre_empresa?.toLowerCase().includes(q) ||
-        s.provincia?.toLowerCase().includes(q)
-    );
+    result = result.filter((s) => s.cod_sap?.toLowerCase().includes(q));
   }
   return result;
 }
@@ -110,9 +95,7 @@ export function sortDisenoTareas(
 // URL state — parse and build query params for filters, sort and page
 // ---------------------------------------------------------------------------
 export type DisenoUrlState = {
-  vista: DisenoVista;
   q: string;
-  provincia: string;
   disenadorId: string;
   estado: string;
   sort: SortConfig;
@@ -125,12 +108,9 @@ export function parseUrlState(params: URLSearchParams): DisenoUrlState {
   const rawSort = params.get("sort") ?? "";
   const sortField: SortField = VALID_SORT_FIELDS.includes(rawSort as SortField) ? (rawSort as SortField) : "fecha";
   const sortDir: SortDir = params.get("dir") === "desc" ? "desc" : "asc";
-  const vista: DisenoVista = params.get("vista") === "enviadas_comercial" ? "enviadas_comercial" : "operativo";
   const rawPage = parseInt(params.get("page") ?? "1", 10);
   return {
-    vista,
     q: params.get("q") ?? "",
-    provincia: params.get("provincia") ?? "",
     disenadorId: params.get("disenador") ?? "",
     estado: params.get("estado") ?? "",
     sort: { field: sortField, dir: sortDir },
@@ -141,9 +121,7 @@ export function parseUrlState(params: URLSearchParams): DisenoUrlState {
 // Serializes state to URLSearchParams, omitting defaults to keep the URL clean.
 export function buildUrlState(state: DisenoUrlState): URLSearchParams {
   const p = new URLSearchParams();
-  if (state.vista !== "operativo") p.set("vista", state.vista);
   if (state.q) p.set("q", state.q);
-  if (state.provincia) p.set("provincia", state.provincia);
   if (state.disenadorId) p.set("disenador", state.disenadorId);
   if (state.estado) p.set("estado", state.estado);
   if (state.sort.field !== "fecha") p.set("sort", state.sort.field);
@@ -154,7 +132,6 @@ export function buildUrlState(state: DisenoUrlState): URLSearchParams {
 
 export const ROLES_FILTRO_DISENADOR_VISIBLE = ["admin", "marketing", "responsable_diseno", "disenador"];
 
-// Réplica de la lista de opciones del selector de diseñador (~2258-2267).
 export function disenadoresActivos(perfiles: FormPerfil[]): FormPerfil[] {
   return perfiles
     .filter((p) => ["disenador", "responsable_diseno"].includes(p.rol ?? "") && p.activo)
@@ -162,13 +139,10 @@ export function disenadoresActivos(perfiles: FormPerfil[]): FormPerfil[] {
 }
 
 // Correspondencia entre los 4 indicadores de KPI y los estados reales:
-//   pendientes  → modificar_diseno            (devueltas para corrección, pendientes de rehacer)
-//   enDiseno    → en_diseno                   (diseño inicial en curso o recién asignado)
+//   pendientes  → modificar_diseno            (devueltas para corrección)
+//   enDiseno    → en_diseno                   (diseño inicial en curso)
 //   mandadas    → diseno_en_revision_comercial (enviadas al comercial para revisión)
 //   aprobadas   → confirmada                  (cliente confirmó el diseño)
-//
-// Nota: en_diseno engloba "pendiente de comenzar" y "trabajo iniciado",
-// ya que el flujo no distingue entre ambas subfases.
 export type DisenadorStat = {
   id: string;
   nombre: string;
@@ -178,11 +152,6 @@ export type DisenadorStat = {
   aprobadas: number;
 };
 
-// Calcula los 4 indicadores por diseñador activo sobre el conjunto completo
-// de solicitudes (allRows), filtrando por campaña cuando campanaId está
-// definido, y opcionalmente por diseñador individual (disenadorId).
-// Los diseñadores sin ninguna solicitud en ninguna de las 4 fases se omiten.
-// El buscador SAP afecta únicamente a la tabla — no a estas KPIs.
 export function disenadorStats(
   allRows: SolicitudListItem[],
   perfiles: FormPerfil[],

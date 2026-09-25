@@ -19,7 +19,6 @@ import {
   parseUrlState,
   buildUrlState,
   type DisenoUrlState,
-  type DisenoVista,
   type SortField,
 } from "../domain/table";
 import { buildDisenoCsv, disenoCsvFilename, filasParaCsv } from "../domain/csv";
@@ -105,7 +104,7 @@ export function DisenoTable({
   const searchParams = useSearchParams();
 
   const urlState = parseUrlState(searchParams);
-  const { vista, q, provincia, disenadorId, estado, sort, page } = urlState;
+  const { q, disenadorId, estado, sort, page } = urlState;
 
   // campanaId stays local — not persisted in URL
   const [campanaId, setCampanaId] = useState(defaultCampanaId);
@@ -140,15 +139,9 @@ export function DisenoTable({
     }
   }
 
-  const provincias = useMemo(() => {
-    const vals = new Set<string>();
-    rows.forEach((s) => { if (s.provincia) vals.add(s.provincia); });
-    return [...vals].sort();
-  }, [rows]);
-
   const filtered = useMemo(
-    () => filterDisenoTareas(rows, { campanaId, disenadorId, q, vista, provincia, estado }),
-    [rows, campanaId, disenadorId, q, vista, provincia, estado]
+    () => filterDisenoTareas(rows, { campanaId, disenadorId, q, estado }),
+    [rows, campanaId, disenadorId, q, estado]
   );
   const sorted = useMemo(() => sortDisenoTareas(filtered, sort, perfiles), [filtered, sort, perfiles]);
 
@@ -204,21 +197,12 @@ export function DisenoTable({
           <button type="button" onClick={onCargaMasiva} className="btn btn-sm" style={{ background: "var(--c-amber)", color: "white", border: "none" }}>
             📦 Carga masiva
           </button>
-          <select
-            value={vista}
-            onChange={(e) => handleFilterChange({ vista: e.target.value as DisenoVista, estado: "" })}
-            style={{ fontSize: 13, minWidth: 200 }}
-          >
-            <option value="operativo">Solicitudes en diseño</option>
-            <option value="enviadas_comercial">Enviadas a Comercial</option>
+          <select value={estado} onChange={(e) => handleFilterChange({ estado: e.target.value })} style={{ fontSize: 13, minWidth: 180 }}>
+            <option value="">Todos los estados</option>
+            <option value="en_diseno">{ESTADO_LABEL["en_diseno"] ?? "En diseño"}</option>
+            <option value="modificar_diseno">{ESTADO_LABEL["modificar_diseno"] ?? "Modificar diseño"}</option>
+            <option value="diseno_en_revision_comercial">{ESTADO_LABEL["diseno_en_revision_comercial"] ?? "En revisión comercial"}</option>
           </select>
-          {vista === "operativo" && (
-            <select value={estado} onChange={(e) => handleFilterChange({ estado: e.target.value })} style={{ fontSize: 13, minWidth: 160 }}>
-              <option value="">Todos los estados</option>
-              <option value="en_diseno">{ESTADO_LABEL["en_diseno"] ?? "En diseño"}</option>
-              <option value="modificar_diseno">{ESTADO_LABEL["modificar_diseno"] ?? "Modificar diseño"}</option>
-            </select>
-          )}
           <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
             <svg
               width="13"
@@ -234,7 +218,7 @@ export function DisenoTable({
             </svg>
             <input
               type="search"
-              placeholder="Buscar por SAP, empresa, provincia…"
+              placeholder="Buscar por SAP"
               value={q}
               onChange={(e) => handleFilterChange({ q: e.target.value })}
               style={{
@@ -249,12 +233,6 @@ export function DisenoTable({
               }}
             />
           </div>
-          <select value={provincia} onChange={(e) => handleFilterChange({ provincia: e.target.value })} style={{ fontSize: 13, minWidth: 140 }}>
-            <option value="">Todas las provincias</option>
-            {provincias.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
           {mostrarFiltroDisenador && (
             <select value={disenadorId} onChange={(e) => handleFilterChange({ disenadorId: e.target.value })} style={{ fontSize: 13, minWidth: 160 }}>
               <option value="">Todos los diseñadores</option>
@@ -266,17 +244,6 @@ export function DisenoTable({
               ))}
             </select>
           )}
-          <select value={campanaId} onChange={(e) => setCampanaId(e.target.value)} style={{ fontSize: 13, minWidth: 160 }}>
-            <option value="">Todas las campañas</option>
-            {campanas
-              .filter((c) => c.activa)
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre}
-                  {c.id === defaultCampanaId ? " ★" : ""}
-                </option>
-              ))}
-          </select>
         </div>
       </div>
 
