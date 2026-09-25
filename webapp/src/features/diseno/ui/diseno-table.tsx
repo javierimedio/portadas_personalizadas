@@ -27,6 +27,18 @@ import { fmtDate } from "@/shared/domain/format";
 
 const PAGE_SIZE = 25;
 
+// Returns true when a click or keyboard event originates on an interactive
+// element — the row's own action should then take precedence over opening
+// the detail modal. Tests import this to verify the delegation logic.
+export function isInteractiveTarget(target: EventTarget | null): boolean {
+  if (!target || !(target instanceof HTMLElement)) return false;
+  return !!target.closest("button, a, input, select, textarea");
+}
+
+export function shouldOpenOnKey(key: string): boolean {
+  return key === "Enter" || key === " ";
+}
+
 const KPI_COLOR = {
   pendientes: "var(--c-red)",    // modificar_diseno: devueltas para corrección
   enDiseno: "var(--c-amber)",    // en_diseno: diseño inicial en curso
@@ -336,7 +348,21 @@ export function DisenoTable({
                 </tr>
               ) : (
                 paginatedRows.map((s) => (
-                  <tr key={s.id}>
+                  <tr
+                    key={s.id}
+                    tabIndex={0}
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => {
+                      if (isInteractiveTarget(e.target)) return;
+                      onVer(s);
+                    }}
+                    onKeyDown={(e) => {
+                      if (shouldOpenOnKey(e.key)) {
+                        e.preventDefault();
+                        onVer(s);
+                      }
+                    }}
+                  >
                     <td>
                       <strong>{s.cod_sap}</strong>
                     </td>
