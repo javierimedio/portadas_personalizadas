@@ -33,7 +33,7 @@ export type SolicitudListItem = {
   enviada_at: string | null;
   updated_at: string;
   solicitud_catalogos: SolicitudCatalogoRow[];
-  adjuntos: { nombre: string; url: string; tipo: string }[];
+  adjuntos: { id: string; nombre: string; url: string; tipo: string }[];
 };
 
 // Réplica de las comprobaciones de rol al inicio de renderComercialTable()

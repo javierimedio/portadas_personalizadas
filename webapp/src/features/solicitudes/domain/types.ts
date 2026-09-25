@@ -31,7 +31,7 @@ export type ExistingSolicitudCatalogo = {
   con_precios: boolean | null;
 };
 
-export type ExistingAdjunto = { nombre: string; url: string; tipo: string };
+export type ExistingAdjunto = { id: string; nombre: string; url: string; tipo: string };
 
 export type ExistingSolicitud = {
   id: string;

@@ -295,7 +295,9 @@ export function SolicitudDetalleModal({
 
   const logosAdjuntos = detalle.adjuntos.filter((a) => a.tipo === "logo_general");
   const disenosAdjuntos = detalle.adjuntos.filter((a) => a.tipo.endsWith("_diseno") || a.tipo === "diseno_portada");
-  const otrosAdjuntos = detalle.adjuntos.filter((a) => a !== undefined && !logosAdjuntos.includes(a) && !disenosAdjuntos.includes(a));
+  const enlacesAdjuntos = detalle.adjuntos.filter((a) => a.tipo === "enlace_externo");
+  const otrosAdjuntos = detalle.adjuntos.filter((a) => a !== undefined && !logosAdjuntos.includes(a) && !disenosAdjuntos.includes(a) && a.tipo !== "enlace_externo");
+  const mostrarSeccionAdjuntos = detalle.adjuntos.length > 0;
 
   return (
     <div className="modal-bg open">
@@ -416,9 +418,9 @@ export function SolicitudDetalleModal({
                 </div>
               )}
 
-              {detalle.adjuntos.length > 0 && (
+              {mostrarSeccionAdjuntos && (
                 <div className="card" style={{ marginBottom: "1rem" }}>
-                  <div className="card-title">Archivos adjuntos ({detalle.adjuntos.length})</div>
+                  <div className="card-title">Archivos adjuntos ({detalle.adjuntos.filter((a) => a.tipo !== "enlace_externo").length})</div>
                   {[
                     { label: "Logo del cliente", icon: "🏷", color: "var(--c-amber)", items: logosAdjuntos, canDelete: false },
                     { label: "Diseños de portada", icon: "🎨", color: "var(--c-purple)", items: disenosAdjuntos, canDelete: puedeEliminarAdjunto },
@@ -482,6 +484,28 @@ export function SolicitudDetalleModal({
                         ))}
                       </div>
                     ))}
+
+                  {/* Recursos externos (enlaces) — solo lectura */}
+                  {enlacesAdjuntos.length > 0 && (
+                    <div style={{ marginBottom: ".75rem" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "#3b82f6", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>🔗</span> Recursos externos
+                      </div>
+                      {enlacesAdjuntos.map((a) => (
+                        <div key={a.id} style={{ marginBottom: 4, display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 10px", borderRadius: 6, background: "rgba(59,130,246,0.08)" }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <a href={a.url} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600, fontSize: 12, color: "#3b82f6", textDecoration: "none" }}>
+                              {a.nombre}
+                            </a>
+                            <div style={{ fontSize: 10, color: "var(--c-mid)", marginTop: 2, overflowWrap: "anywhere", wordBreak: "break-all" }}>{a.url}</div>
+                            <div style={{ fontSize: 10, color: "var(--c-mid)", marginTop: 1 }}>
+                              {fmtDate(a.created_at)} · {a.subido_por_nombre || ""}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -712,6 +736,10 @@ export function SolicitudDetalleModal({
                                     {ESTADO_LABEL[String(l.detalle?.estado_nuevo)] ?? String(l.detalle?.estado_nuevo)}
                                   </span>
                                 </>
+                              ) : l.accion === "agregar_enlace" ? (
+                                <>ha añadido el enlace <em>&ldquo;{String(l.detalle?.nombre ?? "")}&rdquo;</em></>
+                              ) : l.accion === "eliminar_enlace" ? (
+                                <>ha eliminado el enlace <em>&ldquo;{String(l.detalle?.nombre ?? "")}&rdquo;</em></>
                               ) : (
                                 l.accion
                               )}

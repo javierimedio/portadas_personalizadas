@@ -44,6 +44,17 @@ function metaFrom(formData: FormData, key: string): UploadedFile[] {
   }
 }
 
+function jsonFrom<T>(formData: FormData, key: string): T extends unknown[] ? T : never {
+  const raw = formData.get(key);
+  if (typeof raw !== "string" || !raw) return [] as T extends unknown[] ? T : never;
+  try {
+    const parsed = JSON.parse(raw);
+    return (Array.isArray(parsed) ? parsed : []) as T extends unknown[] ? T : never;
+  } catch {
+    return [] as T extends unknown[] ? T : never;
+  }
+}
+
 export async function saveSolicitud(_prev: SaveSolicitudState, formData: FormData): Promise<SaveSolicitudState> {
   const intent = String(formData.get("intent") ?? "borrador") as "borrador" | "enviada";
   const solicitudId = String(formData.get("solicitudId") ?? "") || null;
@@ -207,6 +218,40 @@ export async function saveSolicitud(_prev: SaveSolicitudState, formData: FormDat
       usuario_nombre: perfil?.nombre,
       accion: "adjunto",
       detalle: { nombre: entry.meta.nombre, tipo: entry.tipo, url: entry.meta.url },
+    });
+  }
+
+  // Persistir enlaces externos
+  const enlacesNuevos = jsonFrom<{ nombre: string; url: string }[]>(formData, "enlacesNuevos");
+  const enlacesEliminados = jsonFrom<{ id: string; nombre: string }[]>(formData, "enlacesEliminados");
+
+  for (const { id, nombre } of enlacesEliminados) {
+    await supabase.from("adjuntos").delete().eq("id", id).eq("solicitud_id", solId!);
+    await supabase.from("logs").insert({
+      solicitud_id: solId,
+      usuario_id: userData.user.id,
+      usuario_nombre: perfil?.nombre,
+      accion: "eliminar_enlace",
+      detalle: { nombre },
+    });
+  }
+
+  for (const { nombre, url } of enlacesNuevos) {
+    await supabase.from("adjuntos").insert({
+      solicitud_id: solId,
+      nombre,
+      tipo: "enlace_externo",
+      url,
+      subido_por: userData.user.id,
+      subido_por_nombre: perfil?.nombre,
+      storage_path: null,
+    });
+    await supabase.from("logs").insert({
+      solicitud_id: solId,
+      usuario_id: userData.user.id,
+      usuario_nombre: perfil?.nombre,
+      accion: "agregar_enlace",
+      detalle: { nombre, url },
     });
   }
 

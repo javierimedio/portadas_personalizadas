@@ -10,8 +10,10 @@ import { saveSolicitud, type SaveSolicitudState } from "../application/save-soli
 import { UNIDADES_MINIMAS } from "../domain/validation";
 import type { ExistingSolicitud, FormCampana, FormPerfil } from "../domain/types";
 import { FileDropZone } from "./file-drop-zone";
+import { validarEnlace } from "../domain/enlace-externo";
 
 type Tri = "" | "si" | "no";
+type EnlaceEntry = { id?: string; nombre: string; url: string };
 type CatFieldState = {
   portadaPersonalizada: Tri;
   digital: Tri;
@@ -130,6 +132,18 @@ export function SolicitudForm({
     () => (solicitud?.adjuntos ?? []).filter((a) => a.tipo === "logo_general"),
     [solicitud]
   );
+
+  const ESTADOS_EDITAR_ENLACES = ["borrador", "diseno_en_revision_comercial"];
+  const puedeEditarEnlaces = !solicitud || ESTADOS_EDITAR_ENLACES.includes(solicitud.estado);
+
+  const [enlaces, setEnlaces] = useState<EnlaceEntry[]>(() =>
+    (solicitud?.adjuntos ?? []).filter((a) => a.tipo === "enlace_externo").map((a) => ({ id: a.id, nombre: a.nombre, url: a.url }))
+  );
+  const [enlacesEliminados, setEnlacesEliminados] = useState<{ id: string; nombre: string }[]>([]);
+  const [enlaceFormAbierto, setEnlaceFormAbierto] = useState(false);
+  const [enlaceNombre, setEnlaceNombre] = useState("");
+  const [enlaceUrl, setEnlaceUrl] = useState("");
+  const [enlaceError, setEnlaceError] = useState<string | null>(null);
   // Réplica de "if (allFilesToUpload.length > 0) ..." (~2989-2992, SOL-18):
   // el indicador solo aparece cuando hay algo subiéndose — ahora la subida
   // ocurre al elegir el archivo (arquitectura de subida directa a Storage,
@@ -166,6 +180,8 @@ export function SolicitudForm({
   return (
     <form action={formAction}>
       {solicitud && <input type="hidden" name="solicitudId" value={solicitud.id} />}
+      <input type="hidden" name="enlacesNuevos" value={JSON.stringify(enlaces.filter((e) => !e.id))} />
+      <input type="hidden" name="enlacesEliminados" value={JSON.stringify(enlacesEliminados)} />
 
       <div className="card-title">Datos del cliente</div>
       <div className="form-grid" style={{ marginBottom: "1rem" }}>
@@ -591,6 +607,100 @@ export function SolicitudForm({
         <label>Comentarios</label>
         <textarea name="comentarios" rows={2} defaultValue={solicitud?.comentarios ?? ""} placeholder="Instrucciones adicionales para el equipo de diseño..." />
       </div>
+
+      <hr className="divider" />
+
+      {/* Recursos externos (enlaces) */}
+      <div className="card-title">🔗 Recursos externos</div>
+      <p style={{ fontSize: 12, color: "var(--c-mid)", marginBottom: ".75rem" }}>
+        Adjunta enlaces a archivos externos (WeTransfer, Drive, Dropbox, Behance…) para el equipo de diseño.
+      </p>
+      {enlaces.map((enlace) => (
+        <div key={enlace.id ?? enlace.url} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 10px", borderRadius: 6, background: "rgba(59,130,246,0.08)", marginBottom: 4 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <a href={enlace.url} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600, fontSize: 12, color: "#3b82f6", textDecoration: "none" }}>
+              {enlace.nombre}
+            </a>
+            <div style={{ fontSize: 10, color: "var(--c-mid)", marginTop: 2, overflowWrap: "anywhere", wordBreak: "break-all" }}>{enlace.url}</div>
+          </div>
+          {puedeEditarEnlaces && (
+            <button
+              type="button"
+              className="btn btn-sm btn-outline"
+              style={{ flexShrink: 0, fontSize: 11, color: "var(--c-red)", borderColor: "var(--c-red)" }}
+              onClick={() => {
+                if (enlace.id) {
+                  setEnlacesEliminados((prev) => [...prev, { id: enlace.id!, nombre: enlace.nombre }]);
+                }
+                setEnlaces((prev) => prev.filter((e) => e !== enlace));
+              }}
+            >
+              🗑
+            </button>
+          )}
+        </div>
+      ))}
+      {puedeEditarEnlaces && (
+        <div style={{ marginTop: enlaces.length > 0 ? 6 : 0 }}>
+          {!enlaceFormAbierto ? (
+            <button
+              type="button"
+              className="btn btn-sm btn-outline"
+              style={{ fontSize: 11, color: "#3b82f6", borderColor: "#3b82f6" }}
+              onClick={() => { setEnlaceFormAbierto(true); setEnlaceError(null); }}
+            >
+              + Añadir enlace
+            </button>
+          ) : (
+            <div style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.3)", borderRadius: 6, padding: "10px 12px" }}>
+              <div style={{ marginBottom: 6 }}>
+                <input
+                  type="text"
+                  placeholder="Nombre del enlace (ej: Archivos WeTransfer)"
+                  value={enlaceNombre}
+                  maxLength={150}
+                  onChange={(e) => { setEnlaceNombre(e.target.value); setEnlaceError(null); }}
+                  style={{ width: "100%", marginBottom: 4 }}
+                />
+                <input
+                  type="url"
+                  placeholder="URL (https://...)"
+                  value={enlaceUrl}
+                  maxLength={2000}
+                  onChange={(e) => { setEnlaceUrl(e.target.value); setEnlaceError(null); }}
+                  style={{ width: "100%" }}
+                />
+              </div>
+              {enlaceError && <div style={{ fontSize: 11, color: "var(--c-red)", marginBottom: 6 }}>{enlaceError}</div>}
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline"
+                  onClick={() => { setEnlaceFormAbierto(false); setEnlaceNombre(""); setEnlaceUrl(""); setEnlaceError(null); }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  style={{ background: "#3b82f6", color: "white", border: "none" }}
+                  onClick={() => {
+                    const err = validarEnlace(enlaceNombre, enlaceUrl);
+                    if (err) { setEnlaceError(err); return; }
+                    setEnlaces((prev) => [...prev, { nombre: enlaceNombre.trim(), url: enlaceUrl.trim() }]);
+                    setEnlaceFormAbierto(false);
+                    setEnlaceNombre("");
+                    setEnlaceUrl("");
+                    setEnlaceError(null);
+                  }}
+                >
+                  Añadir
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="btn-row">
         <button type="button" onClick={onCancel} className="btn btn-outline">

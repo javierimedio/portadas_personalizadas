@@ -12,6 +12,7 @@ import {
 import { borrarArchivosStorage } from "@/shared/storage/server";
 import { STORAGE_BUCKET } from "@/shared/storage/constants";
 import { ELIMINAR_ADJUNTO_ROLES } from "../domain/estado-flujo";
+import { validarEnlace, puedeAgregarEnlace, puedeEliminarEnlace, esEnlaceExterno } from "../domain/enlace-externo";
 import type { UploadedFile } from "@/shared/storage/types";
 
 async function currentUserAndPerfil() {
@@ -346,6 +347,61 @@ export async function subirDocumentoAdjunto(solicitudId: string, adjunto: Upload
     usuario_nombre: perfil?.nombre,
     accion: "subida_documento",
     detalle: { nombre: adjunto.nombre, url: adjunto.url },
+  });
+
+  return {};
+}
+
+// Añade un enlace externo a los adjuntos de una solicitud.
+export async function agregarEnlace(solicitudId: string, nombre: string, url: string): Promise<{ error?: string }> {
+  const validationError = validarEnlace(nombre, url);
+  if (validationError) return { error: validationError };
+
+  const { supabase, user, perfil } = await currentUserAndPerfil();
+  if (!user) return { error: "Sesión no válida." };
+  if (!puedeAgregarEnlace(perfil?.rol)) return { error: "No tienes permiso para añadir enlaces." };
+
+  const { error: insertError } = await supabase.from("adjuntos").insert({
+    solicitud_id: solicitudId,
+    nombre: nombre.trim(),
+    tipo: "enlace_externo",
+    url: url.trim(),
+    storage_path: null,
+    subido_por: user.id,
+    subido_por_nombre: perfil?.nombre,
+  });
+  if (insertError) return { error: `Error al guardar el enlace: ${insertError.message}` };
+
+  await supabase.from("logs").insert({
+    solicitud_id: solicitudId,
+    usuario_id: user.id,
+    usuario_nombre: perfil?.nombre,
+    accion: "agregar_enlace",
+    detalle: { nombre: nombre.trim(), url: url.trim() },
+  });
+
+  return {};
+}
+
+// Elimina un enlace externo de los adjuntos de una solicitud.
+export async function eliminarEnlace(adjuntoId: string): Promise<{ error?: string }> {
+  const { supabase, user, perfil } = await currentUserAndPerfil();
+  if (!user) return { error: "Sesión no válida." };
+
+  const { data: adjunto } = await supabase.from("adjuntos").select("tipo, nombre, subido_por, solicitud_id").eq("id", adjuntoId).maybeSingle();
+  if (!adjunto) return { error: "Enlace no encontrado." };
+  if (!esEnlaceExterno(adjunto.tipo)) return { error: "Este adjunto no es un enlace externo." };
+  if (!puedeEliminarEnlace(perfil?.rol, adjunto.subido_por, user.id)) return { error: "No tienes permiso para eliminar este enlace." };
+
+  const { error } = await supabase.from("adjuntos").delete().eq("id", adjuntoId);
+  if (error) return { error: `Error al eliminar el enlace: ${error.message}` };
+
+  await supabase.from("logs").insert({
+    solicitud_id: adjunto.solicitud_id,
+    usuario_id: user.id,
+    usuario_nombre: perfil?.nombre,
+    accion: "eliminar_enlace",
+    detalle: { nombre: adjunto.nombre },
   });
 
   return {};
