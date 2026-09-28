@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { DisenoTable } from "./diseno-table";
 import { CargaMasivaModal } from "./carga-masiva-modal";
@@ -31,6 +31,15 @@ export function DisenoPage({
   const [solicitudId, setSolicitudId] = useState<string | null>(verId);
   const [cargaMasivaAbierta, setCargaMasivaAbierta] = useState(false);
   const router = useRouter();
+
+  // Sincroniza solicitudId con el parámetro ?ver= de la URL. Necesario porque
+  // useState solo inicializa en el primer montaje: cuando router.push navega a
+  // /diseno?ver=<id> estando ya en /diseno, el componente no se remonta y el
+  // initializer de useState se ignora. Este efecto lo resuelve para todas las
+  // transiciones (verId aparece, cambia o desaparece).
+  useEffect(() => {
+    setSolicitudId(verId);
+  }, [verId]);
 
   function cerrarDetalle() {
     setSolicitudId(null);
