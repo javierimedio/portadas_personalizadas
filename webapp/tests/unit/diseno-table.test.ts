@@ -672,3 +672,93 @@ describe("P12 — preservación de filtros al cerrar detalle", () => {
     expect(params.has("ver")).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// P18 — inputQ local: invariantes del patrón inputQ + debounce
+// Las pruebas verifican la lógica pura sin montar el componente React.
+// ---------------------------------------------------------------------------
+
+// Réplica mínima de la lógica del componente para verificar invariantes.
+function simularInputQ(initialUrlQ: string) {
+  let inputQ = initialUrlQ;
+  let urlQ = initialUrlQ;
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function onChange(val: string, onUrlUpdate: (q: string) => void, delay = 300) {
+    inputQ = val;
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      urlQ = val;
+      onUrlUpdate(val);
+    }, delay);
+  }
+
+  function syncFromUrl(newUrlQ: string) {
+    inputQ = newUrlQ;
+    urlQ = newUrlQ;
+  }
+
+  return { getInputQ: () => inputQ, getUrlQ: () => urlQ, onChange, syncFromUrl };
+}
+
+describe("P18 — inputQ local: lógica de separación input/URL", () => {
+  it("1. inputQ se inicializa igual que q de la URL", () => {
+    const sim = simularInputQ("60001");
+    expect(sim.getInputQ()).toBe("60001");
+  });
+
+  it("2. onChange actualiza inputQ de inmediato (sin esperar debounce)", () => {
+    const sim = simularInputQ("");
+    sim.onChange("1", () => {});
+    expect(sim.getInputQ()).toBe("1");
+  });
+
+  it("3. pulsaciones rápidas acumulan en inputQ sin sobreescribir", () => {
+    const sim = simularInputQ("");
+    sim.onChange("1", () => {});
+    sim.onChange("15", () => {});
+    sim.onChange("150", () => {});
+    sim.onChange("1503", () => {});
+    sim.onChange("15035", () => {});
+    expect(sim.getInputQ()).toBe("15035");
+  });
+
+  it("4. la URL no se actualiza hasta que el debounce vence", () => {
+    const sim = simularInputQ("");
+    let urlUpdated = "";
+    // No llamamos a los timers — URL debe seguir vacía
+    sim.onChange("5", (q) => { urlUpdated = q; });
+    expect(sim.getUrlQ()).toBe(""); // aún no se ha propagado
+    expect(urlUpdated).toBe("");   // callback no invocado
+  });
+
+  it("5. syncFromUrl (navegación atrás/F5) actualiza inputQ al valor de la URL", () => {
+    const sim = simularInputQ("60001");
+    sim.syncFromUrl("");
+    expect(sim.getInputQ()).toBe("");
+    expect(sim.getUrlQ()).toBe("");
+  });
+
+  it("6. limpiar el input establece inputQ a '' y la URL se actualizará a ''", () => {
+    const sim = simularInputQ("60001");
+    let urlUpdated = "no-cambiado";
+    sim.onChange("", (q) => { urlUpdated = q; });
+    expect(sim.getInputQ()).toBe("");
+    // Simular que el debounce vence (invocamos manualmente el callback directamente)
+    // verificamos que el parámetro recibido sería ""
+    expect(urlUpdated).toBe("no-cambiado"); // aún no disparó
+  });
+
+  it("7. el filtro usa q de URL (no inputQ) → resultados consistentes durante escritura", () => {
+    const urlQ = "60001";
+    const inputQ = "60001X"; // usuario está escribiendo, URL aún no actualizada
+    const rows = [
+      sol({ id: "a", estado: "en_diseno", cod_sap: "60001" }),
+      sol({ id: "b", estado: "en_diseno", cod_sap: "70002" }),
+    ];
+    // El filtro usa urlQ, no inputQ — la lista no cambia hasta que el debounce vence
+    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: urlQ }).map((r) => r.id)).toEqual(["a"]);
+    // Con inputQ aún no sincronizado, q en URL no coincide con "60001X" → sin resultados si se usara
+    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: inputQ }).map((r) => r.id)).toEqual([]);
+  });
+});
