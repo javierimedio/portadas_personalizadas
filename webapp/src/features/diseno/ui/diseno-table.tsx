@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { ALL_CATALOGOS } from "@/shared/domain/catalogos";
 import { ESTADO_LABEL } from "@/shared/domain/estados";
@@ -105,6 +105,16 @@ export function DisenoTable({
 
   const urlState = parseUrlState(searchParams);
   const { q, disenadorId, estado, sort, page } = urlState;
+
+  // inputQ is local so keystrokes respond immediately; URL q is updated with a
+  // short debounce so F5/back navigation still restores the search term.
+  const [inputQ, setInputQ] = useState(q);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync URL q → inputQ when the user navigates back/forward or reloads.
+  useEffect(() => {
+    setInputQ(q);
+  }, [q]);
 
   // campanaId stays local — not persisted in URL
   const [campanaId, setCampanaId] = useState(defaultCampanaId);
@@ -219,8 +229,15 @@ export function DisenoTable({
             <input
               type="search"
               placeholder="Buscar por SAP"
-              value={q}
-              onChange={(e) => handleFilterChange({ q: e.target.value })}
+              value={inputQ}
+              onChange={(e) => {
+                const val = e.target.value;
+                setInputQ(val);
+                if (debounceRef.current) clearTimeout(debounceRef.current);
+                debounceRef.current = setTimeout(() => {
+                  handleFilterChange({ q: val });
+                }, 300);
+              }}
               style={{
                 fontSize: 13,
                 width: 220,
