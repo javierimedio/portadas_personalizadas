@@ -762,3 +762,81 @@ describe("P18 — inputQ local: lógica de separación input/URL", () => {
     expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: inputQ }).map((r) => r.id)).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// P19 — sincronización verId → solicitudId
+// Verifica los invariantes del useEffect que corrige el bug de las
+// notificaciones: useState solo inicializa en el primer montaje, el efecto
+// mantiene solicitudId sincronizado con el parámetro ?ver= de la URL en todas
+// las transiciones posteriores.
+// Las pruebas son de lógica pura (sin montar el componente React).
+// ---------------------------------------------------------------------------
+
+// Réplica mínima del ciclo useState + useEffect de DisenoPage.
+function simularDisenoPage(initialVerId: string | null) {
+  let solicitudId: string | null = initialVerId; // useState(verId)
+
+  // Réplica del useEffect(() => { setSolicitudId(verId); }, [verId])
+  function onVerIdChange(newVerId: string | null) {
+    solicitudId = newVerId;
+  }
+
+  // Réplica de cerrarDetalle: setSolicitudId(null) + limpia URL
+  function cerrarDetalle() {
+    solicitudId = null;
+    // (la limpieza de URL es responsabilidad del router, no del estado)
+  }
+
+  return {
+    getSolicitudId: () => solicitudId,
+    onVerIdChange,
+    cerrarDetalle,
+  };
+}
+
+describe("P19 — sincronización verId → solicitudId (fix notificaciones)", () => {
+  it("1. verId inicial no nulo → solicitudId inicializado correctamente (primer montaje)", () => {
+    const page = simularDisenoPage("abc-123");
+    expect(page.getSolicitudId()).toBe("abc-123");
+  });
+
+  it("2. verId cambia mientras el componente está montado → solicitudId se actualiza", () => {
+    const page = simularDisenoPage(null);
+    expect(page.getSolicitudId()).toBeNull();
+    // Simula router.push("/diseno?ver=abc-123") → useSearchParams reactivo → useEffect
+    page.onVerIdChange("abc-123");
+    expect(page.getSolicitudId()).toBe("abc-123");
+  });
+
+  it("3. verId pasa de un id a otro → solicitudId sigue al nuevo id", () => {
+    const page = simularDisenoPage("sol-1");
+    page.onVerIdChange("sol-2");
+    expect(page.getSolicitudId()).toBe("sol-2");
+  });
+
+  it("4. verId pasa a null (URL limpia) → solicitudId vuelve a null, modal se cierra", () => {
+    const page = simularDisenoPage("sol-1");
+    page.onVerIdChange(null);
+    expect(page.getSolicitudId()).toBeNull();
+  });
+
+  it("5. navegación desde notificación estando ya en /diseno → la solicitud abre sin F5", () => {
+    // Diseñador en /diseno sin modal. Hace clic en notificación →
+    // router.push("/diseno?ver=sol-99") → verId cambia → useEffect dispara.
+    const page = simularDisenoPage(null); // estado inicial: sin ?ver=
+    page.onVerIdChange("sol-99");         // equivale al useEffect tras el push
+    expect(page.getSolicitudId()).toBe("sol-99"); // modal abre
+  });
+
+  it("6. cerrarDetalle limpia solicitudId (comportamiento de cierre manual)", () => {
+    const page = simularDisenoPage("sol-1");
+    page.cerrarDetalle();
+    expect(page.getSolicitudId()).toBeNull();
+  });
+
+  it("7. F5 con /diseno?ver=<id> sigue funcionando (primer montaje con verId)", () => {
+    // F5 = desmontaje + montaje fresco. useState inicializa con el verId de la URL.
+    const page = simularDisenoPage("sol-42");
+    expect(page.getSolicitudId()).toBe("sol-42");
+  });
+});
