@@ -66,3 +66,52 @@ export function segmentarComentario(texto: string): ComentarioSegmento[] {
   if (ultimo < texto.length) segmentos.push({ texto: texto.slice(ultimo), mencion: false });
   return segmentos;
 }
+
+// ── Segmentación completa: menciones + URLs ────────────────────────────────
+
+export type TextoSegmento =
+  | { tipo: "texto"; texto: string }
+  | { tipo: "mencion"; texto: string }
+  | { tipo: "url"; texto: string; href: string };
+
+// Strips trailing punctuation that almost certainly doesn't belong to the URL.
+function stripTrailingPunct(url: string): string {
+  return url.replace(/[.,!?;:)}\]>'"]+$/, "");
+}
+
+function segmentarPorUrls(texto: string): TextoSegmento[] {
+  const segmentos: TextoSegmento[] = [];
+  const re = /https?:\/\/[^\s<>"']+/g;
+  let ultimo = 0;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(texto)) !== null) {
+    const inicio = match.index;
+    const urlRaw = match[0];
+    const href = stripTrailingPunct(urlRaw);
+    const finRaw = inicio + urlRaw.length;
+    const finHref = inicio + href.length;
+    if (inicio > ultimo) segmentos.push({ tipo: "texto", texto: texto.slice(ultimo, inicio) });
+    segmentos.push({ tipo: "url", texto: href, href });
+    if (finHref < finRaw) segmentos.push({ tipo: "texto", texto: texto.slice(finHref, finRaw) });
+    ultimo = finRaw;
+  }
+  if (ultimo < texto.length) segmentos.push({ tipo: "texto", texto: texto.slice(ultimo) });
+  return segmentos;
+}
+
+// Combina detección de menciones y URLs en una sola pasada de segmentos.
+// El texto del comentario se divide por menciones primero; los segmentos de
+// texto plano se subdividen a su vez por URLs. No usa dangerouslySetInnerHTML:
+// devuelve datos estructurados para que el componente los renderice como JSX.
+export function segmentarTextoCompleto(texto: string): TextoSegmento[] {
+  const porMenciones = segmentarComentario(texto);
+  const resultado: TextoSegmento[] = [];
+  for (const seg of porMenciones) {
+    if (seg.mencion) {
+      resultado.push({ tipo: "mencion", texto: seg.texto });
+    } else {
+      resultado.push(...segmentarPorUrls(seg.texto));
+    }
+  }
+  return resultado;
+}

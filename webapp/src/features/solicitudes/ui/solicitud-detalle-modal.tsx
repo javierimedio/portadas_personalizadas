@@ -7,7 +7,7 @@ import { subirArchivo, borrarArchivoSubido } from "@/shared/storage/upload-clien
 import type { UploadedFile } from "@/shared/storage/types";
 import { fmtDate } from "@/shared/domain/format";
 import { ESTADO_LABEL } from "@/shared/domain/estados";
-import { segmentarComentario } from "../domain/comentarios";
+import { segmentarTextoCompleto } from "../domain/comentarios";
 import { CAT_LOGO } from "../domain/constants";
 import { accionesDetalle, puedeElegirPortadaFinal } from "../domain/estado-flujo";
 import { getSolicitudDetalle, type SolicitudDetalle } from "../application/get-solicitud-detalle";
@@ -765,21 +765,48 @@ export function SolicitudDetalleModal({
                       Sin comentarios aún.
                     </p>
                   ) : (
-                    comentarios.map((l) => (
-                      <div className="log-entry" key={l.id}>
-                        <div className="log-dot" />
-                        <div className="log-time">{fmtDate(l.created_at)}</div>
-                        <div className="log-text">
-                          <strong>{l.usuario_nombre ?? "Sistema"}</strong> — 💬{" "}
-                          {segmentarComentario(String(l.detalle?.texto ?? "")).map((seg, i) =>
-                            seg.mencion ? (
-                              <strong key={i} style={{ color: "var(--c-amber)" }}>
-                                {seg.texto}
-                              </strong>
-                            ) : (
-                              <span key={i}>{seg.texto}</span>
-                            )
-                          )}
+                    comentarios.map((l, idx) => (
+                      <div
+                        key={l.id}
+                        style={{
+                          padding: "0.6rem 0",
+                          borderBottom: idx < comentarios.length - 1 ? "1px solid var(--c-line)" : undefined,
+                          fontSize: 12,
+                        }}
+                      >
+                        <div style={{ color: "var(--c-mid)", fontSize: 11, marginBottom: 2 }}>
+                          {fmtDate(l.created_at)}
+                        </div>
+                        <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                          {l.usuario_nombre ?? "Sistema"}
+                        </div>
+                        <div style={{ overflowWrap: "anywhere" }}>
+                          {String(l.detalle?.texto ?? "")
+                            .split(/\r?\n/)
+                            .map((linea, lineIdx, lines) => (
+                              <span key={lineIdx}>
+                                {segmentarTextoCompleto(linea).map((seg, i) =>
+                                  seg.tipo === "url" ? (
+                                    <a
+                                      key={i}
+                                      href={seg.href}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: "var(--c-blue)", wordBreak: "break-all" }}
+                                    >
+                                      {seg.texto}
+                                    </a>
+                                  ) : seg.tipo === "mencion" ? (
+                                    <strong key={i} style={{ color: "var(--c-amber)" }}>
+                                      {seg.texto}
+                                    </strong>
+                                  ) : (
+                                    <span key={i}>{seg.texto}</span>
+                                  )
+                                )}
+                                {lineIdx < lines.length - 1 && <br />}
+                              </span>
+                            ))}
                         </div>
                       </div>
                     ))
