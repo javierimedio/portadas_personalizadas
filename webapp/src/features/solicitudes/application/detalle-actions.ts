@@ -13,6 +13,7 @@ import { borrarArchivosStorage, storagePathDesdeUrl } from "@/shared/storage/ser
 import { ELIMINAR_ADJUNTO_ROLES } from "../domain/estado-flujo";
 import { validarEnlace, puedeAgregarEnlace, puedeEliminarEnlace, esEnlaceExterno } from "../domain/enlace-externo";
 import { portadasObligatoriasPendientes, mensajePortadasPendientes } from "../domain/portadas-validation";
+import { reemplazarDisenoSeguro } from "../domain/diseno-reemplazo";
 import type { UploadedFile } from "@/shared/storage/types";
 
 async function currentUserAndPerfil() {
@@ -220,19 +221,25 @@ export async function marcarDisenoListo(
       .maybeSingle();
 
     if (existente) {
-      await supabase
-        .from("adjuntos")
-        .update({ url: archivo.url, storage_path: archivo.path, subido_por: user.id, subido_por_nombre: perfil?.nombre ?? null })
-        .eq("id", existente.id);
-      await supabase.from("logs").insert({
-        solicitud_id: solicitudId,
-        usuario_id: user.id,
-        usuario_nombre: perfil?.nombre,
-        accion: "reemplazar_diseno",
-        detalle: { catalogo, nombre: archivo.nombre },
-      });
       const oldPath = existente.storage_path ?? storagePathDesdeUrl(existente.url);
-      if (oldPath && oldPath !== archivo.path) await borrarArchivosStorage(supabase, [oldPath]);
+      const reemplazo = await reemplazarDisenoSeguro(archivo.path, {
+        update: () =>
+          supabase
+            .from("adjuntos")
+            .update({ url: archivo.url, storage_path: archivo.path, subido_por: user.id, subido_por_nombre: perfil?.nombre ?? null })
+            .eq("id", existente.id),
+        log: () =>
+          supabase.from("logs").insert({
+            solicitud_id: solicitudId,
+            usuario_id: user.id,
+            usuario_nombre: perfil?.nombre,
+            accion: "reemplazar_diseno",
+            detalle: { catalogo, nombre: archivo.nombre },
+          }),
+        borrar: (path) => borrarArchivosStorage(supabase, [path]),
+        oldPath,
+      });
+      if (reemplazo.error) return { error: `No se pudo actualizar el diseño '${archivo.nombre}': ${reemplazo.error}` };
     } else {
       await supabase.from("adjuntos").insert({
         solicitud_id: solicitudId,

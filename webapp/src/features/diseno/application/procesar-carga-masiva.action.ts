@@ -62,14 +62,18 @@ export async function procesarCargaMasiva(
     }
 
     try {
-      const { data: existente } = await supabase
+      const baseQuery = supabase
         .from("adjuntos")
         .select("id, storage_path, url")
         .eq("solicitud_id", match.solId)
         .eq("tipo", "diseno_portada")
-        .eq("catalogo", match.catKey ?? "")
-        .eq("nombre", archivo.nombre)
-        .maybeSingle();
+        .eq("nombre", archivo.nombre);
+      // Cambio B: null y "" son identidades distintas en BD — usar IS NULL
+      // cuando catKey es null en lugar de .eq("catalogo", "") que no machea.
+      const { data: existente } = await (match.catKey === null
+        ? baseQuery.is("catalogo", null)
+        : baseQuery.eq("catalogo", match.catKey)
+      ).maybeSingle();
 
       if (existente) {
         const { error } = await supabase
@@ -84,6 +88,7 @@ export async function procesarCargaMasiva(
           solicitud_id: match.solId,
           nombre: archivo.nombre,
           url: archivo.url,
+          storage_path: archivo.path,
           tipo: "diseno_portada",
           catalogo: match.catKey,
           subido_por: userData.user.id,

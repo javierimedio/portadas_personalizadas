@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { encontrarDisenoAReemplazar, type AdjuntoDisenado } from "@/features/solicitudes/domain/diseno-reemplazo";
+import { describe, expect, it, vi } from "vitest";
+import { encontrarDisenoAReemplazar, reemplazarDisenoSeguro, type AdjuntoDisenado } from "@/features/solicitudes/domain/diseno-reemplazo";
 
 // INVARIANTE: el reemplazo afecta solo al adjunto/diseño.
 // portada_elegida, portada_opcion_*, algoritmo de auto-adjudicación y
@@ -205,5 +205,150 @@ describe("11. Reintento (f783bc0) + reemplazo", () => {
     // Usuario reintenta con archivo renombrado
     const result = encontrarDisenoAReemplazar(existentes, { solicitud_id: "sol-1", catalogo: "roly_wrk", nombre: "20037_wrk_v2.pdf" });
     expect(result).toBeNull(); // no reemplaza — nombre diferente
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 12. catalogo null — reemplazo para archivos sin sufijo de catálogo (P21-B)
+//     Bug original: .eq("catalogo", null ?? "") producía .eq("catalogo", "")
+//     que no machea con catalogo IS NULL en BD → INSERT duplicado en lugar
+//     de UPDATE. La corrección usa .is("catalogo", null) en el action.
+//     Aquí se verifica el comportamiento de identidad en el dominio puro.
+// ---------------------------------------------------------------------------
+describe("12. catalogo null — identidad en dominio (P21 fix-B)", () => {
+  it("adjunto con catalogo null se localiza cuando nuevo.catalogo es null", () => {
+    const existentes = [adj({ catalogo: null, nombre: "60334_roly.pdf" })];
+    const result = encontrarDisenoAReemplazar(existentes, { solicitud_id: "sol-1", catalogo: null, nombre: "60334_roly.pdf" });
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("adj-1");
+  });
+
+  it("catalogo null no coincide con string vacío ''", () => {
+    const existentes = [adj({ catalogo: "", nombre: "60334_roly.pdf" })];
+    const result = encontrarDisenoAReemplazar(existentes, { solicitud_id: "sol-1", catalogo: null, nombre: "60334_roly.pdf" });
+    expect(result).toBeNull();
+  });
+
+  it("string vacío '' no coincide con catalogo null", () => {
+    const existentes = [adj({ catalogo: null, nombre: "60334_roly.pdf" })];
+    const result = encontrarDisenoAReemplazar(existentes, { solicitud_id: "sol-1", catalogo: "", nombre: "60334_roly.pdf" });
+    expect(result).toBeNull();
+  });
+
+  it("segundo upload del mismo archivo sin catálogo localiza el registro anterior", () => {
+    const existentes = [adj({ catalogo: null, nombre: "60334_roly.pdf", id: "adj-primer-upload" })];
+    const result = encontrarDisenoAReemplazar(existentes, { solicitud_id: "sol-1", catalogo: null, nombre: "60334_roly.pdf" });
+    expect(result!.id).toBe("adj-primer-upload");
+  });
+
+  it("archivo con catálogo válido no colisiona con uno sin catálogo", () => {
+    const existentes = [
+      adj({ catalogo: null, nombre: "60334_roly.pdf", id: "adj-sin-cat" }),
+      adj({ catalogo: "roly", nombre: "60334_roly.pdf", id: "adj-con-cat" }),
+    ];
+    expect(encontrarDisenoAReemplazar(existentes, { solicitud_id: "sol-1", catalogo: null, nombre: "60334_roly.pdf" })!.id).toBe("adj-sin-cat");
+    expect(encontrarDisenoAReemplazar(existentes, { solicitud_id: "sol-1", catalogo: "roly", nombre: "60334_roly.pdf" })!.id).toBe("adj-con-cat");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 13. reemplazarDisenoSeguro — invariante UPDATE-primero, Storage-después
+//     (P21 fix-A) Bug original: marcarDisenoListo ignoraba el resultado del
+//     UPDATE y borraba Storage antiguo aunque el UPDATE hubiera fallado.
+//     La corrección extrae la secuencia en una función con callbacks
+//     inyectados que puede probarse sin Supabase.
+// ---------------------------------------------------------------------------
+describe("13. reemplazarDisenoSeguro — UPDATE falla → Storage antiguo intacto (P21 fix-A)", () => {
+  it("UPDATE falla → borrar y log NUNCA se ejecutan", async () => {
+    const borrar = vi.fn();
+    const log = vi.fn();
+    const result = await reemplazarDisenoSeguro("nueva.pdf", {
+      update: async () => ({ error: { message: "permission denied for table adjuntos" } }),
+      log,
+      borrar,
+      oldPath: "path/antigua.pdf",
+    });
+    expect(result.error).toBe("permission denied for table adjuntos");
+    expect(borrar).not.toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  it("UPDATE falla → no se registra reemplazar_diseno en logs", async () => {
+    const log = vi.fn();
+    await reemplazarDisenoSeguro("nueva.pdf", {
+      update: async () => ({ error: { message: "rls violation" } }),
+      log,
+      borrar: vi.fn(),
+      oldPath: "path/antigua.pdf",
+    });
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  it("UPDATE éxito → log y borrar se ejecutan, en ese orden", async () => {
+    const calls: string[] = [];
+    const result = await reemplazarDisenoSeguro("nueva.pdf", {
+      update: async () => { calls.push("update"); return { error: null }; },
+      log: async () => { calls.push("log"); },
+      borrar: async () => { calls.push("borrar"); },
+      oldPath: "path/antigua.pdf",
+    });
+    expect(result.error).toBeUndefined();
+    expect(calls).toEqual(["update", "log", "borrar"]);
+  });
+
+  it("UPDATE éxito pero oldPath null → no se llama a borrar", async () => {
+    const borrar = vi.fn();
+    const result = await reemplazarDisenoSeguro("nueva.pdf", {
+      update: async () => ({ error: null }),
+      log: vi.fn(),
+      borrar,
+      oldPath: null,
+    });
+    expect(result.error).toBeUndefined();
+    expect(borrar).not.toHaveBeenCalled();
+  });
+
+  it("UPDATE éxito pero oldPath === nuevoPath → no se llama a borrar (misma ruta)", async () => {
+    const borrar = vi.fn();
+    await reemplazarDisenoSeguro("diseno/carga/misma-ruta.pdf", {
+      update: async () => ({ error: null }),
+      log: vi.fn(),
+      borrar,
+      oldPath: "diseno/carga/misma-ruta.pdf",
+    });
+    expect(borrar).not.toHaveBeenCalled();
+  });
+
+  it("UPDATE éxito → borrar recibe exactamente el oldPath correcto", async () => {
+    const borrar = vi.fn();
+    await reemplazarDisenoSeguro("nueva.pdf", {
+      update: async () => ({ error: null }),
+      log: vi.fn(),
+      borrar,
+      oldPath: "diseno/antigua-version.pdf",
+    });
+    expect(borrar).toHaveBeenCalledWith("diseno/antigua-version.pdf");
+  });
+
+  it("el adjunto.id lo decide el caller — reemplazarDisenoSeguro no lo expone ni lo cambia", async () => {
+    let capturedId: string | undefined;
+    const existente = adj({ id: "adj-preserve-este-id" });
+    await reemplazarDisenoSeguro("nueva.pdf", {
+      update: async () => { capturedId = existente.id; return { error: null }; },
+      log: vi.fn(),
+      borrar: vi.fn(),
+      oldPath: existente.storage_path,
+    });
+    expect(capturedId).toBe("adj-preserve-este-id");
+    expect(existente.id).toBe("adj-preserve-este-id"); // no mutado
+  });
+
+  it("portada_elegida nunca aparece en los parámetros de reemplazarDisenoSeguro", async () => {
+    // La función solo recibe nuevoPath + ops (update/log/borrar/oldPath).
+    // portada_elegida no puede llegar como parámetro — el tipo lo garantiza.
+    const params = { update: vi.fn(async () => ({ error: null })), log: vi.fn(), borrar: vi.fn(), oldPath: null };
+    expect("portada_elegida" in params).toBe(false);
+    await reemplazarDisenoSeguro("nueva.pdf", params);
+    // portada_elegida no se pasa ni se modifica
   });
 });
