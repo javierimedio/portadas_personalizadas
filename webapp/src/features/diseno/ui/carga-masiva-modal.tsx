@@ -13,6 +13,17 @@ import { procesarCargaMasiva } from "../application/procesar-carga-masiva.action
 type EntryEstado = "subiendo" | "ok" | "error" | "procesado_ok" | "procesado_error";
 type Entry = { id: string; nombre: string; size: number; estado: EntryEstado; meta?: UploadedFile; errorMsg?: string };
 
+// Invariante P23: ningún archivo puede eliminarse de Storage mientras
+// procesarCargaMasiva está en vuelo. Exportadas para tests unitarios.
+export function canRemoveEntry(procesando: boolean, estado: EntryEstado): boolean {
+  return !procesando && estado !== "procesado_ok";
+}
+
+export function debeEliminarStorage(procesando: boolean, estado: EntryEstado, tieneMeta: boolean): boolean {
+  if (procesando) return false;
+  return estado === "ok" && tieneMeta;
+}
+
 // Réplica de #modal-carga-masiva (index.html ~5166-5202) y su lista de
 // previsualización (~5250-5289): CM-01 a CM-09. La previsualización usa las
 // filas ya cargadas en la página de Diseño (equivalente a `allSolicitudes`
@@ -61,6 +72,7 @@ export function CargaMasivaModal({ rows, onClose, onProcessed }: { rows: Solicit
   }
 
   function removeFile(id: string) {
+    if (procesando) return;
     setEntries((prev) => {
       const entry = prev.find((e) => e.id === id);
       if (!entry || entry.estado === "procesado_ok") return prev;
@@ -195,7 +207,7 @@ export function CargaMasivaModal({ rows, onClose, onProcessed }: { rows: Solicit
               </div>
               {matches.map((m, i) => {
                 const entry = entries[i]!;
-                const canRemove = entry.estado !== "procesado_ok";
+                const canRemove = canRemoveEntry(procesando, entry.estado);
                 return (
                   <div
                     key={entry.id}
