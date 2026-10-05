@@ -5,6 +5,7 @@ import { cambiarEstado } from "@/features/solicitudes/application/detalle-action
 import { matchCargaFile, type CargaMasivaSolicitud, type FileResultado } from "../domain/carga-masiva";
 import { borrarArchivosStorage, storagePathDesdeUrl } from "@/shared/storage/server";
 import { portadasObligatoriasPendientes, mensajePortadasPendientes } from "@/features/solicitudes/domain/portadas-validation";
+import { reemplazarDisenoSeguro } from "@/features/solicitudes/domain/diseno-reemplazo";
 import type { UploadedFile } from "@/shared/storage/types";
 
 // Réplica de procesarCargaMasiva() (index.html ~5291-5360): el emparejamiento
@@ -76,13 +77,28 @@ export async function procesarCargaMasiva(
       ).maybeSingle();
 
       if (existente) {
-        const { error } = await supabase
-          .from("adjuntos")
-          .update({ url: archivo.url, storage_path: archivo.path, subido_por: userData.user.id, subido_por_nombre: perfil?.nombre ?? null })
-          .eq("id", existente.id);
-        if (error) throw error;
+        // Garantía crítica (P22): si UPDATE tiene éxito, archivo.path NUNCA entra
+        // en sinUso aunque borrar(oldPath) falle. La excepción de borrar se captura
+        // dentro del callback para que no se propague hasta el catch exterior.
         const oldPath = existente.storage_path ?? storagePathDesdeUrl(existente.url);
-        if (oldPath && oldPath !== archivo.path) await borrarArchivosStorage(supabase, [oldPath]);
+        const reemplazo = await reemplazarDisenoSeguro(archivo.path, {
+          update: () =>
+            supabase
+              .from("adjuntos")
+              .update({ url: archivo.url, storage_path: archivo.path, subido_por: userData.user.id, subido_por_nombre: perfil?.nombre ?? null })
+              .eq("id", existente.id),
+          log: () => Promise.resolve(),
+          borrar: async (path) => {
+            try {
+              await borrarArchivosStorage(supabase, [path]);
+            } catch {
+              // borrado del archivo antiguo es best-effort
+            }
+          },
+          oldPath,
+        });
+        if (reemplazo.error) throw new Error(reemplazo.error);
+        // UPDATE éxito — archivo.path tiene dueño en BD y no entra en sinUso
       } else {
         const { error } = await supabase.from("adjuntos").insert({
           solicitud_id: match.solId,
