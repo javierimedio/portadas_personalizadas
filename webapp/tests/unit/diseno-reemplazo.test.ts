@@ -352,3 +352,79 @@ describe("13. reemplazarDisenoSeguro — UPDATE falla → Storage antiguo intact
     // portada_elegida no se pasa ni se modifica
   });
 });
+
+// ---------------------------------------------------------------------------
+// 14. reemplazarDisenoSeguro — borrar antiguo es best-effort (P22 fix)
+//     Bug original (P22): borrarArchivosStorage(oldPath) estaba dentro del
+//     mismo try/catch que el UPDATE en procesarCargaMasiva. Si borrar lanzaba
+//     después de un UPDATE exitoso, el catch añadía el archivo NUEVO a sinUso
+//     y lo eliminaba de Storage → BD apuntaba a URL inexistente → 404.
+//
+//     La corrección envuelve ops.borrar en try/catch antes de pasar a
+//     reemplazarDisenoSeguro, garantizando que una excepción de limpieza
+//     no provoque que el archivo nuevo entre en sinUso.
+// ---------------------------------------------------------------------------
+describe("14. reemplazarDisenoSeguro — borrar antiguo es best-effort (P22)", () => {
+  it("borrar SIN wrapper lanza → la excepción se propaga al caller (comportamiento original, peligroso)", async () => {
+    // Este test documenta POR QUÉ el caller debe envolver borrar en try/catch.
+    // Sin el wrapper, una excepción de Storage propagaría hasta el catch
+    // exterior de procesarCargaMasiva, añadiendo el archivo nuevo a sinUso.
+    const borrarQueRevienta = vi.fn().mockRejectedValue(new Error("storage error"));
+    await expect(
+      reemplazarDisenoSeguro("nuevo.pdf", {
+        update: async () => ({ error: null }),
+        log: vi.fn(),
+        borrar: borrarQueRevienta,
+        oldPath: "antiguo.pdf",
+      })
+    ).rejects.toThrow("storage error");
+    expect(borrarQueRevienta).toHaveBeenCalledWith("antiguo.pdf");
+  });
+
+  it("borrar CON wrapper lanza → devuelve {} sin error (P22 fix — archivo nuevo NO entra en sinUso)", async () => {
+    // Patrón usado en el fix de procesarCargaMasiva: ops.borrar envuelve la
+    // excepción de Storage. reemplazarDisenoSeguro termina sin error → el
+    // caller no llega al throw → el catch exterior no ejecuta sinUso.push(nuevo).
+    const borrarQueRevienta = vi.fn().mockRejectedValue(new Error("storage error"));
+    const borrarEnvuelto = async (path: string) => {
+      try {
+        await borrarQueRevienta(path);
+      } catch {
+        // best-effort — no se propaga
+      }
+    };
+    const result = await reemplazarDisenoSeguro("nuevo.pdf", {
+      update: async () => ({ error: null }),
+      log: vi.fn(),
+      borrar: borrarEnvuelto,
+      oldPath: "antiguo.pdf",
+    });
+    expect(result.error).toBeUndefined();
+    expect(result).toEqual({});
+    // borrar fue llamado con el path correcto
+    expect(borrarQueRevienta).toHaveBeenCalledWith("antiguo.pdf");
+  });
+
+  it("UPDATE éxito + borrar envuelto lanza → update y log se ejecutaron, resultado limpio", async () => {
+    const calls: string[] = [];
+    const borrarQueRevienta = vi.fn().mockRejectedValue(new Error("storage error"));
+    const borrarEnvuelto = async (path: string) => {
+      try {
+        await borrarQueRevienta(path);
+        calls.push("borrar-ok");
+      } catch {
+        calls.push("borrar-fail");
+      }
+    };
+    const result = await reemplazarDisenoSeguro("nuevo.pdf", {
+      update: async () => { calls.push("update"); return { error: null }; },
+      log: async () => { calls.push("log"); },
+      borrar: borrarEnvuelto,
+      oldPath: "antiguo.pdf",
+    });
+    // UPDATE y log se ejecutaron; borrar se intentó pero falló internamente
+    expect(calls).toEqual(["update", "log", "borrar-fail"]);
+    // El resultado es limpio — sin error
+    expect(result).toEqual({});
+  });
+});
