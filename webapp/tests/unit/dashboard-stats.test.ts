@@ -135,6 +135,61 @@ describe("computeKpis", () => {
     const kpis = computeKpis(sols, "X");
     expect(kpis.precios.find((k) => k.label === "Con precios (ES)")?.num).toBe("10");
   });
+
+  // Regresión: pendiente_comercial se omitía del contador "En diseño", causando
+  // que total > suma de tarjetas individuales (discrepancia observada: 379 vs 377)
+  it("pendiente_comercial se contabiliza en la tarjeta 'En diseño'", () => {
+    const kpis = computeKpis(
+      [sol({ estado: "pendiente_comercial" }), sol({ estado: "en_diseno" })],
+      "X"
+    );
+    expect(kpis.estado.find((k) => k.label === "En diseño")?.num).toBe(2);
+  });
+
+  it("total coincide con la suma de las tarjetas de estado individuales (todas las solicitudes clasificadas)", () => {
+    // Replica el caso real: campaña cerrada con 377 confirmadas y 2 pendiente_comercial
+    const sols = [
+      ...Array.from({ length: 377 }, () => sol({ estado: "confirmada" })),
+      sol({ estado: "pendiente_comercial" }),
+      sol({ estado: "pendiente_comercial" }),
+    ];
+    const kpis = computeKpis(sols, "Portadas 2027");
+    expect(kpis.total).toBe(379);
+
+    // La suma de las 7 tarjetas de estado individuales (excluido "Total solicitudes")
+    // debe ser igual al total
+    const individual = kpis.estado.slice(1); // quitar "Total solicitudes"
+    const suma = individual.reduce((acc, k) => acc + (k.num as number), 0);
+    expect(suma).toBe(kpis.total);
+
+    expect(kpis.estado.find((k) => k.label === "En diseño")?.num).toBe(2);
+    expect(kpis.estado.find((k) => k.label === "Completadas ✓")?.num).toBe(377);
+  });
+
+  it("modificar_diseno y pendiente_comercial también forman parte de 'En diseño'", () => {
+    const sols = [
+      sol({ estado: "en_diseno" }),
+      sol({ estado: "modificar_diseno" }),
+      sol({ estado: "pendiente_comercial" }),
+    ];
+    const kpis = computeKpis(sols, "X");
+    expect(kpis.estado.find((k) => k.label === "En diseño")?.num).toBe(3);
+    expect(kpis.total).toBe(3);
+    const suma = kpis.estado.slice(1).reduce((acc, k) => acc + (k.num as number), 0);
+    expect(suma).toBe(3);
+  });
+
+  it("seleccionar otra campaña sigue funcionando: suma de tarjetas = total", () => {
+    const sols = [
+      sol({ estado: "borrador", campana_id: "c2" }),
+      sol({ estado: "enviada", campana_id: "c2" }),
+      sol({ estado: "en_revision_marketing", campana_id: "c2" }),
+    ];
+    const kpis = computeKpis(sols, "Campaña 2028");
+    expect(kpis.total).toBe(3);
+    const suma = kpis.estado.slice(1).reduce((acc, k) => acc + (k.num as number), 0);
+    expect(suma).toBe(3);
+  });
 });
 
 describe("tipoChartData vs portadasChartData: truthy vs !== null", () => {
