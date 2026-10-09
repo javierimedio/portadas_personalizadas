@@ -163,7 +163,9 @@ export function computeKpis(sols: Solicitud[], campanaNombre: string): Dashboard
   const activas = sols.filter((s) => s.estado !== "archivada");
   const total = activas.length;
   const confirmadas = activas.filter((s) => s.estado === "confirmada").length;
-  const enDiseno = activas.filter((s) => s.estado === "en_diseno" || s.estado === "modificar_diseno").length;
+  const enDiseno = activas.filter(
+    (s) => s.estado === "en_diseno" || s.estado === "modificar_diseno" || s.estado === "pendiente_comercial"
+  ).length;
   const enRevision = activas.filter((s) => s.estado === "en_revision_marketing").length;
   const revisionCliente = activas.filter((s) => s.estado === "diseno_en_revision_comercial").length;
 
