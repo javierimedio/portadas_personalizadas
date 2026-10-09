@@ -45,6 +45,18 @@ function tri(v: boolean | null): Tri {
 }
 
 
+// Exported for unit testing (mejora funcional: cambiar impreso→"no" limpia unidades)
+export function applyImpresoChange(
+  prev: Record<string, CatFieldState>,
+  catKey: string,
+  value: Tri
+): Record<string, CatFieldState> {
+  const current: CatFieldState = prev[catKey] ?? { ...BLANK_CAT };
+  const fields: Partial<CatFieldState> = { impreso: value };
+  if (value === "no") fields.unidades = "";
+  return { ...prev, [catKey]: { ...current, ...fields } };
+}
+
 function buildInitialCatState(cats: CatalogoDef[], solicitud: ExistingSolicitud | null): Record<string, CatFieldState> {
   const initial: Record<string, CatFieldState> = Object.fromEntries(cats.map((c) => [c.key, { ...BLANK_CAT }]));
   for (const row of solicitud?.solicitud_catalogos ?? []) {
@@ -430,7 +442,7 @@ export function SolicitudForm({
                         name={`cat_${cat.key}_impreso`}
                         value="no"
                         checked={c.impreso === "no"}
-                        onChange={() => setCatField(cat.key, "impreso", "no")}
+                        onChange={() => setCatState((prev) => applyImpresoChange(prev, cat.key, "no"))}
                       />{" "}
                       NO
                     </label>
