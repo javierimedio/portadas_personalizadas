@@ -200,9 +200,22 @@ describe("panelStats", () => {
     expect(stats.find((s) => s.label === "Incompletas")?.value).toBe(1);
   });
 
-  it("En diseño suma en_diseno + modificar_diseno", () => {
-    const rows = [sol({ id: "a", campana_id: "c1", estado: "en_diseno" }), sol({ id: "b", campana_id: "c1", estado: "modificar_diseno" })];
+  it("En diseño suma en_diseno + modificar_diseno + pendiente_comercial", () => {
+    const rows = [
+      sol({ id: "a", campana_id: "c1", estado: "en_diseno" }),
+      sol({ id: "b", campana_id: "c1", estado: "modificar_diseno" }),
+      sol({ id: "c", campana_id: "c1", estado: "pendiente_comercial" }),
+    ];
     const stats = panelStats(rows, "c1", catalogosPorId);
-    expect(stats.find((s) => s.label === "En diseño")?.value).toBe(2);
+    expect(stats.find((s) => s.label === "En diseño")?.value).toBe(3);
+  });
+
+  it("pendiente_comercial filterable: filterPanelRows devuelve solo filas con ese estado", () => {
+    const rows = [
+      sol({ id: "a", campana_id: "c1", estado: "pendiente_comercial" }),
+      sol({ id: "b", campana_id: "c1", estado: "en_diseno" }),
+    ];
+    const result = filterPanelRows(rows, { q: "", estado: "pendiente_comercial", comercialId: "", provincia: "", campanaId: "" }, "admin", perfiles);
+    expect(result.map((r) => r.id)).toEqual(["a"]);
   });
 });

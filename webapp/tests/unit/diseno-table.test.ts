@@ -40,10 +40,22 @@ describe("filterDisenoTareas", () => {
     sol({ id: "c", estado: "borrador", campana_id: "c1" }),
     sol({ id: "d", estado: "confirmada", campana_id: "c1" }),
     sol({ id: "e", estado: "diseno_en_revision_comercial", campana_id: "c1", asignado_id: "d1" }),
+    sol({ id: "f", estado: "pendiente_comercial", campana_id: "c1", asignado_id: "d1" }),
   ];
 
-  it("solo estados de Diseño (en_diseno/modificar_diseno/diseno_en_revision_comercial)", () => {
-    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "" }).map((r) => r.id)).toEqual(["a", "b", "e"]);
+  it("incluye pendiente_comercial en el filtro base de Diseño (además de en_diseno/modificar_diseno/diseno_en_revision_comercial)", () => {
+    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "" }).map((r) => r.id)).toEqual(["a", "b", "e", "f"]);
+  });
+
+  it("borrador y confirmada siguen excluidos del módulo Diseño", () => {
+    const result = filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "" });
+    const ids = result.map((r) => r.id);
+    expect(ids).not.toContain("c");
+    expect(ids).not.toContain("d");
+  });
+
+  it("filtro de estado=pendiente_comercial muestra solo esas filas", () => {
+    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "", q: "", estado: "pendiente_comercial" }).map((r) => r.id)).toEqual(["f"]);
   });
 
   it("filtra por campaña", () => {
@@ -51,7 +63,7 @@ describe("filterDisenoTareas", () => {
   });
 
   it("filtra por diseñador asignado", () => {
-    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "d1", q: "" }).map((r) => r.id)).toEqual(["a", "e"]);
+    expect(filterDisenoTareas(rows, { campanaId: "", disenadorId: "d1", q: "" }).map((r) => r.id)).toEqual(["a", "e", "f"]);
   });
 
   it("filtra por código SAP parcial", () => {

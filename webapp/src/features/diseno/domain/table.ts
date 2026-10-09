@@ -17,8 +17,10 @@ export type DisenoFilters = {
 // No es un ID real; filterDisenoTareas lo interpreta como asignado_id === null.
 export const UNASSIGNED_DISENADOR = "__unassigned__";
 
-// Vista única de Diseño: los tres estados que forman la cola de trabajo.
-const ESTADOS_DISENO = ["en_diseno", "modificar_diseno", "diseno_en_revision_comercial"];
+// Vista única de Diseño: los cuatro estados que forman la cola de trabajo.
+// pendiente_comercial es un sub-estado de "En diseño": el diseñador ha enviado
+// la propuesta y espera confirmación del comercial antes de continuar.
+const ESTADOS_DISENO = ["en_diseno", "modificar_diseno", "pendiente_comercial", "diseno_en_revision_comercial"];
 
 function rolyVariant(s: SolicitudListItem): "empty" | "no" | "summary" {
   const cat = s.solicitud_catalogos.find((c) => c.catalogo === "roly");
