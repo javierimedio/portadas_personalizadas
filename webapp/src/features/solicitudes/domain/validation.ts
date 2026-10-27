@@ -66,7 +66,7 @@ export function validateCatalogosParaEnvio(catalogos: CatalogoFormInput[], idiom
     if (cat.impreso === true && !cat.unidades) {
       errors.push(`${cat.label} — Unidades`);
     }
-    if (cat.hasDisenoProp && cat.impreso === true && esEspanol && cat.conPrecios == null) {
+    if (cat.hasDisenoProp && cat.portadaPersonalizada === true && esEspanol && cat.conPrecios == null) {
       errors.push(`${cat.label} — Con o Sin precios`);
     }
     if (cat.portadaPersonalizada === true) {

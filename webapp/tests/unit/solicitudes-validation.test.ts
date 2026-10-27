@@ -149,41 +149,54 @@ describe("validateCatalogosParaEnvio", () => {
 
   it("portada personalizada sin diseño propio exige selección 1 y posición de logo", () => {
     const errors = validateCatalogosParaEnvio([
-      cat({ label: "STAMINA", digital: true, portadaPersonalizada: true, hasDisenoProp: true }),
+      cat({ label: "STAMINA", digital: true, portadaPersonalizada: true, hasDisenoProp: true, conPrecios: true }),
     ], "Español");
     expect(errors).toEqual(["STAMINA — Selección 1", "STAMINA — Posición logo"]);
   });
 
   it("portada personalizada con diseño propio (solo Stamina/XMAS) exime de selección y posición", () => {
     const errors = validateCatalogosParaEnvio([
-      cat({ digital: true, portadaPersonalizada: true, hasDisenoProp: true, disenoPropio: true }),
+      cat({ digital: true, portadaPersonalizada: true, hasDisenoProp: true, disenoPropio: true, conPrecios: true }),
     ], "Español");
     expect(errors).toEqual([]);
   });
 
-  it("STAMINA/XMAS impreso=true en Español sin conPrecios → error obligatorio", () => {
+  it("STAMINA/XMAS portadaPersonalizada=true, impreso=false en Español sin conPrecios → error (caso de la captura)", () => {
     const errors = validateCatalogosParaEnvio([
-      cat({ label: "STAMINA", key: "stamina", impreso: true, unidades: 200, hasDisenoProp: true, conPrecios: null }),
+      cat({ label: "STAMINA", key: "stamina", digital: true, impreso: false, hasDisenoProp: true, portadaPersonalizada: true, conPrecios: null }),
     ], "Español");
     expect(errors).toContain("STAMINA — Con o Sin precios");
   });
 
-  it("STAMINA/XMAS impreso=true en Español con conPrecios=true → sin error de precios", () => {
+  it("STAMINA/XMAS portadaPersonalizada=true, impreso=true en Español sin conPrecios → error", () => {
+    const errors = validateCatalogosParaEnvio([
+      cat({ label: "STAMINA", key: "stamina", impreso: true, unidades: 200, hasDisenoProp: true, portadaPersonalizada: true, conPrecios: null }),
+    ], "Español");
+    expect(errors).toContain("STAMINA — Con o Sin precios");
+  });
+
+  it("STAMINA/XMAS portadaPersonalizada=true en Español con conPrecios=true → sin error de precios", () => {
     expect(validateCatalogosParaEnvio([
-      cat({ label: "STAMINA", key: "stamina", impreso: true, unidades: 200, hasDisenoProp: true, conPrecios: true }),
+      cat({ label: "STAMINA", key: "stamina", digital: true, hasDisenoProp: true, portadaPersonalizada: true, disenoPropio: true, conPrecios: true }),
     ], "Español")).toEqual([]);
   });
 
-  it("STAMINA/XMAS impreso=true en Español con conPrecios=false → sin error de precios", () => {
+  it("STAMINA/XMAS portadaPersonalizada=true en Español con conPrecios=false → sin error de precios", () => {
     expect(validateCatalogosParaEnvio([
-      cat({ label: "XMAS", key: "xmas", impreso: true, unidades: 200, hasDisenoProp: true, conPrecios: false }),
+      cat({ label: "XMAS", key: "xmas", digital: true, hasDisenoProp: true, portadaPersonalizada: true, disenoPropio: true, conPrecios: false }),
     ], "Español")).toEqual([]);
   });
 
-  it("STAMINA impreso=true en idioma distinto de Español → conPrecios no es obligatorio", () => {
+  it("STAMINA portadaPersonalizada=true en idioma distinto de Español → conPrecios no es obligatorio", () => {
     expect(validateCatalogosParaEnvio([
-      cat({ label: "STAMINA", key: "stamina", impreso: true, unidades: 200, hasDisenoProp: true, conPrecios: null }),
+      cat({ label: "STAMINA", key: "stamina", digital: true, hasDisenoProp: true, portadaPersonalizada: true, disenoPropio: true, conPrecios: null }),
     ], "Inglés")).toEqual([]);
+  });
+
+  it("STAMINA/XMAS portadaPersonalizada=false en Español → conPrecios no es obligatorio", () => {
+    expect(validateCatalogosParaEnvio([
+      cat({ label: "STAMINA", key: "stamina", digital: true, hasDisenoProp: true, portadaPersonalizada: false, conPrecios: null }),
+    ], "Español")).toEqual([]);
   });
 
   it("ROLY impreso=true en Español → conPrecios no aplica (hasDisenoProp=false)", () => {
