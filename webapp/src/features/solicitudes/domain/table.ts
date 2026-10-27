@@ -117,7 +117,7 @@ export function miniStats(rows: SolicitudListItem[]): MiniStats {
     { num: pe("borrador"), lbl: "Borrador", cls: "" },
     { num: pe("enviada"), lbl: "Enviadas", cls: "amber" },
     { num: pe("en_revision_marketing"), lbl: "En revisión Mkt.", cls: "" },
-    { num: pe("en_diseno") + pe("modificar_diseno"), lbl: "En diseño", cls: "blue" },
+    { num: pe("en_diseno") + pe("modificar_diseno") + pe("pendiente_comercial"), lbl: "En diseño", cls: "blue" },
     { num: pe("diseno_en_revision_comercial"), lbl: "Revisión cliente", cls: "" },
     { num: pe("confirmada"), lbl: "Completadas ✓", cls: "green" },
   ];

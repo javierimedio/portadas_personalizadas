@@ -118,47 +118,91 @@ describe("validateUnidadesMinimas", () => {
 
 describe("validateCatalogosParaEnvio", () => {
   it("exige al menos un catálogo tocado para enviar", () => {
-    expect(validateCatalogosParaEnvio([cat()])).toEqual(["Al menos un catálogo debe estar configurado"]);
+    expect(validateCatalogosParaEnvio([cat()], "Español")).toEqual(["Al menos un catálogo debe estar configurado"]);
   });
 
   it("catálogo no tocado (digital e impreso null) se ignora aunque haya otros tocados", () => {
     const errors = validateCatalogosParaEnvio([
       cat({ key: "roly", digital: true }),
       cat({ key: "xmas" }), // no tocado
-    ]);
+    ], "Español");
     expect(errors).toEqual([]);
   });
 
   it("impreso=true sin unidades es un error", () => {
-    const errors = validateCatalogosParaEnvio([cat({ label: "ROLY", impreso: true, unidades: null })]);
+    const errors = validateCatalogosParaEnvio([cat({ label: "ROLY", impreso: true, unidades: null })], "Español");
     expect(errors).toEqual(["ROLY — Unidades"]);
   });
 
   it("impreso=true con unidades no da error", () => {
-    expect(validateCatalogosParaEnvio([cat({ impreso: true, unidades: 50 })])).toEqual([]);
+    expect(validateCatalogosParaEnvio([cat({ impreso: true, unidades: 50 })], "Español")).toEqual([]);
   });
 
   it("impreso=false (tocado vía digital) no exige unidades", () => {
-    expect(validateCatalogosParaEnvio([cat({ digital: true, impreso: false })])).toEqual([]);
+    expect(validateCatalogosParaEnvio([cat({ digital: true, impreso: false })], "Español")).toEqual([]);
   });
 
   it("impreso=false SIN digital tocado no cuenta como tocado (~2859-2866, replicado tal cual)", () => {
-    const errors = validateCatalogosParaEnvio([cat({ digital: null, impreso: false })]);
+    const errors = validateCatalogosParaEnvio([cat({ digital: null, impreso: false })], "Español");
     expect(errors).toEqual(["Al menos un catálogo debe estar configurado"]);
   });
 
   it("portada personalizada sin diseño propio exige selección 1 y posición de logo", () => {
     const errors = validateCatalogosParaEnvio([
-      cat({ label: "STAMINA", digital: true, portadaPersonalizada: true, hasDisenoProp: true }),
-    ]);
+      cat({ label: "STAMINA", digital: true, portadaPersonalizada: true, hasDisenoProp: true, conPrecios: true }),
+    ], "Español");
     expect(errors).toEqual(["STAMINA — Selección 1", "STAMINA — Posición logo"]);
   });
 
   it("portada personalizada con diseño propio (solo Stamina/XMAS) exime de selección y posición", () => {
     const errors = validateCatalogosParaEnvio([
-      cat({ digital: true, portadaPersonalizada: true, hasDisenoProp: true, disenoPropio: true }),
-    ]);
+      cat({ digital: true, portadaPersonalizada: true, hasDisenoProp: true, disenoPropio: true, conPrecios: true }),
+    ], "Español");
     expect(errors).toEqual([]);
+  });
+
+  it("STAMINA/XMAS portadaPersonalizada=true, impreso=false en Español sin conPrecios → error (caso de la captura)", () => {
+    const errors = validateCatalogosParaEnvio([
+      cat({ label: "STAMINA", key: "stamina", digital: true, impreso: false, hasDisenoProp: true, portadaPersonalizada: true, conPrecios: null }),
+    ], "Español");
+    expect(errors).toContain("STAMINA — Con o Sin precios");
+  });
+
+  it("STAMINA/XMAS portadaPersonalizada=true, impreso=true en Español sin conPrecios → error", () => {
+    const errors = validateCatalogosParaEnvio([
+      cat({ label: "STAMINA", key: "stamina", impreso: true, unidades: 200, hasDisenoProp: true, portadaPersonalizada: true, conPrecios: null }),
+    ], "Español");
+    expect(errors).toContain("STAMINA — Con o Sin precios");
+  });
+
+  it("STAMINA/XMAS portadaPersonalizada=true en Español con conPrecios=true → sin error de precios", () => {
+    expect(validateCatalogosParaEnvio([
+      cat({ label: "STAMINA", key: "stamina", digital: true, hasDisenoProp: true, portadaPersonalizada: true, disenoPropio: true, conPrecios: true }),
+    ], "Español")).toEqual([]);
+  });
+
+  it("STAMINA/XMAS portadaPersonalizada=true en Español con conPrecios=false → sin error de precios", () => {
+    expect(validateCatalogosParaEnvio([
+      cat({ label: "XMAS", key: "xmas", digital: true, hasDisenoProp: true, portadaPersonalizada: true, disenoPropio: true, conPrecios: false }),
+    ], "Español")).toEqual([]);
+  });
+
+  it("STAMINA portadaPersonalizada=true en idioma distinto de Español → conPrecios no es obligatorio", () => {
+    expect(validateCatalogosParaEnvio([
+      cat({ label: "STAMINA", key: "stamina", digital: true, hasDisenoProp: true, portadaPersonalizada: true, disenoPropio: true, conPrecios: null }),
+    ], "Inglés")).toEqual([]);
+  });
+
+  it("STAMINA/XMAS portadaPersonalizada=false en Español → conPrecios no es obligatorio", () => {
+    expect(validateCatalogosParaEnvio([
+      cat({ label: "STAMINA", key: "stamina", digital: true, hasDisenoProp: true, portadaPersonalizada: false, conPrecios: null }),
+    ], "Español")).toEqual([]);
+  });
+
+  it("ROLY impreso=true en Español → conPrecios no aplica (hasDisenoProp=false)", () => {
+    expect(validateCatalogosParaEnvio([
+      cat({ label: "ROLY", impreso: true, unidades: 200, hasDisenoProp: false }),
+    ], "Español")).toEqual([]);
   });
 });
 

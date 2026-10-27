@@ -211,6 +211,7 @@ export function DisenoTable({
             <option value="">Todos los estados</option>
             <option value="en_diseno">{ESTADO_LABEL["en_diseno"] ?? "En diseño"}</option>
             <option value="modificar_diseno">{ESTADO_LABEL["modificar_diseno"] ?? "Modificar diseño"}</option>
+            <option value="pendiente_comercial">{ESTADO_LABEL["pendiente_comercial"] ?? "Pendiente comercial"}</option>
             <option value="diseno_en_revision_comercial">{ESTADO_LABEL["diseno_en_revision_comercial"] ?? "En revisión comercial"}</option>
           </select>
           <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>

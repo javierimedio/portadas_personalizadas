@@ -109,7 +109,7 @@ export async function saveSolicitud(_prev: SaveSolicitudState, formData: FormDat
   errors.push(...validateUnidadesMinimas(catInputs));
 
   if (intent === "enviada") {
-    errors.push(...validateCatalogosParaEnvio(catInputs));
+    errors.push(...validateCatalogosParaEnvio(catInputs, idioma));
   }
 
   if (errors.length > 0) return { error: formatearErrores(errors) };

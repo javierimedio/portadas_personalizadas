@@ -119,7 +119,7 @@ export function panelStats(
     { label: "Borrador", value: porEstado("borrador") },
     { label: "Enviadas", value: porEstado("enviada"), className: "amber" },
     { label: "En revisión de Marketing", value: porEstado("en_revision_marketing"), className: "blue" },
-    { label: "En diseño", value: porEstado("en_diseno") + porEstado("modificar_diseno"), color: "var(--c-purple)" },
+    { label: "En diseño", value: porEstado("en_diseno") + porEstado("modificar_diseno") + porEstado("pendiente_comercial"), color: "var(--c-purple)" },
     { label: "En revisión del cliente", value: porEstado("diseno_en_revision_comercial"), color: "var(--c-amber)" },
     { label: "Confirmadas", value: porEstado("confirmada"), className: "green" },
     { label: "Incompletas", value: total - completas, className: "red" },

@@ -136,7 +136,7 @@ describe("comercialesFiltroMisSolicitudes", () => {
 });
 
 describe("miniStats", () => {
-  it("Total excluye archivadas; el resto cuenta por estado exacto (en_diseno suma modificar_diseno)", () => {
+  it("Total excluye archivadas; en_diseno y modificar_diseno cuentan en 'En diseño'", () => {
     const rows = [
       sol({ estado: "borrador" }),
       sol({ estado: "enviada" }),
@@ -146,5 +146,29 @@ describe("miniStats", () => {
     ];
     const stats = miniStats(rows);
     expect(stats.map((s) => s.num)).toEqual([4, 1, 1, 0, 2, 0, 0]);
+  });
+
+  it("pendiente_comercial se contabiliza en 'En diseño' y no en ninguna otra tarjeta", () => {
+    const rows = [
+      sol({ estado: "en_diseno" }),
+      sol({ estado: "pendiente_comercial" }),
+      sol({ estado: "modificar_diseno" }),
+    ];
+    const stats = miniStats(rows);
+    const enDiseno = stats.find((s) => s.lbl === "En diseño");
+    expect(enDiseno?.num).toBe(3);
+    expect(stats.find((s) => s.lbl === "Total")?.num).toBe(3);
+    // La suma de tarjetas individuales (sin "Total") debe coincidir con el total
+    const suma = stats.slice(1).reduce((acc, s) => acc + s.num, 0);
+    expect(suma).toBe(3);
+  });
+
+  it("filterSolicitudes con estado=pendiente_comercial devuelve solo esas filas", () => {
+    const rows2 = [
+      sol({ id: "a", estado: "pendiente_comercial" }),
+      sol({ id: "b", estado: "en_diseno" }),
+    ];
+    const result = filterSolicitudes(rows2, { campanaId: "", estado: "pendiente_comercial", q: "", comercialId: "", idioma: "" });
+    expect(result.map((r) => r.id)).toEqual(["a"]);
   });
 });

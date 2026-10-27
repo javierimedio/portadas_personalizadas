@@ -156,6 +156,7 @@ export function PanelGlobalTable({
           <option value="enviada">Enviada</option>
           <option value="en_revision_marketing">En revisión</option>
           <option value="en_diseno">En diseño</option>
+          <option value="pendiente_comercial">Pendiente comercial</option>
           <option value="diseno_en_revision_comercial">Revisión cliente</option>
           <option value="modificar_diseno">Modificar diseño</option>
           <option value="confirmada">Confirmada</option>
