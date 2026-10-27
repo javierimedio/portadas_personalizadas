@@ -33,6 +33,7 @@ export type CatalogoFormInput = {
   impreso: boolean | null;
   unidades: number | null;
   hasDisenoProp: boolean;
+  conPrecios?: boolean | null;
   portadaPersonalizada?: boolean | null;
   disenoPropio?: boolean | null;
   opcion1?: string | null;
@@ -52,9 +53,10 @@ export function validateUnidadesMinimas(catalogos: CatalogoFormInput[]): string[
   return errors;
 }
 
-export function validateCatalogosParaEnvio(catalogos: CatalogoFormInput[]): string[] {
+export function validateCatalogosParaEnvio(catalogos: CatalogoFormInput[], idioma: string): string[] {
   const errors: string[] = [];
   let atLeastOneCat = false;
+  const esEspanol = idioma === "Español";
 
   for (const cat of catalogos) {
     const tocado = cat.digital !== null || cat.impreso === true;
@@ -63,6 +65,9 @@ export function validateCatalogosParaEnvio(catalogos: CatalogoFormInput[]): stri
 
     if (cat.impreso === true && !cat.unidades) {
       errors.push(`${cat.label} — Unidades`);
+    }
+    if (cat.hasDisenoProp && cat.impreso === true && esEspanol && cat.conPrecios == null) {
+      errors.push(`${cat.label} — Con o Sin precios`);
     }
     if (cat.portadaPersonalizada === true) {
       const disenoPropio = cat.hasDisenoProp && cat.disenoPropio === true;
